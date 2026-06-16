@@ -4,7 +4,7 @@ export const APP_TAGLINE = "Delicious food, delivered fast";
 
 // API
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 // Cuisines
 export const CUISINES = [
