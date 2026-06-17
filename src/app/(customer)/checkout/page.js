@@ -58,6 +58,10 @@ export default function CheckoutPage() {
   const addresses = user?.addresses?.length > 0 ? user.addresses : savedAddresses || [];
   const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0] || null;
 
+  // Track which address is selected for this order (starts as default)
+  const [selectedAddrId, setSelectedAddrId] = useState(defaultAddr?._id || null);
+  const selectedAddr = addresses.find((a) => a._id === selectedAddrId) || defaultAddr;
+
   const subtotal = getSubtotal();
   const deliveryFee = getDeliveryFee();
   const tax = getTaxAmount();
@@ -67,7 +71,7 @@ export default function CheckoutPage() {
   const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
 
   const handlePlaceOrder = async () => {
-    if (!defaultAddr && !currentLocation) {
+    if (!selectedAddr && !currentLocation) {
       toast.error("Please add a delivery address first");
       return;
     }
@@ -84,11 +88,11 @@ export default function CheckoutPage() {
           specialInstructions: item.specialInstructions || "",
         })),
         deliveryAddress: {
-          label: defaultAddr?.label || "Current Location",
-          fullAddress: defaultAddr?.fullAddress || currentLocation?.address || "",
-          landmark: defaultAddr?.landmark || "",
-          lat: defaultAddr?.lat || currentLocation?.lat,
-          lng: defaultAddr?.lng || currentLocation?.lng,
+          label: selectedAddr?.label || "Current Location",
+          fullAddress: selectedAddr?.fullAddress || currentLocation?.address || "",
+          landmark: selectedAddr?.landmark || "",
+          lat: selectedAddr?.lat || currentLocation?.lat,
+          lng: selectedAddr?.lng || currentLocation?.lng,
         },
         paymentMethod,
         couponCode: coupon?.code || null,
@@ -135,33 +139,35 @@ export default function CheckoutPage() {
           </Link>
         </div>
 
-        {defaultAddr ? (
+        {selectedAddr ? (
           <div className="px-4 pb-4">
             <div className="flex items-start gap-3 bg-primary-50 border border-primary/20 rounded-[var(--radius-lg)] p-3">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <MapPin size={15} className="text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-text-primary capitalize">{defaultAddr.label}</p>
-                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{defaultAddr.fullAddress}</p>
-                {defaultAddr.landmark && (
-                  <p className="text-xs text-text-tertiary mt-0.5">Near {defaultAddr.landmark}</p>
+                <p className="text-sm font-semibold text-text-primary capitalize">{selectedAddr.label}</p>
+                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{selectedAddr.fullAddress}</p>
+                {selectedAddr.landmark && (
+                  <p className="text-xs text-text-tertiary mt-0.5">Near {selectedAddr.landmark}</p>
                 )}
               </div>
-              <Link href="/profile/addresses?redirect=/checkout" className="text-xs text-primary font-medium hover:underline shrink-0">
-                Change
+              <Link href="/address/new?redirect=/checkout" className="text-xs text-primary font-medium hover:underline shrink-0">
+                + Add
               </Link>
             </div>
 
-            {/* Other addresses */}
-            {addresses?.filter((a) => !a.isDefault).length > 0 && (
-              <div className="mt-2 flex gap-2 overflow-x-auto scrollbar-hide">
-                {addresses.filter((a) => !a.isDefault).map((addr) => (
+            {/* Other saved addresses — click to select */}
+            {addresses.filter((a) => a._id !== selectedAddr._id).length > 0 && (
+              <div className="mt-2 flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+                {addresses.filter((a) => a._id !== selectedAddr._id).map((addr) => (
                   <button
                     key={addr._id}
-                    className="shrink-0 flex items-center gap-1.5 h-8 px-3 text-xs font-medium border border-border-default rounded-full hover:border-primary hover:text-primary transition-colors"
+                    onClick={() => setSelectedAddrId(addr._id)}
+                    className="shrink-0 flex items-center gap-1.5 h-8 px-3 text-xs font-medium border border-border-default rounded-full hover:border-primary hover:text-primary transition-colors cursor-pointer"
                   >
-                    <MapPin size={11} /> {addr.label} — {addr.area}
+                    <MapPin size={11} className="shrink-0" />
+                    <span className="capitalize">{addr.label}</span>
                   </button>
                 ))}
               </div>

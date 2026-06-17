@@ -3,7 +3,8 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, MapPin, Home, Briefcase, Navigation, Loader2, CheckCircle2 } from "lucide-react";
-import useLocationStore from "@/stores/locationStore";
+import useProfileStore from "@/stores/profileStore";
+import useAuthStore from "@/stores/authStore";
 
 const LABEL_OPTIONS = [
   { value: "home", label: "Home", icon: Home },
@@ -15,7 +16,8 @@ function AddAddressContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/checkout";
-  const { addAddress } = useLocationStore();
+  const { addAddress } = useProfileStore();
+  const { fetchMe } = useAuthStore();
 
   const [form, setForm] = useState({
     flatNo: "",
@@ -56,21 +58,21 @@ function AddAddressContent() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    const newAddress = {
-      _id: `addr_${Date.now()}`,
-      label: form.label,
-      fullAddress: `${form.flatNo}, ${form.area}${form.landmark ? ", " + form.landmark : ""}`,
-      landmark: form.landmark,
-      area: form.area.split(",")[0].trim(),
-      city: "Mumbai",
-      lat: 19.1197,
-      lng: 72.8464,
-      isDefault: form.isDefault,
-    };
-    addAddress(newAddress);
+    try {
+      const fullAddress = `${form.flatNo}, ${form.area}${form.landmark ? ", " + form.landmark : ""}`;
+      await addAddress({
+        label: form.label,
+        fullAddress,
+        landmark: form.landmark,
+        isDefault: form.isDefault,
+      });
+      // Refresh user in authStore so checkout sees the new address
+      await fetchMe();
+      router.push(redirectTo);
+    } catch (err) {
+      alert(err?.message || "Failed to save address. Please try again.");
+    }
     setLoading(false);
-    router.push(redirectTo);
   };
 
   const set = (key, val) => {
