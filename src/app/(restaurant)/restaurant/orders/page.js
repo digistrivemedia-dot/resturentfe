@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import useRestaurantDashboardStore from "@/stores/restaurantDashboardStore";
+import { connectSocket, disconnectSocket } from "@/lib/socket";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -244,6 +245,60 @@ function PreparingCard({ order, onMarkReady }) {
   );
 }
 
+// ── Picked-up card ────────────────────────────────────────────────────────
+function PickedUpCard({ order, onMarkDelivered }) {
+  const mins = minsSince(getReadyAt(order));
+  return (
+    <div className="bg-bg-primary rounded-[var(--radius-lg)] border-l-4 border-l-primary border border-border-light shadow-[var(--shadow-sm)] overflow-hidden">
+      <div className="flex items-start justify-between px-4 pt-3 pb-2">
+        <div>
+          <Link href={`/restaurant/orders/${order._id}`} className="text-sm font-semibold text-text-primary hover:text-primary transition-colors">
+            #{order.orderNumber}
+          </Link>
+          <p className="text-xs text-text-tertiary mt-0.5 flex items-center gap-1">
+            <Clock size={11} />
+            Placed {minsAgo(getPlacedAt(order))}
+          </p>
+        </div>
+        <p className="text-xs font-medium text-primary bg-primary-50 px-2 py-0.5 rounded-[var(--radius-full)]">
+          Out for delivery
+        </p>
+      </div>
+      <div className="px-4 pb-2 space-y-1">
+        {order.items.map((item, i) => (
+          <div key={i}>
+            <p className="text-sm text-text-primary">
+              <span className="font-medium">{item.quantity}×</span> {item.name}
+              {getVariantName(item.variant) && (
+                <span className="text-text-tertiary text-xs"> ({getVariantName(item.variant)})</span>
+              )}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="px-4 pb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-text-primary flex items-center gap-0.5">
+            <IndianRupee size={13} />{getTotal(order)}
+          </span>
+          <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
+        </div>
+        <Link href={`/restaurant/orders/${order._id}`} className="text-xs text-primary font-medium hover:underline flex items-center gap-0.5">
+          Details <ChevronRight size={12} />
+        </Link>
+      </div>
+      <div className="border-t border-border-light">
+        <button
+          onClick={() => onMarkDelivered(order._id)}
+          className="w-full py-2.5 text-sm font-semibold text-white bg-success hover:bg-success-dark transition-colors cursor-pointer"
+        >
+          Mark Delivered ✓
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Ready card ─────────────────────────────────────────────────────────────
 function ReadyCard({ order, onMarkPickedUp }) {
   const mins = minsSince(getReadyAt(order));
@@ -435,13 +490,17 @@ function Toast({ message, visible }) {
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LiveOrdersPage() {
-  const { liveOrders, isLoading, fetchLiveOrders, acceptOrder, rejectOrder, updateOrderStatus } =
-    useRestaurantDashboardStore();
+  const {
+    liveOrders, isLoading, error,
+    fetchLiveOrders, acceptOrder, rejectOrder, updateOrderStatus,
+    addLiveOrder, updateLiveOrderFromSocket,
+  } = useRestaurantDashboardStore();
 
   const [rejectTargetId, setRejectTargetId] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const [activeTab, setActiveTab] = useState("placed"); // mobile tabs
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [socketConnected, setSocketConnected] = useState(false);
 
   // Initial fetch + auto-refresh every 30s
   useEffect(() => {
@@ -454,10 +513,38 @@ export default function LiveOrdersPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Socket.io — real-time order events
+  useEffect(() => {
+    const socket = connectSocket();
+
+    socket.on("connect", () => setSocketConnected(true));
+    socket.on("disconnect", () => setSocketConnected(false));
+
+    socket.on("new_order", ({ order }) => {
+      addLiveOrder(order);
+      setActiveTab("placed");
+      setToast({ visible: true, message: `New order #${order.orderNumber} received!` });
+      setTimeout(() => setToast({ visible: false, message: "" }), 4000);
+    });
+
+    socket.on("order_updated", ({ order }) => {
+      updateLiveOrderFromSocket(order);
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("new_order");
+      socket.off("order_updated");
+      disconnectSocket();
+    };
+  }, []);
+
   // Derived columns
   const newOrders = liveOrders.filter((o) => o.status === "placed");
   const preparingOrders = liveOrders.filter((o) => o.status === "preparing" || o.status === "confirmed");
   const readyOrders = liveOrders.filter((o) => o.status === "ready");
+  const pickedUpOrders = liveOrders.filter((o) => o.status === "picked_up" || o.status === "out_for_delivery");
 
   function showToast(message) {
     setToast({ visible: true, message });
@@ -500,7 +587,16 @@ export default function LiveOrdersPage() {
   async function handleMarkPickedUp(id) {
     try {
       await updateOrderStatus(id, "picked_up");
-      showToast("Order picked up — completed!");
+      showToast("Order picked up — out for delivery!");
+    } catch (err) {
+      showToast("Failed to update order. Please try again.");
+    }
+  }
+
+  async function handleMarkDelivered(id) {
+    try {
+      await updateOrderStatus(id, "delivered");
+      showToast("Order delivered successfully!");
     } catch (err) {
       showToast("Failed to update order. Please try again.");
     }
@@ -551,11 +647,21 @@ export default function LiveOrdersPage() {
           <EmptyColumn label="No orders awaiting pickup" />
         ) : (
           readyOrders.map((o) => (
-            <ReadyCard
-              key={o._id}
-              order={o}
-              onMarkPickedUp={handleMarkPickedUp}
-            />
+            <ReadyCard key={o._id} order={o} onMarkPickedUp={handleMarkPickedUp} />
+          ))
+        )}
+      </div>
+    );
+  }
+
+  function renderPickedUpOrders() {
+    return (
+      <div className="space-y-3">
+        {pickedUpOrders.length === 0 ? (
+          <EmptyColumn label="No orders out for delivery" />
+        ) : (
+          pickedUpOrders.map((o) => (
+            <PickedUpCard key={o._id} order={o} onMarkDelivered={handleMarkDelivered} />
           ))
         )}
       </div>
@@ -566,30 +672,55 @@ export default function LiveOrdersPage() {
     <div className="min-h-screen bg-bg-secondary">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
+        {/* ── API error banner ────────────────────────────────────────────── */}
+        {error && (
+          <div className="mb-4 flex items-center gap-2 bg-error-light text-error text-sm font-medium px-4 py-3 rounded-[var(--radius-lg)] border border-error/20">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
+
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           {/* Left: title + meta */}
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-text-primary">Live Orders</h1>
-              {/* Pulsing green dot */}
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success" />
+              {/* Socket status dot */}
+              <span className="relative flex h-2.5 w-2.5" title={socketConnected ? "Live — real-time updates on" : "Polling every 30s"}>
+                {socketConnected ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success" />
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-warning" />
+                )}
               </span>
             </div>
             <p className="text-xs text-text-tertiary mt-0.5 flex items-center gap-1.5">
               <RefreshCw size={11} />
-              Auto-refreshes every 30s · last at {lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {socketConnected
+                ? "Real-time updates active"
+                : `Polling every 30s · last at ${lastRefresh.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
             </p>
           </div>
 
           {/* Right: count summary + history link */}
           <div className="flex flex-wrap items-center gap-3">
-            {isLoading && (
-              <Loader2 size={16} className="animate-spin text-text-tertiary" />
-            )}
-            <div className="flex items-center gap-2 text-xs">
+            <button
+              onClick={() => { fetchLiveOrders(); setLastRefresh(new Date()); }}
+              className="flex items-center gap-1 text-xs text-text-secondary hover:text-primary transition-colors cursor-pointer"
+              title="Refresh now"
+            >
+              {isLoading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              Refresh
+            </button>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-medium text-error bg-error-light px-2.5 py-1 rounded-[var(--radius-full)]">
                 {newOrders.length} New
               </span>
@@ -598,6 +729,9 @@ export default function LiveOrdersPage() {
               </span>
               <span className="font-medium text-success-dark bg-success-light px-2.5 py-1 rounded-[var(--radius-full)]">
                 {readyOrders.length} Ready
+              </span>
+              <span className="font-medium text-primary bg-primary-50 px-2.5 py-1 rounded-[var(--radius-full)]">
+                {pickedUpOrders.length} Picked Up
               </span>
             </div>
             <Link
@@ -609,8 +743,8 @@ export default function LiveOrdersPage() {
           </div>
         </div>
 
-        {/* ── Desktop: 3-column kanban ─────────────────────────────────────── */}
-        <div className="hidden lg:grid lg:grid-cols-3 gap-5">
+        {/* ── Desktop: 4-column kanban ─────────────────────────────────────── */}
+        <div className="hidden lg:grid lg:grid-cols-4 gap-5">
           {/* Column 1 — New Orders */}
           <div>
             <ColumnHeader
@@ -640,6 +774,16 @@ export default function LiveOrdersPage() {
             />
             {renderReadyOrders()}
           </div>
+
+          {/* Column 4 — Picked Up */}
+          <div>
+            <ColumnHeader
+              title="Picked Up"
+              count={pickedUpOrders.length}
+              accentClass="bg-primary-50 text-primary"
+            />
+            {renderPickedUpOrders()}
+          </div>
         </div>
 
         {/* ── Mobile: tabs ─────────────────────────────────────────────────── */}
@@ -650,6 +794,7 @@ export default function LiveOrdersPage() {
               { key: "placed", label: "New", count: newOrders.length, active: "bg-error-light text-error border-error/20" },
               { key: "preparing", label: "Preparing", count: preparingOrders.length, active: "bg-warning-light text-warning-dark border-warning/20" },
               { key: "ready", label: "Ready", count: readyOrders.length, active: "bg-success-light text-success-dark border-success/20" },
+              { key: "picked_up", label: "Picked Up", count: pickedUpOrders.length, active: "bg-primary-50 text-primary border-primary/20" },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -676,6 +821,7 @@ export default function LiveOrdersPage() {
           {activeTab === "placed" && renderNewOrders()}
           {activeTab === "preparing" && renderPreparingOrders()}
           {activeTab === "ready" && renderReadyOrders()}
+          {activeTab === "picked_up" && renderPickedUpOrders()}
         </div>
       </div>
 

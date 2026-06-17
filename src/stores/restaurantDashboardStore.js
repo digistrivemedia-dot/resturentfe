@@ -117,8 +117,8 @@ const useRestaurantDashboardStore = create((set, get) => ({
       const res = await api.put(`/restaurant/orders/${orderId}/status`, { status });
       const updated = res.data.order;
 
-      // If delivered or beyond, remove from live
-      const doneStatuses = ["picked_up", "out_for_delivery", "delivered"];
+      // Only remove from live when fully delivered
+      const doneStatuses = ["delivered"];
       set((state) => ({
         liveOrders: doneStatuses.includes(status)
           ? state.liveOrders.filter((o) => o._id !== orderId)
@@ -132,6 +132,22 @@ const useRestaurantDashboardStore = create((set, get) => ({
       throw err;
     }
   },
+
+  // Real-time socket helpers
+  addLiveOrder: (order) =>
+    set((state) => ({
+      liveOrders: state.liveOrders.some((o) => o._id === order._id)
+        ? state.liveOrders
+        : [order, ...state.liveOrders],
+    })),
+
+  updateLiveOrderFromSocket: (order) =>
+    set((state) => ({
+      liveOrders:
+        order.status === "delivered"
+          ? state.liveOrders.filter((o) => o._id !== order._id)
+          : state.liveOrders.map((o) => (o._id === order._id ? order : o)),
+    })),
 
   // Clear
   clearCurrentOrder: () => set({ currentOrder: null }),

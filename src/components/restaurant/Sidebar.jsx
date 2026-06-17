@@ -9,32 +9,8 @@ import {
 } from "lucide-react";
 import { APP_NAME } from "@/constants";
 import useUiStore from "@/stores/uiStore";
+import useRestaurantDashboardStore from "@/stores/restaurantDashboardStore";
 import { useState } from "react";
-
-const PENDING_ORDERS = 3; // mock live count
-
-const menuItems = [
-  { href: "/restaurant/dashboard",  label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/restaurant/orders",     label: "Orders",         icon: ShoppingBag, badge: PENDING_ORDERS },
-  { href: "/restaurant/menu",       label: "Menu",           icon: UtensilsCrossed },
-  { href: "/restaurant/addons",     label: "Addons",         icon: Puzzle },
-  { href: "/restaurant/categories", label: "Categories",     icon: FolderOpen },
-  { href: "/restaurant/coupons",    label: "Coupons & Offers", icon: Ticket },
-  { href: "/restaurant/reviews",    label: "Reviews",        icon: Star },
-  {
-    label: "Analytics",
-    icon: BarChart3,
-    children: [
-      { href: "/restaurant/analytics/sales",  label: "Sales" },
-      { href: "/restaurant/analytics/orders", label: "Orders" },
-      { href: "/restaurant/analytics/items",  label: "Item Performance" },
-    ],
-  },
-  { href: "/restaurant/profile",  label: "Profile",   icon: Store },
-  { href: "/restaurant/payments", label: "Payments",  icon: CreditCard },
-  { href: "/restaurant/settings", label: "Settings",  icon: Settings },
-  { href: "/restaurant/support",  label: "Support",   icon: HelpCircle },
-];
 
 function NavItem({ item, collapsed, pathname, openGroup, setOpenGroup }) {
   if (item.children) {
@@ -109,10 +85,44 @@ function NavItem({ item, collapsed, pathname, openGroup, setOpenGroup }) {
   );
 }
 
+const menuItems = [
+  { href: "/restaurant/dashboard",  label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/restaurant/orders",     label: "Orders",         icon: ShoppingBag }, // badge injected below
+  { href: "/restaurant/menu",       label: "Menu",           icon: UtensilsCrossed },
+  { href: "/restaurant/addons",     label: "Addons",         icon: Puzzle },
+  { href: "/restaurant/categories", label: "Categories",     icon: FolderOpen },
+  { href: "/restaurant/coupons",    label: "Coupons & Offers", icon: Ticket },
+  { href: "/restaurant/reviews",    label: "Reviews",        icon: Star },
+  {
+    label: "Analytics",
+    icon: BarChart3,
+    children: [
+      { href: "/restaurant/analytics/sales",  label: "Sales" },
+      { href: "/restaurant/analytics/orders", label: "Orders" },
+      { href: "/restaurant/analytics/items",  label: "Item Performance" },
+    ],
+  },
+  { href: "/restaurant/profile",  label: "Profile",   icon: Store },
+  { href: "/restaurant/payments", label: "Payments",  icon: CreditCard },
+  { href: "/restaurant/settings", label: "Settings",  icon: Settings },
+  { href: "/restaurant/support",  label: "Support",   icon: HelpCircle },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, setSidebarCollapsed, isSidebarOpen, setSidebarOpen } = useUiStore();
   const [openGroup, setOpenGroup] = useState("Analytics");
+
+  // Real pending-orders badge: use liveOrders (populated once orders page loads + socket updates),
+  // fall back to stats.pendingOrders (populated once dashboard loads).
+  const { liveOrders, stats } = useRestaurantDashboardStore();
+  const pendingCount = liveOrders.length > 0
+    ? liveOrders.filter((o) => o.status === "placed").length
+    : (stats?.pendingOrders ?? 0);
+
+  const navItems = menuItems.map((item) =>
+    item.href === "/restaurant/orders" ? { ...item, badge: pendingCount } : item
+  );
 
   return (
     <>
@@ -164,7 +174,7 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 scrollbar-hide">
-          {menuItems.map((item) => (
+          {navItems.map((item) => (
             <NavItem
               key={item.label}
               item={item}

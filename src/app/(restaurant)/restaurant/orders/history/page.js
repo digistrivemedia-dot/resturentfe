@@ -52,6 +52,21 @@ function StatusBadge({ status }) {
       </span>
     );
   }
+  if (status === "picked_up" || status === "out_for_delivery") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full"
+        style={{
+          backgroundColor: "var(--primary-50)",
+          color: "var(--primary)",
+          borderRadius: "var(--radius-full)",
+        }}
+      >
+        <CheckCircle2 size={11} />
+        Picked Up
+      </span>
+    );
+  }
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full"

@@ -21,7 +21,7 @@ export default function AddonSelector({ item, restaurant, onClose, existingCartI
 
   const [quantity, setQuantity] = useState(existingItem?.quantity || 1);
   const [selectedVariant, setSelectedVariant] = useState(
-    existingItem?.variant || item.variants?.[0] || null
+    existingItem?.variant || null
   );
   const [selectedAddons, setSelectedAddons] = useState(
     existingItem?.addons || []
@@ -174,10 +174,37 @@ export default function AddonSelector({ item, restaurant, onClose, existingCartI
         {hasVariants && (
           <div>
             <h3 className="text-sm font-bold text-text-primary mb-3">
-              Choose a size{" "}
-              <span className="text-xs font-normal text-error ml-1">Required</span>
+              Choose a variant{" "}
+              <span className="text-xs font-normal text-text-tertiary ml-1">Optional</span>
             </h3>
             <div className="space-y-2">
+              {/* Base / Regular option */}
+              <label
+                className={`flex items-center justify-between p-3 rounded-[var(--radius-lg)] border-2 cursor-pointer transition-all ${
+                  selectedVariant === null
+                    ? "border-primary bg-primary-50"
+                    : "border-border-light hover:border-border-default"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    selectedVariant === null ? "border-primary" : "border-border-default"
+                  }`}>
+                    {selectedVariant === null && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                  <span className="text-sm font-medium text-text-primary">Regular</span>
+                </div>
+                <span className="text-sm font-bold text-text-primary">₹{item.discountedPrice || item.price}</span>
+                <input
+                  type="radio"
+                  name="variant"
+                  checked={selectedVariant === null}
+                  onChange={() => setSelectedVariant(null)}
+                  className="sr-only"
+                />
+              </label>
+
+              {/* Additional variants */}
               {item.variants.map((variant) => (
                 <label
                   key={variant._id}
@@ -189,9 +216,7 @@ export default function AddonSelector({ item, restaurant, onClose, existingCartI
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      selectedVariant?._id === variant._id
-                        ? "border-primary"
-                        : "border-border-default"
+                      selectedVariant?._id === variant._id ? "border-primary" : "border-border-default"
                     }`}>
                       {selectedVariant?._id === variant._id && (
                         <div className="w-2.5 h-2.5 rounded-full bg-primary" />
