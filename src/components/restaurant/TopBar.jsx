@@ -18,7 +18,7 @@ const MOCK_NOTIFS = [
 export default function TopBar() {
   const router = useRouter();
   const { toggleSidebar, isSidebarCollapsed } = useUiStore();
-  const { user, logout } = useAuthStore();
+  const { user, logoutUser } = useAuthStore();
   const { restaurant } = useRestaurantProfileStore();
 
   const [isOpen, setIsOpen] = useState(true);
@@ -41,8 +41,8 @@ export default function TopBar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logoutUser();
     router.push("/restaurant/login");
   };
 

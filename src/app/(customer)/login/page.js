@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, ArrowRight, Loader2 } from "lucide-react";
@@ -9,7 +9,16 @@ import toast from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { sendOtp, isLoading } = useAuthStore();
+  const { sendOtp, isLoading, isAuthenticated, user } = useAuthStore();
+
+  // Redirect away if already logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "super_admin") router.replace("/admin/dashboard");
+      else if (user.role === "restaurant_owner") router.replace("/restaurant/dashboard");
+      else router.replace("/home");
+    }
+  }, [isAuthenticated, user, router]);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
 

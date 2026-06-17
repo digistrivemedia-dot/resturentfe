@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,7 +13,14 @@ import toast from "react-hot-toast";
 
 export default function RestaurantLoginPage() {
   const router = useRouter();
-  const { loginWithPassword, isLoading: authLoading } = useAuthStore();
+  const { loginWithPassword, isLoading: authLoading, isAuthenticated, user } = useAuthStore();
+
+  // Redirect away if already logged in as restaurant_owner
+  useEffect(() => {
+    if (isAuthenticated && user?.role === "restaurant_owner") {
+      router.replace("/restaurant/dashboard");
+    }
+  }, [isAuthenticated, user, router]);
 
   const [tab, setTab] = useState("email"); // email | phone
   const [form, setForm] = useState({ email: "", phone: "", password: "" });

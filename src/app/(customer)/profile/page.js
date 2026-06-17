@@ -41,7 +41,7 @@ const MENU_ITEMS = [
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, logout, fetchMe } = useAuthStore();
+  const { user, logoutUser, fetchMe } = useAuthStore();
   const { updateProfile } = useProfileStore();
   const [editOpen, setEditOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -85,8 +85,8 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logoutUser();
     router.push("/login");
   };
 

@@ -2,57 +2,47 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import useAuthStore from "@/stores/authStore";
 import { Loader2 } from "lucide-react";
+import useAuthStore from "@/stores/authStore";
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const router = useRouter();
-  const { isAuthenticated, user, fetchMe } = useAuthStore();
+  const { isAuthenticated, user, isInitialized } = useAuthStore();
 
   useEffect(() => {
-    // If we have a token but no user data, fetch the user
-    const token = useAuthStore.getState().token;
-    if (token && !user) {
-      fetchMe();
-    }
-  }, []);
+    if (!isInitialized) return;
 
-  useEffect(() => {
     if (!isAuthenticated) {
-      // Determine which login page to redirect to
-      if (allowedRoles.includes("super_admin")) {
-        router.push("/admin/login");
-      } else if (allowedRoles.includes("restaurant_owner")) {
-        router.push("/restaurant/login");
-      } else {
-        router.push("/login");
-      }
+      if (allowedRoles.includes("super_admin")) router.replace("/admin/login");
+      else if (allowedRoles.includes("restaurant_owner")) router.replace("/restaurant/login");
+      else router.replace("/login");
       return;
     }
 
-    // Check role if roles are specified
     if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.role)) {
-      // Redirect to correct portal based on actual role
-      if (user.role === "super_admin") {
-        router.push("/admin/dashboard");
-      } else if (user.role === "restaurant_owner") {
-        router.push("/restaurant/dashboard");
-      } else {
-        router.push("/home");
-      }
+      if (user.role === "super_admin") router.replace("/admin/dashboard");
+      else if (user.role === "restaurant_owner") router.replace("/restaurant/dashboard");
+      else router.replace("/home");
     }
-  }, [isAuthenticated, user, allowedRoles, router]);
+  }, [isInitialized, isAuthenticated, user, allowedRoles, router]);
 
-  // Show loading while checking auth
-  if (!isAuthenticated || !user) {
+  // Show spinner while AuthInitializer is running
+  if (!isInitialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg-primary">
-        <Loader2 size={32} className="animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 size={28} className="animate-spin text-orange-500" />
       </div>
     );
   }
 
-  // Role check
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 size={28} className="animate-spin text-orange-500" />
+      </div>
+    );
+  }
+
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return null;
   }

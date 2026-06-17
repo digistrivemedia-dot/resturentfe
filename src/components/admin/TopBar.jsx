@@ -8,10 +8,10 @@ import useUiStore from "@/stores/uiStore";
 export default function AdminTopBar() {
   const router = useRouter();
   const { toggleSidebar } = useUiStore();
-  const { user, logout } = useAuthStore();
+  const { user, logoutUser } = useAuthStore();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logoutUser();
     router.push("/admin/login");
   };
 

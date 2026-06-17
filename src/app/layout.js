@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import AuthInitializer from "@/components/AuthInitializer";
 import "./globals.css";
 
 const inter = Inter({
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">
+        <AuthInitializer />
         {children}
         <Toaster
           position="top-center"

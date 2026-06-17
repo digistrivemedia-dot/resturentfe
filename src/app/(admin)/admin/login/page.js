@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,7 +18,14 @@ import toast from "react-hot-toast";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { loginWithPassword, isLoading: authLoading } = useAuthStore();
+  const { loginWithPassword, isLoading: authLoading, isAuthenticated, user } = useAuthStore();
+
+  // Redirect away if already logged in as super_admin
+  useEffect(() => {
+    if (isAuthenticated && user?.role === "super_admin") {
+      router.replace("/admin/dashboard");
+    }
+  }, [isAuthenticated, user, router]);
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
