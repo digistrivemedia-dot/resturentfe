@@ -19,10 +19,19 @@ import {
   AlertTriangle,
   Ban,
   RefreshCcw,
+  Key,
+  Plus,
+  RotateCcw,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  LogIn,
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { formatPrice, formatDate } from "@/lib/utils";
 import useAdminRestaurantStore from "@/stores/adminRestaurantStore";
+import api from "@/lib/api";
 
 const MENU_OVERVIEW = [
   { category: "Starters", items: 8 },
@@ -137,6 +146,17 @@ export default function RestaurantDetailPage({ params }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [logins, setLogins] = useState([]);
+  const [loginsLoading, setLoginsLoading] = useState(false);
+  const [addLoginOpen, setAddLoginOpen] = useState(false);
+  const [addLoginForm, setAddLoginForm] = useState({ name: "", email: "", phone: "" });
+  const [addLoginLoading, setAddLoginLoading] = useState(false);
+  const [addLoginError, setAddLoginError] = useState("");
+  const [resetResult, setResetResult] = useState({}); // { [userId]: newPassword }
+  const [resettingId, setResettingId] = useState(null);
+  const [visiblePasswords, setVisiblePasswords] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
+  const [impersonatingId, setImpersonatingId] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -155,6 +175,20 @@ export default function RestaurantDetailPage({ params }) {
       setStatus(currentRestaurant.status);
     }
   }, [currentRestaurant]);
+
+  const fetchLogins = async () => {
+    if (!id) return;
+    setLoginsLoading(true);
+    try {
+      const res = await api.get(`/admin/restaurants/${id}/logins`);
+      setLogins(res.data?.logins || []);
+    } catch {}
+    setLoginsLoading(false);
+  };
+
+  useEffect(() => {
+    if (id) fetchLogins();
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -233,6 +267,56 @@ export default function RestaurantDetailPage({ params }) {
   };
 
   const actionMeta = ACTION_LABELS[pendingAction] || {};
+
+  const togglePasswordVisible = (userId) =>
+    setVisiblePasswords((prev) => ({ ...prev, [userId]: !prev[userId] }));
+
+  const copyToClipboard = (text, userId) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(userId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleResetPassword = async (userId) => {
+    setResettingId(userId);
+    try {
+      const res = await api.put(`/admin/restaurants/${id}/logins/${userId}/reset-password`);
+      const newPwd = res.data?.newPassword;
+      setResetResult((prev) => ({ ...prev, [userId]: newPwd }));
+      setVisiblePasswords((prev) => ({ ...prev, [userId]: true }));
+    } catch {}
+    setResettingId(null);
+  };
+
+  const handleImpersonate = async (login) => {
+    setImpersonatingId(login._id);
+    try {
+      const res = await api.get(`/admin/restaurants/${id}/logins/${login._id}/impersonate-token`);
+      const { impersonateToken } = res.data;
+      window.open(`/restaurant/impersonate?t=${impersonateToken}`, "_blank");
+    } catch {}
+    setImpersonatingId(null);
+  };
+
+  const handleAddLogin = async () => {
+    setAddLoginLoading(true);
+    setAddLoginError("");
+    try {
+      const res = await api.post(`/admin/restaurants/${id}/logins`, addLoginForm);
+      const { user, tempPassword } = res.data;
+      setLogins((prev) => [...prev, {
+        _id: user._id, name: user.name, email: user.email,
+        phone: user.phone, isOwner: false, initialPassword: tempPassword,
+      }]);
+      setResetResult((prev) => ({ ...prev, [user._id]: tempPassword }));
+      setVisiblePasswords((prev) => ({ ...prev, [user._id]: true }));
+      setAddLoginOpen(false);
+      setAddLoginForm({ name: "", email: "", phone: "" });
+    } catch (err) {
+      setAddLoginError(err.message || "Failed to create login");
+    }
+    setAddLoginLoading(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -414,6 +498,88 @@ export default function RestaurantDetailPage({ params }) {
 
         {/* Right Column */}
         <div className="space-y-5">
+          {/* Login Credentials */}
+          <Card
+            title="Login Credentials"
+            icon={Key}
+            action={
+              <button
+                onClick={() => setAddLoginOpen(true)}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-[var(--radius-md)] bg-primary text-white hover:bg-primary-dark transition-colors font-medium cursor-pointer"
+              >
+                <Plus size={12} /> Add Login
+              </button>
+            }
+          >
+            {loginsLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 size={20} className="animate-spin text-text-tertiary" />
+              </div>
+            ) : logins.length === 0 ? (
+              <p className="text-sm text-text-tertiary">No logins found</p>
+            ) : (
+              <div className="space-y-4">
+                {logins.map((login) => {
+                  const displayPwd = resetResult[login._id] || login.initialPassword;
+                  const isVisible = visiblePasswords[login._id];
+                  const isCopied = copiedId === login._id;
+                  const isResetting = resettingId === login._id;
+                  return (
+                    <div key={login._id} className="p-3 rounded-[var(--radius-lg)] bg-bg-secondary border border-border-light space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-text-primary">{login.name || "—"}</p>
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[var(--radius-full)] ${login.isOwner ? "bg-primary-50 text-primary" : "bg-bg-primary text-text-tertiary border border-border-default"}`}>
+                            {login.isOwner ? "Primary Owner" : "Manager"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleImpersonate(login)}
+                            disabled={impersonatingId === login._id}
+                            title="Login as this user"
+                            className="p-1.5 rounded-[var(--radius-md)] text-text-tertiary hover:text-primary hover:bg-primary-50 transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {impersonatingId === login._id ? <Loader2 size={13} className="animate-spin" /> : <LogIn size={13} />}
+                          </button>
+                          <button
+                            onClick={() => handleResetPassword(login._id)}
+                            disabled={isResetting}
+                            title="Reset password"
+                            className="p-1.5 rounded-[var(--radius-md)] text-text-tertiary hover:text-warning hover:bg-warning-light transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {isResetting ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Mail size={11} className="text-text-tertiary shrink-0" />
+                          <span className="text-text-primary font-mono truncate">{login.email}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Key size={11} className="text-text-tertiary shrink-0" />
+                          <span className="text-text-primary font-mono flex-1">
+                            {isVisible ? displayPwd : "••••••••••"}
+                          </span>
+                          <button onClick={() => togglePasswordVisible(login._id)} className="text-text-tertiary hover:text-text-primary cursor-pointer">
+                            {isVisible ? <EyeOff size={12} /> : <Eye size={12} />}
+                          </button>
+                          <button onClick={() => copyToClipboard(displayPwd, login._id)} className="text-text-tertiary hover:text-primary cursor-pointer">
+                            {isCopied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+                          </button>
+                        </div>
+                      </div>
+                      {resetResult[login._id] && (
+                        <p className="text-[10px] text-warning font-medium">⚠ New password — share with owner</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
           {/* Owner Details */}
           <Card title="Owner Details" icon={null}>
             <div className="space-y-3">
@@ -505,6 +671,69 @@ export default function RestaurantDetailPage({ params }) {
           </Card>
         </div>
       </div>
+
+      {/* Add Login Modal */}
+      <Modal
+        isOpen={addLoginOpen}
+        onClose={() => { setAddLoginOpen(false); setAddLoginError(""); }}
+        title="Add New Login"
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => { setAddLoginOpen(false); setAddLoginError(""); }}
+              disabled={addLoginLoading}
+              className="px-4 py-2 rounded-[var(--radius-lg)] border border-border-default text-text-secondary text-sm font-medium hover:bg-bg-hover disabled:opacity-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddLogin}
+              disabled={addLoginLoading || !addLoginForm.name || !addLoginForm.email}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-[var(--radius-lg)] bg-primary text-white text-sm font-semibold disabled:opacity-60 cursor-pointer"
+            >
+              {addLoginLoading ? <><Loader2 size={14} className="animate-spin" /> Creating...</> : "Create Login"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Full Name *</label>
+            <input
+              type="text"
+              value={addLoginForm.name}
+              onChange={(e) => setAddLoginForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Manager name"
+              className="w-full h-9 px-3 text-sm border border-border-light rounded-[var(--radius-lg)] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Email *</label>
+            <input
+              type="email"
+              value={addLoginForm.email}
+              onChange={(e) => setAddLoginForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="manager@restaurant.com"
+              className="w-full h-9 px-3 text-sm border border-border-light rounded-[var(--radius-lg)] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Phone (optional)</label>
+            <input
+              type="tel"
+              value={addLoginForm.phone}
+              onChange={(e) => setAddLoginForm((f) => ({ ...f, phone: e.target.value }))}
+              placeholder="10-digit phone"
+              className="w-full h-9 px-3 text-sm border border-border-light rounded-[var(--radius-lg)] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+            />
+            <p className="text-[10px] text-text-tertiary mt-1">Password = last 4 digits + @Digi. No phone = random password.</p>
+          </div>
+          {addLoginError && (
+            <p className="text-xs text-error bg-error-light px-3 py-2 rounded-[var(--radius-lg)]">{addLoginError}</p>
+          )}
+        </div>
+      </Modal>
 
       {/* Confirm Action Modal */}
       <Modal
