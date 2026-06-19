@@ -39,7 +39,7 @@ export default function Header() {
           {/* Left: Logo + Location */}
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/home" className="shrink-0 text-xl font-extrabold">
-              <span className="text-primary">Digi</span><span className="text-text-primary">Strive</span>
+              <span className="text-primary">Cafe</span><span className="text-text-primary">Sriisha</span>
             </Link>
 
             <button
