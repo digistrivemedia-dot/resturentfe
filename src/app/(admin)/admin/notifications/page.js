@@ -118,7 +118,7 @@ const MOCK_NOTIFICATIONS = [
     id: "notif-07",
     title: "Account Suspended — Policy Violation",
     message:
-      "Your delivery partner account has been temporarily suspended due to multiple complaints about late deliveries. Please contact support at support@digistrive.in to resolve this.",
+      "Your delivery partner account has been temporarily suspended due to multiple complaints about late deliveries. Please contact support at support@cafesriisha.com to resolve this.",
     type: "Alert",
     targetAudience: "Delivery partners",
     sentAt: days(1),

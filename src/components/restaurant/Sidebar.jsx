@@ -189,7 +189,7 @@ export default function Sidebar() {
         {/* Collapse hint (desktop, expanded) */}
         {!isSidebarCollapsed && (
           <div className="hidden lg:block px-4 py-3 border-t border-border-light">
-            <p className="text-[10px] text-text-tertiary">DigiStrive Restaurant v1.0</p>
+            <p className="text-[10px] text-text-tertiary">CafeSriisha Restaurant v1.0</p>
           </div>
         )}
       </aside>

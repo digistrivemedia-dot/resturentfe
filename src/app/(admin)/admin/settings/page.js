@@ -151,7 +151,7 @@ function ProfileTab({ showToast }) {
   const updateProfile = useAuthStore((s) => s.updateProfile);
 
   const [name, setName] = useState(user?.name || "Super Admin");
-  const [email, setEmail] = useState(user?.email || "admin@digistrive.com");
+  const [email, setEmail] = useState(user?.email || "admin@cafesriisha.com");
   const [phone, setPhone] = useState(user?.phone || "+91 98765 43210");
 
   const [currentPwd, setCurrentPwd] = useState("");
@@ -269,9 +269,9 @@ function PlatformTab({ showToast }) {
     useAdminSettingsStore();
 
   const [form, setForm] = useState({
-    platformName: "DigiStrive Food",
+    platformName: "CafeSriisha Food",
     tagline: "Delivering happiness, one meal at a time",
-    supportEmail: "support@digistrive.com",
+    supportEmail: "support@cafesriisha.com",
     supportPhone: "+91 1800 123 4567",
     gst: "27AABCU9603R1ZX",
     pan: "AABCU9603R",
@@ -567,7 +567,7 @@ function NotificationsTab({ showToast }) {
     dailySummary: false,
   });
   const [smsMode, setSmsMode] = useState("otp"); // otp | otp_marketing
-  const [webhookUrl, setWebhookUrl] = useState("https://hooks.digistrive.com/orders");
+  const [webhookUrl, setWebhookUrl] = useState("https://hooks.cafesriisha.com/orders");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

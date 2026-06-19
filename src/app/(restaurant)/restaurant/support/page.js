@@ -427,7 +427,7 @@ export default function SupportPage() {
               </a>
 
               <a
-                href="mailto:restaurant-support@digistrive.in"
+                href="mailto:restaurant-support@cafesriisha.com"
                 className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-[var(--radius-lg)] hover:bg-blue-100 transition-colors group"
               >
                 <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
@@ -435,7 +435,7 @@ export default function SupportPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-bold text-blue-800">Email Support</p>
-                  <p className="text-[11px] text-blue-600">restaurant-support@digistrive.in</p>
+                  <p className="text-[11px] text-blue-600">restaurant-support@cafesriisha.com</p>
                 </div>
                 <ArrowUpRight size={13} className="text-blue-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </a>

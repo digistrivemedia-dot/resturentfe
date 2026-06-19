@@ -1014,7 +1014,7 @@ function AccountTab({ showToast }) {
             ))}
           </div>
           <p className="text-xs text-text-tertiary bg-bg-secondary rounded-[var(--radius-md)] px-3 py-2">
-            To proceed, email <strong>support@digistrive.in</strong> with subject "Account Deletion Request" from your registered email.
+            To proceed, email <strong>support@cafesriisha.com</strong> with subject "Account Deletion Request" from your registered email.
           </p>
         </div>
       </Modal>

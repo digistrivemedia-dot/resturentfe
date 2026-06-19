@@ -47,7 +47,7 @@ export const mockRestaurantOwner = {
 export const mockAdmin = {
   _id: "user_003",
   name: "Admin User",
-  email: "admin@digistrive.com",
+  email: "admin@cafesriisha.com",
   role: "super_admin",
   status: "active",
 };

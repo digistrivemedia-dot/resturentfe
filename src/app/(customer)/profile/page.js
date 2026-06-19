@@ -33,7 +33,7 @@ const MENU_ITEMS = [
   {
     group: "More",
     items: [
-      { href: "#", label: "Rate the App", icon: Star,   desc: "Love DigiStrive? Tell us!" },
+      { href: "#", label: "Rate the App", icon: Star,   desc: "Love CafeSriisha? Tell us!" },
       { href: "#", label: "Privacy Policy", icon: Shield, desc: "" },
     ],
   },
@@ -173,7 +173,7 @@ export default function ProfilePage() {
             <Wallet size={22} className="text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-xs text-white/70 font-medium">DigiStrive Wallet</p>
+            <p className="text-xs text-white/70 font-medium">CafeSriisha Wallet</p>
             <p className="text-2xl font-extrabold text-white">₹{user.wallet?.balance || 0}</p>
           </div>
           <button className="h-9 px-4 bg-white text-primary text-sm font-bold rounded-[var(--radius-full)] hover:bg-primary-50 transition-colors">
@@ -216,7 +216,7 @@ export default function ProfilePage() {
           <LogOut size={16} /> Log Out
         </button>
 
-        <p className="text-center text-xs text-text-tertiary mt-4 mb-2">DigiStrive v1.0.0</p>
+        <p className="text-center text-xs text-text-tertiary mt-4 mb-2">CafeSriisha v1.0.0</p>
       </div>
 
       {/* Edit Profile Modal */}

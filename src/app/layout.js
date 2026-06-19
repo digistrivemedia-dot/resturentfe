@@ -10,10 +10,10 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "DigiStrive - Food Delivery & Restaurant Management",
+  title: "CafeSriisha - Food Delivery & Restaurant Management",
   description:
     "Order food from the best restaurants near you. Fast delivery, great taste.",
-  keywords: "food delivery, restaurant, order food online, DigiStrive",
+  keywords: "food delivery, restaurant, order food online, CafeSriisha",
 };
 
 export default function RootLayout({ children }) {

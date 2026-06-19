@@ -115,7 +115,7 @@ export default function AdminLoginPage() {
                   type="email"
                   value={form.email}
                   onChange={(e) => setField("email", e.target.value)}
-                  placeholder="admin@digistrive.com"
+                  placeholder="admin@cafesriisha.com"
                   className={`w-full h-11 pl-10 pr-4 text-sm border rounded-[var(--radius-lg)] bg-white placeholder:text-gray-300 focus:outline-none focus:ring-2 transition-colors ${
                     errors.email
                       ? "border-red-400 focus:ring-red-100"
@@ -194,7 +194,7 @@ export default function AdminLoginPage() {
             </p>
             <p className="text-xs text-gray-500">
               <span className="font-medium text-gray-700">Email:</span>{" "}
-              admin@digistrive.com
+              admin@cafesriisha.com
             </p>
             <p className="text-xs text-gray-500">
               <span className="font-medium text-gray-700">Password:</span>{" "}

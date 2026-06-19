@@ -50,7 +50,7 @@ export default function LoginPage() {
       {/* ── Left panel (desktop) ── */}
       <div className="hidden md:flex flex-col justify-between flex-1 bg-gradient-to-br from-primary to-primary-700 p-10 text-white">
         <Link href="/" className="text-2xl font-extrabold">
-          <span className="text-white">Digi</span><span className="text-white/60">Strive</span>
+          <span className="text-white">CafeSriisha</span>
         </Link>
         <div className="space-y-6 max-w-sm">
           <div className="text-6xl">🍕</div>
@@ -69,7 +69,7 @@ export default function LoginPage() {
             ))}
           </div>
         </div>
-        <p className="text-white/30 text-xs">© 2026 DigiStrive</p>
+        <p className="text-white/30 text-xs">© 2026 CafeSriisha</p>
       </div>
 
       {/* ── Right panel: form ── */}
@@ -77,7 +77,7 @@ export default function LoginPage() {
 
         {/* Mobile logo */}
         <Link href="/" className="mb-8 md:hidden text-2xl font-extrabold">
-          <span className="text-primary">Digi</span><span className="text-text-primary">Strive</span>
+          <span className="text-primary">CafeSriisha</span>
         </Link>
 
         <div className="w-full max-w-sm">

@@ -118,7 +118,7 @@ export default function AdminSidebar() {
         {!isSidebarCollapsed && (
           <div className="px-4 py-3 border-t border-white/10 shrink-0">
             <p className="text-xs font-semibold text-white/70 truncate">{user?.name || "Admin User"}</p>
-            <p className="text-[10px] text-white/30 truncate mt-0.5">{user?.email || "admin@digistrive.com"}</p>
+            <p className="text-[10px] text-white/30 truncate mt-0.5">{user?.email || "admin@cafesriisha.com"}</p>
           </div>
         )}
       </aside>

@@ -240,8 +240,8 @@ export default function RestaurantLoginPage() {
             <ShieldCheck size={16} className="text-primary shrink-0 mt-0.5" />
             <p className="text-xs text-text-secondary leading-relaxed">
               Don't have an account?{" "}
-              <Link href="mailto:support@digistrive.com" className="font-semibold text-primary hover:underline">
-                Contact DigiStrive admin
+              <Link href="mailto:support@cafesriisha.com" className="font-semibold text-primary hover:underline">
+                Contact CafeSriisha admin
               </Link>{" "}
               to get your restaurant onboarded.
             </p>

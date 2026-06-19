@@ -727,7 +727,7 @@ export default function RestaurantDetailPage({ params }) {
               placeholder="10-digit phone"
               className="w-full h-9 px-3 text-sm border border-border-light rounded-[var(--radius-lg)] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
             />
-            <p className="text-[10px] text-text-tertiary mt-1">Password = last 4 digits + @Digi. No phone = random password.</p>
+            <p className="text-[10px] text-text-tertiary mt-1">Password = last 4 digits + @Cafe. No phone = random password.</p>
           </div>
           {addLoginError && (
             <p className="text-xs text-error bg-error-light px-3 py-2 rounded-[var(--radius-lg)]">{addLoginError}</p>

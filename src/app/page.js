@@ -29,7 +29,7 @@ export default function LandingPage() {
       <header className="sticky top-0 bg-bg-primary/95 backdrop-blur-sm border-b border-border-light" style={{ zIndex: "var(--z-header)" }}>
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 md:px-8 h-16">
           <span className="text-2xl font-extrabold tracking-tight">
-            <span className="text-primary">Digi</span><span className="text-text-primary">Strive</span>
+            <span className="text-primary">CafeSriisha</span>
           </span>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-text-secondary">
             <Link href="/home" className="hover:text-text-primary transition-colors">Browse</Link>
@@ -182,7 +182,7 @@ export default function LandingPage() {
       <section className="py-14 px-4 md:px-8 bg-bg-secondary">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-text-primary">Why DigiStrive?</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-text-primary">Why CafeSriisha?</h2>
             <p className="text-text-secondary mt-2">Everything you need for a perfect food experience</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
@@ -202,7 +202,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-white">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold mb-2">Own a restaurant?</h2>
-            <p className="text-white/80">Partner with DigiStrive and reach thousands of hungry customers in your area.</p>
+            <p className="text-white/80">Partner with CafeSriisha and reach thousands of hungry customers in your area.</p>
           </div>
           <Link href="/restaurant/login"
             className="shrink-0 h-12 px-8 bg-white text-primary font-bold rounded-[var(--radius-full)] hover:bg-primary-50 transition-colors flex items-center gap-2 shadow-lg"
@@ -218,7 +218,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div className="col-span-2 md:col-span-1">
               <div className="text-xl font-extrabold mb-3">
-                <span className="text-primary">Digi</span>Strive
+                <span className="text-primary">CafeSriisha</span>
               </div>
               <p className="text-white/50 text-sm">Delicious food delivered fast to your door.</p>
             </div>
@@ -238,7 +238,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="border-t border-white/10 pt-6 text-center text-white/30 text-sm">
-            © 2026 DigiStrive. All rights reserved.
+            © 2026 CafeSriisha. All rights reserved.
           </div>
         </div>
       </footer>
