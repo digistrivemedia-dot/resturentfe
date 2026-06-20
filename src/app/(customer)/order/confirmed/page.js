@@ -8,7 +8,7 @@ import {
   Home, Package, Star, Share2, Download, AlertCircle, Loader2,
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
-import { connectSocket, getSocket } from "@/lib/socket";
+import { connectSocket } from "@/lib/socket";
 
 const STATUS_STEPS = [
   { key: "placed",           label: "Order Placed" },
@@ -82,12 +82,12 @@ function OrderConfirmedContent() {
     setCountdown(remaining);
   }, [order?.status, order?.createdAt, order?.estimatedDeliveryTime]);
 
-  // Live countdown tick
+  // Live countdown tick — runs whenever countdown is set to a positive number
   useEffect(() => {
-    if (countdown === null || countdown === 0) return;
-    const iv = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
+    if (!countdown) return;
+    const iv = setInterval(() => setCountdown((c) => (c <= 1 ? 0 : c - 1)), 1000);
     return () => clearInterval(iv);
-  }, [countdown === null || countdown === 0]);
+  }, [!!countdown]);
 
   // Entrance animations
   useEffect(() => {

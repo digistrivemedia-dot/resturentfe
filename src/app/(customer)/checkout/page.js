@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -50,17 +50,32 @@ export default function CheckoutPage() {
     clearCart,
   } = useCartStore();
 
-  const { user } = useAuthStore();
+  const { user, fetchMe } = useAuthStore();
   const { placeOrder, isPlacing } = useOrderStore();
   const { savedAddresses, currentLocation } = useLocationStore();
 
   // Use user addresses from API, fall back to location store
   const addresses = user?.addresses?.length > 0 ? user.addresses : savedAddresses || [];
-  const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0] || null;
 
-  // Track which address is selected for this order (starts as default)
-  const [selectedAddrId, setSelectedAddrId] = useState(defaultAddr?._id || null);
-  const selectedAddr = addresses.find((a) => a._id === selectedAddrId) || defaultAddr;
+  // Track which address is selected for this order
+  const [selectedAddrId, setSelectedAddrId] = useState(null);
+  const selectedAddr = addresses.find((a) => a._id === selectedAddrId) ||
+    addresses.find((a) => a.isDefault) ||
+    addresses[0] ||
+    null;
+
+  // Fetch fresh user data on mount (ensures addresses are loaded)
+  useEffect(() => {
+    fetchMe();
+  }, []);
+
+  // Auto-select default address once addresses load
+  useEffect(() => {
+    if (addresses.length > 0 && !selectedAddrId) {
+      const def = addresses.find((a) => a.isDefault) || addresses[0];
+      if (def) setSelectedAddrId(def._id);
+    }
+  }, [addresses.length]);
 
   const subtotal = getSubtotal();
   const deliveryFee = getDeliveryFee();

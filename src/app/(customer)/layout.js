@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Header from "@/components/customer/Header";
 import BottomNav from "@/components/customer/BottomNav";
+import LiveOrderBar from "@/components/customer/LiveOrderBar";
 import ProtectedRoute from "@/components/ui/ProtectedRoute";
 
 // Auth pages — no layout chrome
@@ -35,6 +36,7 @@ export default function CustomerLayout({ children }) {
             {children}
           </div>
         </main>
+        <LiveOrderBar />
         <BottomNav />
       </>
     );
@@ -55,6 +57,7 @@ export default function CustomerLayout({ children }) {
           {children}
         </div>
       </main>
+      <LiveOrderBar />
       <BottomNav />
     </ProtectedRoute>
   );

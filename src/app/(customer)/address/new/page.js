@@ -25,24 +25,54 @@ function AddAddressContent() {
     landmark: "",
     label: "home",
     isDefault: false,
+    lat: null,
+    lng: null,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState(false);
+  const [gpsError, setGpsError] = useState("");
 
   const detectLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError("GPS not supported on this device.");
+      return;
+    }
     setDetecting(true);
-    navigator.geolocation?.getCurrentPosition(
-      () => {
-        setForm((f) => ({ ...f, area: "Andheri West, Mumbai" }));
+    setGpsError("");
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          const data = await res.json();
+          const a = data.address || {};
+          const area = [
+            a.road || a.pedestrian || a.suburb,
+            a.city_district || a.neighbourhood,
+            a.city || a.town || a.village,
+            a.state,
+          ].filter(Boolean).join(", ");
+
+          setForm((f) => ({ ...f, area: area || data.display_name || "", lat: latitude, lng: longitude }));
+        } catch {
+          // Reverse geocoding failed — fill coords only, let user type area
+          setForm((f) => ({ ...f, lat: latitude, lng: longitude }));
+          setGpsError("Location detected but could not fetch address. Please type your area.");
+        }
         setDetecting(false);
         setDetected(true);
       },
-      () => {
+      (err) => {
         setDetecting(false);
-        alert("Could not detect location.");
-      }
+        if (err.code === 1) setGpsError("Location permission denied. Please allow access in browser settings.");
+        else setGpsError("Could not detect location. Try again.");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
     );
   };
 
@@ -65,6 +95,8 @@ function AddAddressContent() {
         fullAddress,
         landmark: form.landmark,
         isDefault: form.isDefault,
+        ...(form.lat && { lat: form.lat }),
+        ...(form.lng && { lng: form.lng }),
       });
       // Refresh user in authStore so checkout sees the new address
       await fetchMe();
@@ -97,6 +129,12 @@ function AddAddressContent() {
           <p className="text-sm font-medium text-text-secondary">Map view</p>
           <p className="text-xs text-text-tertiary">(Google Maps integrates here)</p>
         </div>
+        {/* Detected coords badge */}
+        {detected && form.lat && (
+          <div className="absolute top-3 left-3 flex items-center gap-1 bg-success/10 text-success text-[10px] font-semibold px-2 py-1 rounded-full border border-success/20">
+            <CheckCircle2 size={11} /> GPS coordinates saved
+          </div>
+        )}
         {/* Detect GPS button */}
         <button
           type="button"
@@ -113,6 +151,9 @@ function AddAddressContent() {
           {detecting ? "Detecting…" : detected ? "Located!" : "Use GPS"}
         </button>
       </div>
+      {gpsError && (
+        <p className="text-xs text-error mt-1 px-1">{gpsError}</p>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSave} className="space-y-4">

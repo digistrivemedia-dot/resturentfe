@@ -17,7 +17,11 @@ const useOrderStore = create((set, get) => ({
     try {
       const res = await api.post("/orders", orderData);
       const { order } = res.data;
-      set({ currentOrder: order, isPlacing: false });
+      set((s) => ({
+        currentOrder: order,
+        isPlacing: false,
+        activeOrders: [order, ...s.activeOrders],
+      }));
       return order;
     } catch (err) {
       set({ isPlacing: false, error: err.response?.data?.message || err.message });
