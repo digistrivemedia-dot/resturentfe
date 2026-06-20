@@ -9,6 +9,7 @@ import {
   Navigation, Star, Shield, Loader2,
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
+import { connectSocket } from "@/lib/socket";
 
 const STATUS_STEPS = [
   { key: "placed",           label: "Order Placed",         desc: "We received your order" },
@@ -51,22 +52,57 @@ export default function TrackOrderPage({ params }) {
   const router = useRouter();
   const { currentOrder: order, isLoading, fetchOrderById } = useOrderStore();
   const [sheetExpanded, setSheetExpanded] = useState(false);
-  const [countdown, setCountdown] = useState(12 * 60); // 12 mins remaining
+  const [countdown, setCountdown] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(null);
 
   useEffect(() => {
     fetchOrderById(id);
   }, [id, fetchOrderById]);
 
-  const riderPos = useRiderPosition(order);
-  const currentStepIdx = getStepIndex(order.status);
-
+  // Socket: real-time order status updates
   useEffect(() => {
+    const socket = connectSocket();
+    if (!socket) return;
+    const handler = ({ order: updated }) => {
+      if (updated._id === id || updated._id?.toString() === id) {
+        useOrderStore.setState({ currentOrder: updated });
+      }
+    };
+    socket.on("order_status_updated", handler);
+    return () => socket.off("order_status_updated", handler);
+  }, [id]);
+
+  // Calculate countdown from real order data
+  useEffect(() => {
+    if (!order) return;
+    if (order.status === "delivered") {
+      const placed = new Date(order.createdAt).getTime();
+      const delivered = order.deliveryTracking?.deliveredAt
+        ? new Date(order.deliveryTracking.deliveredAt).getTime()
+        : Date.now();
+      setElapsedTime(Math.round((delivered - placed) / 60000));
+      setCountdown(0);
+      return;
+    }
+    const estimatedMins = order.estimatedDeliveryTime || 35;
+    const placedAt = new Date(order.createdAt).getTime();
+    const deadline = placedAt + estimatedMins * 60 * 1000;
+    const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+    setCountdown(remaining);
+  }, [order?.status, order?.createdAt, order?.estimatedDeliveryTime]);
+
+  // Countdown tick
+  useEffect(() => {
+    if (!countdown) return;
     const iv = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
     return () => clearInterval(iv);
-  }, []);
+  }, [!countdown]);
 
-  const mins = Math.floor(countdown / 60);
-  const secs = countdown % 60;
+  const riderPos = useRiderPosition(order);
+  const currentStepIdx = order ? getStepIndex(order.status) : 0;
+
+  const mins = countdown ? Math.floor(countdown / 60) : 0;
+  const secs = countdown ? countdown % 60 : 0;
   if (isLoading || !order) {
     return (
       <div className="fixed inset-0 bg-bg-secondary flex items-center justify-center" style={{ zIndex: 40 }}>
@@ -185,13 +221,19 @@ export default function TrackOrderPage({ params }) {
         )}
 
         {/* ETA floating card */}
-        {!isDelivered && (
+        {!isDelivered && countdown !== null && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-white rounded-[var(--radius-full)] shadow-lg px-4 py-2 flex items-center gap-2">
             <Clock size={14} className="text-primary" />
             <span className="text-sm font-extrabold text-text-primary tabular-nums">
               {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
             </span>
             <span className="text-xs text-text-tertiary">mins away</span>
+          </div>
+        )}
+        {isDelivered && elapsedTime !== null && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-success text-white rounded-[var(--radius-full)] shadow-lg px-4 py-2 flex items-center gap-2">
+            <CheckCircle2 size={14} />
+            <span className="text-sm font-extrabold tabular-nums">Delivered in {elapsedTime} mins</span>
           </div>
         )}
       </div>
