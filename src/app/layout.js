@@ -10,10 +10,10 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "CafeSriisha - Food Delivery & Restaurant Management",
+  title: "Sri Isha Cafe - Food Delivery & Restaurant Management",
   description:
     "Order food from the best restaurants near you. Fast delivery, great taste.",
-  keywords: "food delivery, restaurant, order food online, CafeSriisha",
+  keywords: "food delivery, restaurant, order food online, Sri Isha Cafe",
 };
 
 export default function RootLayout({ children }) {

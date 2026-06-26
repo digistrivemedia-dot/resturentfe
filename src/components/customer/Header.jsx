@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { MapPin, ChevronDown, Search, ShoppingBag, User, Bell } from "lucide-react";
@@ -38,8 +39,20 @@ export default function Header() {
         >
           {/* Left: Logo + Location */}
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/home" className="shrink-0 text-xl font-extrabold">
-              <span className="text-primary">Cafe</span><span className="text-text-primary">Sriisha</span>
+            <Link href="/home" className="shrink-0 flex items-center gap-2">
+              <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
+                <Image
+                  src="/logo.png"
+                  alt="Sri Isha Cafe"
+                  width={36}
+                  height={36}
+                  className="w-full h-full object-cover"
+                  priority
+                />
+              </div>
+              <span className="hidden md:inline text-base font-bold text-text-primary">
+                Sri Isha <span className="text-primary">Cafe</span>
+              </span>
             </Link>
 
             <button

@@ -42,15 +42,15 @@ const FAQ_SECTIONS = [
     faqs: [
       {
         q: "What payment methods are accepted?",
-        a: "We accept UPI (Google Pay, PhonePe, Paytm, BHIM), Credit/Debit cards, Net Banking, and CafeSriisha Wallet.",
+        a: "We accept UPI (Google Pay, PhonePe, Paytm, BHIM), Credit/Debit cards, Net Banking, and Sri Isha Cafe Wallet.",
       },
       {
         q: "How long do refunds take?",
         a: "Refunds are processed within 5–7 business days to your original payment method. Wallet refunds are instant.",
       },
       {
-        q: "What is CafeSriisha Wallet?",
-        a: "CafeSriisha Wallet is a prepaid wallet for faster, seamless payments. Cashback and refunds can be credited here instantly.",
+        q: "What is Sri Isha Cafe Wallet?",
+        a: "Sri Isha Cafe Wallet is a prepaid wallet for faster, seamless payments. Cashback and refunds can be credited here instantly.",
       },
     ],
   },
@@ -131,7 +131,7 @@ export default function SupportPage() {
       {/* Quick contact */}
       <div className="grid grid-cols-2 gap-3">
         <a
-          href="mailto:support@cafesriisha.com"
+          href="mailto:support@Sri Isha Cafe.com"
           className="flex flex-col items-center gap-2 bg-white border border-border-light rounded-[var(--radius-xl)] px-4 py-4 hover:border-primary hover:bg-primary-50/30 transition-all"
         >
           <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center">
@@ -139,7 +139,7 @@ export default function SupportPage() {
           </div>
           <div className="text-center">
             <p className="text-sm font-bold text-text-primary">Email Us</p>
-            <p className="text-xs text-text-tertiary">support@cafesriisha.com</p>
+            <p className="text-xs text-text-tertiary">support@Sri Isha Cafe.com</p>
           </div>
         </a>
         <a

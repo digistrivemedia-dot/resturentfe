@@ -1,5 +1,5 @@
 // App info
-export const APP_NAME = "CafeSriisha";
+export const APP_NAME = "Sri Isha Cafe";
 export const APP_TAGLINE = "Delicious food, delivered fast";
 
 // API
