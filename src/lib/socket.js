@@ -14,9 +14,10 @@ export const connectSocket = () => {
   socket = io(SOCKET_URL, {
     withCredentials: true,
     auth: { token: getToken() },
+    transports: ["websocket"],   // skip HTTP polling — go straight to WebSocket
     reconnection: true,
-    reconnectionDelay: 2000,
-    reconnectionAttempts: 10,
+    reconnectionDelay: 3000,
+    reconnectionAttempts: 5,
   });
 
   return socket;
