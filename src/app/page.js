@@ -385,9 +385,9 @@ export default function LandingPage() {
           <div className="border-t border-white/8 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/25">
             <span>© 2026 Sri Isha Cafe. All rights reserved.</span>
             <div className="flex items-center gap-4">
-              <Link href="#" className="hover:text-white/50 transition-colors">Privacy Policy</Link>
-              <Link href="#" className="hover:text-white/50 transition-colors">Terms of Service</Link>
-              <Link href="#" className="hover:text-white/50 transition-colors">Cookie Policy</Link>
+              <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-white/50 transition-colors">Terms of Service</Link>
+              <Link href="/privacy#cookies" className="hover:text-white/50 transition-colors">Cookie Policy</Link>
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Trash2, Plus, Minus, Tag, ChevronRight,
   ShoppingBag, AlertCircle, Pencil, X, MessageSquare,
+  Bike, HandCoins, Receipt, CheckCircle2, Sparkles,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import CouponModal from "@/components/customer/CouponModal";
@@ -72,7 +73,7 @@ export default function CartPage() {
         {/* ── Delivery time banner ── */}
         <div className="flex items-center gap-3 bg-success-light rounded-[var(--radius-xl)] px-4 py-3 mb-5">
           <div className="w-8 h-8 bg-success rounded-full flex items-center justify-center shrink-0">
-            <span className="text-white text-base">🛵</span>
+            <Bike size={15} className="text-white" strokeWidth={2} />
           </div>
           <div>
             <p className="text-sm font-semibold text-success-dark">Delivery in {restaurant?.avgDeliveryTime || 35} mins</p>
@@ -172,7 +173,7 @@ export default function CartPage() {
                 <Tag size={16} className="text-success" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-success">Coupon applied! 🎉</p>
+                <p className="text-sm font-bold text-success">Coupon applied!</p>
                 <p className="text-xs text-text-secondary mt-0.5">
                   <span className="font-semibold text-text-primary">{coupon.code}</span> — You save ₹{Math.round(couponDiscount)}
                 </p>
@@ -201,7 +202,9 @@ export default function CartPage() {
         {/* ── Tip ── */}
         <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 mb-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-base">🤝</span>
+            <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
+              <HandCoins size={16} className="text-primary" strokeWidth={1.8} />
+            </div>
             <div>
               <p className="text-sm font-bold text-text-primary">Tip your delivery partner</p>
               <p className="text-xs text-text-secondary">100% of the tip goes to them</p>
@@ -229,7 +232,7 @@ export default function CartPage() {
         {/* ── Bill Details ── */}
         <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 mb-6">
           <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
-            <span>🧾</span> Bill Details
+            <Receipt size={15} className="text-text-tertiary" strokeWidth={1.8} /> Bill Details
           </h3>
 
           <div className="space-y-2.5">
@@ -240,8 +243,8 @@ export default function CartPage() {
               valueClass={deliveryFee === 0 ? "text-success font-semibold" : ""}
             />
             {isFreeDelivery && (
-              <p className="text-xs text-success -mt-1">
-                ✓ Free delivery on orders above ₹{restaurant.freeDeliveryAbove}
+              <p className="text-xs text-success -mt-1 flex items-center gap-1">
+                <CheckCircle2 size={11} strokeWidth={2.5} /> Free delivery on orders above ₹{restaurant.freeDeliveryAbove}
               </p>
             )}
             <BillRow label="Platform fee" value={`₹${platformFee}`} className="text-xs" />
@@ -262,8 +265,8 @@ export default function CartPage() {
               <span className="text-base font-extrabold text-text-primary">₹{Math.round(total)}</span>
             </div>
             {savings > 0 && (
-              <p className="text-xs text-success font-semibold mt-1 text-right">
-                🎉 You save ₹{Math.round(savings)} on this order
+              <p className="text-xs text-success font-semibold mt-1 text-right flex items-center justify-end gap-1">
+                <Sparkles size={11} strokeWidth={2} /> You save ₹{Math.round(savings)} on this order
               </p>
             )}
           </div>

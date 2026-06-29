@@ -112,16 +112,16 @@ function StatCard({ stat }) {
   const Icon = stat.icon;
 
   return (
-    <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className={`w-10 h-10 rounded-[var(--radius-lg)] flex items-center justify-center ${stat.bg}`}>
-          <Icon size={19} className={stat.color} />
+    <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className={`w-9 h-9 rounded-[var(--radius-lg)] flex items-center justify-center shrink-0 ${stat.bg}`}>
+          <Icon size={17} className={stat.color} strokeWidth={2} />
         </div>
-        <TrendingUp size={15} className="text-success shrink-0" />
+        <TrendingUp size={13} className="text-success shrink-0 mt-0.5" />
       </div>
-      <p className="text-xl font-extrabold text-text-primary mt-4">{stat.value}</p>
-      <p className="text-xs text-text-tertiary mt-0.5">{stat.label}</p>
-      <p className="text-[11px] font-semibold text-success mt-1">{stat.sub}</p>
+      <p className="text-xl font-extrabold text-text-primary tracking-tight">{stat.value}</p>
+      <p className="text-[11px] font-medium text-text-tertiary mt-0.5 leading-tight">{stat.label}</p>
+      <p className="text-[11px] font-semibold text-success mt-1.5">{stat.sub}</p>
     </div>
   );
 }
@@ -228,15 +228,17 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
+          <p className="text-xs font-semibold text-text-tertiary uppercase tracking-widest mb-1">Admin Panel</p>
           <h1 className="text-2xl font-extrabold text-text-primary">Platform Dashboard</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Live marketplace health, registrations, and action queues for June 6, 2026.
+            Live marketplace health, registrations &amp; action queues.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-success bg-success-light px-3 py-2 rounded-[var(--radius-lg)] w-fit">
-          <CheckCircle2 size={14} />
+        <div className="flex items-center gap-2 text-xs font-semibold text-success bg-success-light border border-success/20 px-3.5 py-2 rounded-[var(--radius-lg)] w-fit">
+          <CheckCircle2 size={13} strokeWidth={2.5} />
           All core systems operational
         </div>
       </div>
@@ -355,15 +357,17 @@ export default function AdminDashboardPage() {
         </section>
 
         <section className="bg-white rounded-[var(--radius-xl)] border border-border-light p-4 md:p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-bold text-text-primary">Pending Actions</h2>
-              <p className="text-xs text-text-tertiary">Admin queues needing review</p>
+              <p className="text-xs text-text-tertiary mt-0.5">Admin queues needing review</p>
             </div>
-            <AlertTriangle size={18} className="text-warning" />
+            <div className="w-8 h-8 rounded-[var(--radius-lg)] bg-warning-light flex items-center justify-center">
+              <AlertTriangle size={15} className="text-warning" strokeWidth={2} />
+            </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {pendingActions.map((action) => {
               const Icon = action.icon;
 
@@ -371,20 +375,20 @@ export default function AdminDashboardPage() {
                 <Link
                   key={action.title}
                   href={action.href}
-                  className="flex items-center justify-between gap-3 p-3 rounded-[var(--radius-lg)] border border-border-light hover:bg-bg-hover transition-colors"
+                  className="flex items-center justify-between gap-3 p-3 rounded-[var(--radius-lg)] border border-border-light hover:border-primary/30 hover:bg-bg-secondary transition-all group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-[var(--radius-lg)] flex items-center justify-center shrink-0 ${action.bg}`}>
-                      <Icon size={18} className={action.color} />
+                    <div className={`w-9 h-9 rounded-[var(--radius-lg)] flex items-center justify-center shrink-0 ${action.bg}`}>
+                      <Icon size={16} className={action.color} strokeWidth={2} />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-text-primary truncate">{action.title}</p>
                       <p className="text-xs text-text-tertiary">Open queue</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-lg font-extrabold text-text-primary">{action.value}</span>
-                    <ArrowUpRight size={14} className="text-text-tertiary" />
+                    <ArrowUpRight size={13} className="text-text-tertiary group-hover:text-primary transition-colors" />
                   </div>
                 </Link>
               );
@@ -398,10 +402,10 @@ export default function AdminDashboardPage() {
           <div className="px-4 md:px-5 py-4 border-b border-border-light flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-text-primary">Recent Orders</h2>
-              <p className="text-xs text-text-tertiary">Live feed across restaurants</p>
+              <p className="text-xs text-text-tertiary mt-0.5">Live feed across all restaurants</p>
             </div>
-            <Link href="/admin/orders" className="text-xs font-semibold text-primary hover:underline">
-              View all
+            <Link href="/admin/orders" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">
+              View all <ArrowUpRight size={12} />
             </Link>
           </div>
 
@@ -436,11 +440,11 @@ export default function AdminDashboardPage() {
         <section className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
           <div className="px-4 md:px-5 py-4 border-b border-border-light flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-text-primary">New Restaurant Registrations</h2>
-              <p className="text-xs text-text-tertiary">Latest onboarding submissions</p>
+              <h2 className="text-base font-bold text-text-primary">New Registrations</h2>
+              <p className="text-xs text-text-tertiary mt-0.5">Latest onboarding submissions</p>
             </div>
-            <Link href="/admin/restaurants" className="text-xs font-semibold text-primary hover:underline">
-              Review
+            <Link href="/admin/restaurants" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5">
+              Review <ArrowUpRight size={12} />
             </Link>
           </div>
 

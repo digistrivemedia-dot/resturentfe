@@ -8,22 +8,22 @@ export const API_BASE_URL =
 
 // Cuisines
 export const CUISINES = [
-  { value: "north_indian", label: "North Indian", icon: "🍛" },
-  { value: "south_indian", label: "South Indian", icon: "🥘" },
-  { value: "chinese", label: "Chinese", icon: "🥡" },
-  { value: "italian", label: "Italian", icon: "🍕" },
-  { value: "continental", label: "Continental", icon: "🥗" },
-  { value: "mughlai", label: "Mughlai", icon: "🍗" },
-  { value: "street_food", label: "Street Food", icon: "🌮" },
-  { value: "desserts", label: "Desserts", icon: "🍰" },
-  { value: "beverages", label: "Beverages", icon: "🥤" },
-  { value: "biryani", label: "Biryani", icon: "🍚" },
-  { value: "pizza", label: "Pizza", icon: "🍕" },
-  { value: "burgers", label: "Burgers", icon: "🍔" },
-  { value: "rolls", label: "Rolls", icon: "🌯" },
-  { value: "thali", label: "Thali", icon: "🍽️" },
-  { value: "seafood", label: "Seafood", icon: "🦐" },
-  { value: "healthy", label: "Healthy", icon: "🥬" },
+  { value: "north_indian",  label: "North Indian",  icon: "🍛",  image: "/north-indian.jpg" },
+  { value: "south_indian",  label: "South Indian",  icon: "🥘",  image: "/south-indian.jpeg" },
+  { value: "chinese",       label: "Chinese",       icon: "🥡",  image: "/chinese.jpg" },
+  { value: "italian",       label: "Italian",       icon: "🍕",  image: "/Italian.jpg" },
+  { value: "continental",   label: "Continental",   icon: "🥗",  image: "/continental.jpg" },
+  { value: "mughlai",       label: "Mughlai",       icon: "🍗",  image: "/mughal.jpg" },
+  { value: "street_food",   label: "Street Food",   icon: "🌮",  image: "/street-food.jpg" },
+  { value: "desserts",      label: "Desserts",      icon: "🍰",  image: "/dessert.jpeg" },
+  { value: "beverages",     label: "Beverages",     icon: "🥤",  image: "/beverages.png" },
+  { value: "biryani",       label: "Biryani",       icon: "🍚",  image: "/biryani.jpg" },
+  { value: "pizza",         label: "Pizza",         icon: "🍕",  image: "/Italian.jpg" },
+  { value: "burgers",       label: "Burgers",       icon: "🍔",  image: "/Burger.jpg" },
+  { value: "rolls",         label: "Rolls",         icon: "🌯",  image: "/biryani.jpg" },
+  { value: "thali",         label: "Thali",         icon: "🍽️",  image: "/south-indian.jpeg" },
+  { value: "seafood",       label: "Seafood",       icon: "🦐",  image: "/continental.jpg" },
+  { value: "healthy",       label: "Healthy",       icon: "🥬",  image: "/south-indian.jpeg" },
 ];
 
 // Sort options

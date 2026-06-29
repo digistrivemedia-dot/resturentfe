@@ -210,11 +210,11 @@ export default function LoginPage() {
           {/* T&C */}
           <p className="text-center text-xs text-text-tertiary mt-6 leading-relaxed">
             By continuing, you agree to our{" "}
-            <Link href="#" className="text-text-secondary hover:text-primary underline underline-offset-2 transition-colors">
+            <Link href="/terms" className="text-text-secondary hover:text-primary underline underline-offset-2 transition-colors">
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="#" className="text-text-secondary hover:text-primary underline underline-offset-2 transition-colors">
+            <Link href="/privacy" className="text-text-secondary hover:text-primary underline underline-offset-2 transition-colors">
               Privacy Policy
             </Link>
           </p>
