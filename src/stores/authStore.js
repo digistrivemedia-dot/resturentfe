@@ -63,10 +63,10 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
-  googleLogin: async (idToken) => {
+  googleLogin: async (accessToken) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await api.post("/auth/google", { idToken });
+      const res = await api.post("/auth/google", { accessToken });
       const { user, token, isNewUser } = res.data;
       setToken(token);
       set({ user, isAuthenticated: true, isLoading: false, error: null });
