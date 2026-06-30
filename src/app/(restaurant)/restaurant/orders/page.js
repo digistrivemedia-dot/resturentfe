@@ -290,9 +290,9 @@ function PickedUpCard({ order, onMarkDelivered }) {
       <div className="border-t border-border-light">
         <button
           onClick={() => onMarkDelivered(order._id)}
-          className="w-full py-2.5 text-sm font-semibold text-white bg-success hover:bg-success-dark transition-colors cursor-pointer"
+          className="w-full py-2.5 text-sm font-semibold text-white bg-success hover:bg-success-dark transition-colors cursor-pointer flex items-center justify-center gap-1.5"
         >
-          Mark Delivered ✓
+          <CheckCircle2 size={14} /> Mark Delivered
         </button>
       </div>
     </div>
@@ -684,6 +684,7 @@ export default function LiveOrdersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           {/* Left: title + meta */}
           <div>
+            <p className="text-xs font-semibold text-text-tertiary uppercase tracking-widest mb-1">Restaurant Portal</p>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-text-primary">Live Orders</h1>
               {/* Socket status dot */}

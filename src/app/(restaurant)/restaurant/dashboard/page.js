@@ -6,6 +6,7 @@ import {
   TrendingUp, TrendingDown, ShoppingBag, IndianRupee,
   Clock, CheckCircle2, XCircle, ChevronRight, RefreshCw,
   AlertTriangle, Users, BarChart3, ArrowUpRight, Loader2,
+  UtensilsCrossed, Tag, ClipboardList, Star, BarChart2,
 } from "lucide-react";
 import useRestaurantDashboardStore from "@/stores/restaurantDashboardStore";
 import useAuthStore from "@/stores/authStore";
@@ -52,10 +53,10 @@ function LiveOrderCard({ order, onAccept, onReject }) {
       <div className={`px-4 py-2 flex items-center justify-between text-xs font-semibold ${
         isConfirmed ? "bg-success-light text-success-dark" : "bg-warning-light text-warning"
       }`}>
-        <span>{isConfirmed ? "✓ Accepted — Preparing" : "New Order"}</span>
-        <span className={`font-bold ${urgentColor}`}>
+        <span>{isConfirmed ? "Accepted — Preparing" : "New Order"}</span>
+        <span className={`font-bold flex items-center gap-1 ${urgentColor}`}>
           {waitingMins < 1 ? "Just now" : `${waitingMins}m ago`}
-          {waitingMins >= 5 && " ⚠️"}
+          {waitingMins >= 5 && <AlertTriangle size={11} strokeWidth={2.5} />}
         </span>
       </div>
 
@@ -213,7 +214,10 @@ export default function RestaurantDashboard() {
       {/* Welcome header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-text-primary">Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""} 👋</h1>
+          <p className="text-xs font-semibold text-text-tertiary uppercase tracking-widest mb-1">Restaurant Portal</p>
+          <h1 className="text-2xl font-extrabold text-text-primary">
+            Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
+          </h1>
           <p className="text-sm text-text-secondary mt-0.5">
             {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           </p>
@@ -339,28 +343,29 @@ export default function RestaurantDashboard() {
             </div>
           </div>
 
-          {/* Quick actions */}
           <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
             <h3 className="text-sm font-bold text-text-primary mb-3">Quick Actions</h3>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {[
-                { href: "/restaurant/menu",     label: "Update Menu",        emoji: "🍽️", desc: "Add or edit items" },
-                { href: "/restaurant/coupons",  label: "Create Coupon",      emoji: "🎟️", desc: "Boost sales with offers" },
-                { href: "/restaurant/orders",   label: "View All Orders",    emoji: "📋", desc: `${liveOrders.length} active` },
-                { href: "/restaurant/reviews",  label: "Check Reviews",      emoji: "⭐", desc: "View reviews" },
-                { href: "/restaurant/analytics/sales", label: "Sales Report", emoji: "📊", desc: "This week overview" },
-              ].map(({ href, label, emoji, desc }) => (
+                { href: "/restaurant/menu",            label: "Update Menu",      icon: UtensilsCrossed, desc: "Add or edit items" },
+                { href: "/restaurant/coupons",         label: "Create Coupon",    icon: Tag,             desc: "Boost sales with offers" },
+                { href: "/restaurant/orders",          label: "View All Orders",  icon: ClipboardList,   desc: `${liveOrders.length} active` },
+                { href: "/restaurant/reviews",         label: "Check Reviews",    icon: Star,            desc: "View reviews" },
+                { href: "/restaurant/analytics/sales", label: "Sales Report",     icon: BarChart2,       desc: "This week overview" },
+              ].map(({ href, label, icon: Icon, desc }) => (
                 <Link
                   key={href}
                   href={href}
-                  className="flex items-center gap-3 p-2.5 rounded-[var(--radius-lg)] hover:bg-bg-hover transition-colors group"
+                  className="flex items-center gap-3 p-2.5 rounded-[var(--radius-lg)] hover:bg-bg-secondary transition-colors group"
                 >
-                  <span className="text-xl shrink-0">{emoji}</span>
+                  <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center shrink-0">
+                    <Icon size={14} className="text-primary" strokeWidth={2} />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors">{label}</p>
                     <p className="text-xs text-text-tertiary">{desc}</p>
                   </div>
-                  <ChevronRight size={14} className="text-text-tertiary shrink-0" />
+                  <ChevronRight size={13} className="text-text-tertiary shrink-0 group-hover:text-primary transition-colors" />
                 </Link>
               ))}
             </div>
