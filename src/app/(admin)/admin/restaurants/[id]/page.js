@@ -152,8 +152,9 @@ export default function RestaurantDetailPage({ params }) {
   const [addLoginForm, setAddLoginForm] = useState({ name: "", email: "", phone: "" });
   const [addLoginLoading, setAddLoginLoading] = useState(false);
   const [addLoginError, setAddLoginError] = useState("");
-  const [resetResult, setResetResult] = useState({}); // { [userId]: newPassword }
+  const [resetResult, setResetResult] = useState({}); // { [userId]: newPassword } — in-session only
   const [resettingId, setResettingId] = useState(null);
+  const [resetConfirmId, setResetConfirmId] = useState(null); // userId pending confirmation
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [copiedId, setCopiedId] = useState(null);
   const [impersonatingId, setImpersonatingId] = useState(null);
@@ -278,12 +279,16 @@ export default function RestaurantDetailPage({ params }) {
   };
 
   const handleResetPassword = async (userId) => {
+    setResetConfirmId(null);
     setResettingId(userId);
     try {
       const res = await api.put(`/admin/restaurants/${id}/logins/${userId}/reset-password`);
       const newPwd = res.data?.newPassword;
+      // Keep in resetResult for immediate display, then re-fetch so DB state is reflected
       setResetResult((prev) => ({ ...prev, [userId]: newPwd }));
       setVisiblePasswords((prev) => ({ ...prev, [userId]: true }));
+      // Re-fetch logins so login.displayPassword is up-to-date for any future refresh
+      await fetchLogins();
     } catch {}
     setResettingId(null);
   };
@@ -482,7 +487,7 @@ export default function RestaurantDetailPage({ params }) {
                     <div>
                       <p className="text-sm font-semibold text-text-primary">{order._id || order.id}</p>
                       <p className="text-xs text-text-secondary mt-0.5">
-                        {order.customer?.name || order.customer || "Customer"} · {formatDate(order.createdAt || order.date)}
+                        {order.customer?.name || "Customer"} · {formatDate(order.createdAt || order.date)}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -520,7 +525,10 @@ export default function RestaurantDetailPage({ params }) {
             ) : (
               <div className="space-y-4">
                 {logins.map((login) => {
-                  const displayPwd = resetResult[login._id] || login.initialPassword;
+                  // displayPassword comes from the backend (tempPassword field) and is
+                  // always the latest admin-set password. In-session resetResult is used
+                  // immediately after a reset before the logins are re-fetched.
+                  const displayPwd = resetResult[login._id] || login.displayPassword;
                   const isVisible = visiblePasswords[login._id];
                   const isCopied = copiedId === login._id;
                   const isResetting = resettingId === login._id;
@@ -543,7 +551,7 @@ export default function RestaurantDetailPage({ params }) {
                             {impersonatingId === login._id ? <Loader2 size={13} className="animate-spin" /> : <LogIn size={13} />}
                           </button>
                           <button
-                            onClick={() => handleResetPassword(login._id)}
+                            onClick={() => setResetConfirmId(login._id)}
                             disabled={isResetting}
                             title="Reset password"
                             className="p-1.5 rounded-[var(--radius-md)] text-text-tertiary hover:text-warning hover:bg-warning-light transition-colors cursor-pointer disabled:opacity-50"
@@ -560,18 +568,25 @@ export default function RestaurantDetailPage({ params }) {
                         <div className="flex items-center gap-1.5">
                           <Key size={11} className="text-text-tertiary shrink-0" />
                           <span className="text-text-primary font-mono flex-1">
-                            {isVisible ? displayPwd : "••••••••••"}
+                            {displayPwd
+                              ? (isVisible ? displayPwd : "••••••••••")
+                              : <span className="text-text-tertiary italic font-sans">Auto-generated — use Reset</span>
+                            }
                           </span>
-                          <button onClick={() => togglePasswordVisible(login._id)} className="text-text-tertiary hover:text-text-primary cursor-pointer">
-                            {isVisible ? <EyeOff size={12} /> : <Eye size={12} />}
-                          </button>
-                          <button onClick={() => copyToClipboard(displayPwd, login._id)} className="text-text-tertiary hover:text-primary cursor-pointer">
-                            {isCopied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
-                          </button>
+                          {displayPwd && (
+                            <>
+                              <button onClick={() => togglePasswordVisible(login._id)} className="text-text-tertiary hover:text-text-primary cursor-pointer">
+                                {isVisible ? <EyeOff size={12} /> : <Eye size={12} />}
+                              </button>
+                              <button onClick={() => copyToClipboard(displayPwd, login._id)} className="text-text-tertiary hover:text-primary cursor-pointer">
+                                {isCopied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
-                      {resetResult[login._id] && (
-                        <p className="text-[10px] text-warning font-medium">⚠ New password — share with owner</p>
+                      {login.passwordWasReset && (
+                        <p className="text-[10px] text-warning font-medium">⚠ Password was reset by admin</p>
                       )}
                     </div>
                   );
@@ -732,6 +747,43 @@ export default function RestaurantDetailPage({ params }) {
           {addLoginError && (
             <p className="text-xs text-error bg-error-light px-3 py-2 rounded-[var(--radius-lg)]">{addLoginError}</p>
           )}
+        </div>
+      </Modal>
+
+      {/* Reset Password Confirmation Modal */}
+      <Modal
+        isOpen={!!resetConfirmId}
+        onClose={() => setResetConfirmId(null)}
+        title="Reset Password?"
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => setResetConfirmId(null)}
+              className="px-4 py-2 rounded-[var(--radius-lg)] border border-border-default text-text-secondary text-sm font-medium hover:bg-bg-hover cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleResetPassword(resetConfirmId)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-[var(--radius-lg)] bg-warning text-white text-sm font-semibold cursor-pointer"
+            >
+              <RotateCcw size={14} />
+              Yes, Reset
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 bg-warning-light border border-warning/30 rounded-[var(--radius-lg)] px-3 py-2.5">
+            <AlertTriangle size={16} className="text-warning shrink-0 mt-0.5" />
+            <p className="text-sm text-warning font-medium leading-snug">
+              This will generate a new random password and the old one will stop working immediately.
+            </p>
+          </div>
+          <p className="text-sm text-text-secondary">
+            Make sure to <strong>share the new password</strong> with the restaurant owner right after — it will only be visible once in this session.
+          </p>
         </div>
       </Modal>
 

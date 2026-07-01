@@ -32,6 +32,8 @@ export default function AuthInitializer() {
     }
 
     // ── Case 2: Full session — userInfo cookie present (normal path) ───────
+    // Also call refresh-token to get an in-memory access token so the first
+    // API request on any page doesn't have to fail-then-retry via the interceptor.
     if (userInfoRaw) {
       try {
         const user = JSON.parse(userInfoRaw);
@@ -39,7 +41,15 @@ export default function AuthInitializer() {
       } catch {
         // Malformed cookie — fall through as logged out
       }
-      setInitialized();
+      // Best-effort token refresh — don't block initialization on failure
+      fetch(`${API_BASE}/auth/refresh-token`, { method: "POST", credentials: "include" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          const token = data?.data?.token;
+          if (token) setToken(token);
+        })
+        .catch(() => {})
+        .finally(() => setInitialized());
       return;
     }
 

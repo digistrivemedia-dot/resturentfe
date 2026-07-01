@@ -115,7 +115,12 @@ export default function MenuItemCard({ item, restaurant }) {
         <div className="flex flex-col items-center gap-2 shrink-0">
           {/* Image */}
           <div className="relative w-24 h-24 rounded-[var(--radius-lg)] overflow-hidden bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
-            <span className="text-3xl select-none">🍽️</span>
+            {item.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl select-none">🍽️</span>
+            )}
             {!item.isAvailable && (
               <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
                 <span className="text-[10px] font-bold text-text-secondary">Unavailable</span>

@@ -356,6 +356,15 @@ export default function MenuItemForm({ editId = null }) {
     } catch {}
   }
 
+  function handleDrop(e) {
+    e.preventDefault();
+    if (isUploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    // Reuse the same upload flow as the file input
+    handleImageChange({ target: { files: [file] } });
+  }
+
   function addVariant() {
     setForm((prev) => ({
       ...prev,
@@ -623,6 +632,8 @@ export default function MenuItemForm({ editId = null }) {
             <Section title="Item Photo">
               <div
                 onClick={() => !isUploading && fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
                 className={`border-2 border-dashed border-border-default rounded-[var(--radius-xl)] flex flex-col items-center justify-center py-8 px-4 transition-colors ${isUploading ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-primary hover:bg-primary-50/30"}`}
               >
                 {form.imagePreview ? (
@@ -634,7 +645,7 @@ export default function MenuItemForm({ editId = null }) {
                       <Camera size={22} className="text-text-tertiary" />
                     </div>
                     <p className="text-sm font-medium text-text-primary">Upload Photo</p>
-                    <p className="text-xs text-text-tertiary mt-1">Click to browse — JPG, PNG, WEBP</p>
+                    <p className="text-xs text-text-tertiary mt-1">Drag & drop or click to browse — JPG, PNG, WEBP</p>
                   </>
                 )}
               </div>

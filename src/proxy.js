@@ -38,7 +38,7 @@ function redirectTo(url, request) {
   return NextResponse.redirect(new URL(url, request.url));
 }
 
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
 
   const refreshToken = request.cookies.get("refreshToken")?.value;
