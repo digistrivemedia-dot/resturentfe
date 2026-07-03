@@ -6,6 +6,7 @@ import {
   Award, ThumbsDown,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { ComingSoon } from "@/components/ui";
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
 const MOCK = {
@@ -133,6 +134,9 @@ function TrendIcon({ trend }) {
 }
 
 export default function ItemPerformance() {
+  // ─── Feature flag — flip to true when backend analytics routes are connected ─
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Item Performance" description="Best-seller rankings, item ratings, and low-performer alerts will be available once connected to live data." />;
   const [period, setPeriod] = useState("Week");
   const data = MOCK[period];
 

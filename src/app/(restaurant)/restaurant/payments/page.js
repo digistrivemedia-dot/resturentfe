@@ -178,7 +178,7 @@ export default function PaymentsPage() {
         <p className="text-sm text-text-secondary mt-0.5">Track your revenue, payouts and financial details</p>
       </div>
 
-      {/* Stats strip */}
+      {/* Stats strip — hidden until backend analytics endpoint is connected
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {STATS.map(({ label, value, icon: Icon, color, bg, sub }) => (
           <div key={label} className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
@@ -192,7 +192,7 @@ export default function PaymentsPage() {
         ))}
       </div>
 
-      {/* Earnings chart */}
+      Earnings chart — hidden until backend analytics endpoint is connected
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light p-6">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-sm font-bold text-text-primary">Weekly Earnings</h2>
@@ -221,6 +221,7 @@ export default function PaymentsPage() {
           </div>
         </div>
       </div>
+      */}
 
       {/* Payout history table */}
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">

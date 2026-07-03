@@ -8,6 +8,7 @@ import {
   ShoppingCart, Package,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { ComingSoon } from "@/components/ui";
 
 // ── SVG chart helpers ────────────────────────────────────────────────────────
 const W = 500, H = 160, PAD = 20;
@@ -120,6 +121,9 @@ const NAV_CARDS = [
 ];
 
 export default function AnalyticsOverview() {
+  // ─── Feature flag — flip to true when backend analytics routes are connected ─
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Analytics" description="Sales, order, and item performance analytics will be available once connected to live data." />;
   const [period, setPeriod] = useState("This Week");
   const data = MOCK[period];
 

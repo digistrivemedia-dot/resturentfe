@@ -371,7 +371,8 @@ export default function RestaurantDashboard() {
             </div>
           </div>
 
-          {/* Recent customers */}
+          {/* Recent customers — hidden until backend provides this data
+          {false && (
           <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
@@ -397,6 +398,7 @@ export default function RestaurantDashboard() {
               ))}
             </div>
           </div>
+          )} */}
         </div>
       </div>
     </div>

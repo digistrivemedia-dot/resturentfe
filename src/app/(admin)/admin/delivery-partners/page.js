@@ -16,6 +16,7 @@ import {
   Star,
 } from "lucide-react";
 import { Modal, Badge } from "@/components/ui";
+import { ComingSoon } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
 
 const MOCK_PARTNERS = [
@@ -125,6 +126,9 @@ function getNextStatus(action) {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function DeliveryPartnersPage() {
+  // ─── Feature flag — flip to true when delivery-partners backend is connected ─
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Delivery Partners" description="Delivery partner management will be available once the delivery module is connected." />;
   const [partners, setPartners] = useState(MOCK_PARTNERS);
   const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");

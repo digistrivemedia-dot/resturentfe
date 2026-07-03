@@ -24,6 +24,7 @@ import {
   Info,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
+import { ComingSoon } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
 import api from "@/lib/api";
 
@@ -900,6 +901,9 @@ function MobileComposeModal({ isOpen, onClose }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminNotificationsPage() {
+  // ─── Feature flag — flip to true when send-notification is wired to the API ──
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Push Notifications" description="Notification broadcasting will be available once the frontend is wired to the send-notification API." />;
   const [activeTab, setActiveTab] = useState("All");
   const [selectedNotif, setSelectedNotif] = useState(null);
   const [mobileComposeOpen, setMobileComposeOpen] = useState(false);

@@ -7,6 +7,7 @@ import {
   HelpCircle, X, Check, Loader2, Tag, ArrowUpRight,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
+import { ComingSoon } from "@/components/ui";
 import { timeAgo, formatDate } from "@/lib/utils";
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
@@ -171,6 +172,9 @@ function MessageBubble({ msg }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function SupportPage() {
+  // ─── Feature flag — flip to true when ticket API is connected ─────────────
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Support" description="Ticket submission and support chat will be available once the support module is connected." />;
   const [tickets, setTickets] = useState(TICKETS);
   const [expandedTicket, setExpandedTicket] = useState(null);
   const [replyTexts, setReplyTexts] = useState({});

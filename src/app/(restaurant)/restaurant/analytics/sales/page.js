@@ -5,6 +5,7 @@ import {
   TrendingUp, TrendingDown, IndianRupee, Percent, Calendar, CreditCard,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { ComingSoon } from "@/components/ui";
 
 // ── SVG helpers ───────────────────────────────────────────────────────────────
 const W = 500, H = 160, PAD = 20;
@@ -99,6 +100,9 @@ function intensityColor(val, max) {
 }
 
 export default function SalesAnalysis() {
+  // ─── Feature flag — flip to true when backend analytics routes are connected ─
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Sales Analysis" description="Revenue breakdown, commission details, and payment splits will be available once connected to live data." />;
   const [period, setPeriod] = useState("Week");
   const data = MOCK[period];
 

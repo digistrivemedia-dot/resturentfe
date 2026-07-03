@@ -14,3 +14,4 @@ export { default as Toggle } from "./Toggle";
 export { default as EmptyState } from "./EmptyState";
 export { default as Divider } from "./Divider";
 export { default as SearchInput } from "./SearchInput";
+export { default as ComingSoon } from "./ComingSoon";

@@ -5,6 +5,7 @@ import {
   ShoppingBag, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { ComingSoon } from "@/components/ui";
 
 // ── SVG helpers ───────────────────────────────────────────────────────────────
 const W = 500, H = 160, PAD = 20;
@@ -75,6 +76,9 @@ const VALUE_BUCKETS = [
 ];
 
 export default function OrderInsights() {
+  // ─── Feature flag — flip to true when backend analytics routes are connected ─
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Order Insights" description="Order trends, cancellation analysis, and preparation time breakdowns will be available once connected to live data." />;
   const [period, setPeriod] = useState("Week");
   const data = MOCK[period];
 

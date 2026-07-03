@@ -12,6 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { ComingSoon } from "@/components/ui";
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
@@ -297,6 +298,9 @@ function PayoutModal({ restaurant, onClose, onConfirm }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function FinancePage() {
+  // ─── Feature flag — flip to true when payouts backend is connected ──────────
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Finance & Payouts" description="Payout management and financial reports will be available once the finance module is connected." />;
   const [payouts, setPayouts]       = useState(INITIAL_RESTAURANT_PAYOUTS);
   const [modal, setModal]           = useState(null); // restaurant object or null
 

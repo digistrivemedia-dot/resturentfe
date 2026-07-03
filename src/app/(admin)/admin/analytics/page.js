@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TrendingUp, ShoppingBag, Users, BarChart2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { ComingSoon } from "@/components/ui";
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
@@ -300,6 +301,9 @@ function RankBadge({ rank }) {
 const DATE_RANGES = ["Last 30 days", "Last 3 months", "Last 6 months"];
 
 export default function AnalyticsPage() {
+  // ─── Feature flag — flip to true when backend analytics is connected ───────
+  const FEATURE_LIVE = false;
+  if (!FEATURE_LIVE) return <ComingSoon title="Platform Analytics" description="Live analytics will appear here once connected to the backend reporting service." />;
   const [range, setRange] = useState("Last 6 months");
 
   const totalGmv      = MONTHLY_DATA.reduce((s, d) => s + d.gmv, 0);
