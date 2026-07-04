@@ -20,9 +20,10 @@ import useAdminRestaurantStore from "@/stores/adminRestaurantStore";
 const PAGE_SIZE = 10;
 
 const STATUS_CONFIG = {
-  active: { label: "Active", bg: "bg-success-light", text: "text-success-dark" },
-  pending: { label: "Pending", bg: "bg-warning-light", text: "text-warning" },
-  suspended: { label: "Suspended", bg: "bg-error-light", text: "text-error" },
+  active:    { label: "Active",    bg: "bg-success-light", text: "text-success-dark" },
+  pending:   { label: "Pending",   bg: "bg-warning-light", text: "text-warning" },
+  suspended: { label: "Suspended", bg: "bg-error-light",   text: "text-error" },
+  closed:    { label: "Closed",    bg: "bg-bg-secondary",  text: "text-text-tertiary" },
 };
 
 function StatusBadge({ status }) {
@@ -34,38 +35,47 @@ function StatusBadge({ status }) {
   );
 }
 
-function ActionButton({ status, restaurantId, onVerify, onSuspend, onReactivate }) {
-  if (status === "pending") {
-    return (
-      <button
-        onClick={() => onVerify(restaurantId)}
-        className="text-xs px-2.5 py-1 rounded-[var(--radius-md)] bg-success-light text-success-dark hover:bg-success hover:text-white transition-colors font-medium cursor-pointer"
-      >
-        Approve
-      </button>
-    );
-  }
-  if (status === "active") {
-    return (
-      <button
-        onClick={() => onSuspend(restaurantId)}
-        className="text-xs px-2.5 py-1 rounded-[var(--radius-md)] bg-error-light text-error hover:bg-error hover:text-white transition-colors font-medium cursor-pointer"
-      >
-        Suspend
-      </button>
-    );
-  }
-  if (status === "suspended") {
-    return (
-      <button
-        onClick={() => onReactivate(restaurantId)}
-        className="text-xs px-2.5 py-1 rounded-[var(--radius-md)] bg-primary-50 text-primary hover:bg-primary hover:text-white transition-colors font-medium cursor-pointer"
-      >
-        Reactivate
-      </button>
-    );
-  }
-  return null;
+function ActionButton({ status, restaurantId, onVerify, onSuspend, onReactivate, onToggle }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {status === "pending" && (
+        <button
+          onClick={() => onVerify(restaurantId)}
+          className="text-xs px-2.5 py-1 rounded-[var(--radius-md)] bg-success-light text-success-dark hover:bg-success hover:text-white transition-colors font-medium cursor-pointer"
+        >
+          Approve
+        </button>
+      )}
+      {status === "suspended" && (
+        <button
+          onClick={() => onReactivate(restaurantId)}
+          className="text-xs px-2.5 py-1 rounded-[var(--radius-md)] bg-primary-50 text-primary hover:bg-primary hover:text-white transition-colors font-medium cursor-pointer"
+        >
+          Reactivate
+        </button>
+      )}
+      {(status === "active" || status === "closed") && (
+        <button
+          onClick={() => onToggle(restaurantId, status)}
+          className={`text-xs px-2.5 py-1 rounded-[var(--radius-md)] transition-colors font-medium cursor-pointer ${
+            status === "active"
+              ? "bg-bg-secondary text-text-secondary hover:bg-error-light hover:text-error"
+              : "bg-success-light text-success-dark hover:bg-success hover:text-white"
+          }`}
+        >
+          {status === "active" ? "Deactivate" : "Activate"}
+        </button>
+      )}
+      {status === "active" && (
+        <button
+          onClick={() => onSuspend(restaurantId)}
+          className="text-xs px-2.5 py-1 rounded-[var(--radius-md)] bg-error-light text-error hover:bg-error hover:text-white transition-colors font-medium cursor-pointer"
+        >
+          Suspend
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function RestaurantsPage() {
@@ -80,6 +90,7 @@ export default function RestaurantsPage() {
     fetchRestaurants,
     verifyRestaurant,
     suspendRestaurant,
+    toggleRestaurantStatus,
   } = useAdminRestaurantStore();
 
   const loadRestaurants = useCallback(() => {
@@ -149,6 +160,14 @@ export default function RestaurantsPage() {
     }
   }
 
+  async function handleToggle(id, currentStatus) {
+    try {
+      await toggleRestaurantStatus(id, currentStatus);
+    } catch (err) {
+      console.error("Failed to toggle restaurant status:", err);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -206,7 +225,7 @@ export default function RestaurantsPage() {
 
             {/* Status pills */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              {["all", "active", "pending", "suspended"].map((s) => (
+              {["all", "active", "pending", "suspended", "closed"].map((s) => (
                 <button
                   key={s}
                   onClick={() => handleStatusFilter(s)}
@@ -333,6 +352,7 @@ export default function RestaurantsPage() {
                           onVerify={handleVerify}
                           onSuspend={handleSuspend}
                           onReactivate={handleReactivate}
+                          onToggle={handleToggle}
                         />
                       </div>
                     </td>

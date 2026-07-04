@@ -1,245 +1,271 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { ChevronRight, SlidersHorizontal, X, Search } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { MapPin } from "lucide-react";
 import BannerCarousel from "@/components/customer/BannerCarousel";
 import RestaurantCard from "@/components/customer/RestaurantCard";
+import HomeFoodCard from "@/components/customer/HomeFoodCard";
 import { CardSkeleton } from "@/components/ui";
-import useRestaurantStore from "@/stores/restaurantStore";
-import { SORT_OPTIONS } from "@/constants";
-
-// Cuisine categories with real images from /public
-const CUISINE_CATEGORIES = [
-  { value: "south_indian",  label: "South Indian",  image: "/south-indian.jpeg" },
-  { value: "north_indian",  label: "North Indian",  image: "/north-indian.jpg" },
-  { value: "chinese",       label: "Chinese",       image: "/chinese.jpg" },
-  { value: "italian",       label: "Italian",       image: "/Italian.jpg" },
-  { value: "biryani",       label: "Biryani",       image: "/biryani.jpg" },
-  { value: "burgers",       label: "Burgers",       image: "/Burger.jpg" },
-  { value: "desserts",      label: "Desserts",      image: "/dessert.jpeg" },
-];
-
-const QUICK_FILTERS = [
-  { id: "offers",        label: "Offers" },
-  { id: "veg",           label: "Pure Veg" },
-  { id: "rating4",       label: "Ratings 4.0+" },
-  { id: "fast",          label: "Fast Delivery" },
-  { id: "free_delivery", label: "Free Delivery" },
-  { id: "new",           label: "New" },
-];
+import api from "@/lib/api";
+import useLocationStore from "@/stores/locationStore";
 
 export default function HomePage() {
-  const { restaurants, isLoading, fetchRestaurants } = useRestaurantStore();
-  const [activeFilters, setActiveFilters] = useState([]);
-  const [sortBy, setSortBy] = useState("relevance");
-  const [showFilters, setShowFilters] = useState(false);
+  const { currentLocation, setCurrentLocation } = useLocationStore();
 
-  const buildParams = (filters, sort) => {
-    const params = {};
-    if (filters.includes("veg"))          params.isVeg = "true";
-    if (filters.includes("offers"))       params.offers = "true";
-    if (filters.includes("rating4"))      params.rating = "4";
-    if (filters.includes("fast"))         params.deliveryTime = "30";
-    if (filters.includes("free_delivery")) params.freeDelivery = "true";
-    if (sort !== "relevance")             params.sort = sort;
-    return params;
-  };
+  const [locationStatus, setLocationStatus] = useState("idle"); // idle | requesting | granted | denied
+  const [categories, setCategories] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
+  const [items, setItems] = useState([]);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    fetchRestaurants(buildParams(activeFilters, sortBy));
-  }, [activeFilters, sortBy]);
+  // Track whether we've done the initial location setup
+  const didInit = useRef(false);
 
-  const toggleFilter = (id) =>
-    setActiveFilters((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+  // ── Fetch feed ──────────────────────────────────────────────────────────────
+  const fetchFeed = useCallback(async (lat, lng, category) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (lat) params.set("lat", lat);
+      if (lng) params.set("lng", lng);
+      if (category && category !== "all") params.set("category", category);
+
+      const res = await api.get(`/home/feed?${params.toString()}`);
+      setCategories(res.data.categories || []);
+      setRestaurants(res.data.restaurants || []);
+      setItems(res.data.items || []);
+    } catch {
+      // silent fail
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // ── Request GPS (browser prompt) ────────────────────────────────────────────
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationStatus("denied");
+      fetchFeed(null, null, activeCategory);
+      return;
+    }
+    setLocationStatus("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const loc = {
+          lat: latitude,
+          lng: longitude,
+          area: "Current Location",
+          city: "Nearby",
+          fullAddress: "Using GPS location",
+        };
+        setCurrentLocation(loc); // save to store so header shows it too
+        setLocationStatus("granted");
+        fetchFeed(latitude, longitude, activeCategory);
+      },
+      () => {
+        setLocationStatus("denied");
+        fetchFeed(null, null, activeCategory);
+      },
+      { timeout: 8000 }
     );
+  }, [activeCategory, fetchFeed, setCurrentLocation]);
 
-  const featured = restaurants.filter((r) => r.isFeatured);
-  const withOffers = restaurants.filter((r) => r.offers?.length);
+  // ── On mount: use stored location or ask for GPS ────────────────────────────
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
+    if (currentLocation?.lat && currentLocation?.lng) {
+      // Already have location from store (set via header picker or previous visit)
+      setLocationStatus("granted");
+      fetchFeed(currentLocation.lat, currentLocation.lng, activeCategory);
+    } else {
+      requestLocation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── When header location changes, re-fetch ──────────────────────────────────
+  const prevLocRef = useRef(null);
+  useEffect(() => {
+    if (!currentLocation) return;
+    const key = `${currentLocation.lat},${currentLocation.lng}`;
+    if (prevLocRef.current === key) return; // same coords, skip
+    prevLocRef.current = key;
+
+    if (!didInit.current) return; // let the mount effect handle first load
+    setLocationStatus("granted");
+    fetchFeed(currentLocation.lat, currentLocation.lng, activeCategory);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLocation]);
+
+  // ── When category changes, re-fetch with current location ───────────────────
+  useEffect(() => {
+    if (locationStatus === "idle") return;
+    fetchFeed(currentLocation?.lat, currentLocation?.lng, activeCategory);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory]);
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const isRestaurantOpen = (r) => r.timing?.isOpen !== false;
 
   return (
-    <div className="py-4 md:py-6 space-y-8" style={{ fontFamily: "var(--font-family)" }}>
+    <div className="py-4 md:py-6 space-y-8">
 
       {/* ── BANNER ── */}
       <BannerCarousel />
 
-      {/* ── CUISINE CATEGORIES ── */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-base font-bold text-text-primary">What&apos;s on your mind?</h2>
-            <p className="text-xs text-text-tertiary mt-0.5">Browse by cuisine</p>
+      {/* ── LOCATION BANNER ── */}
+      {locationStatus === "denied" && (
+        <div className="flex items-center gap-3 bg-warning-light border border-warning/20 rounded-[var(--radius-xl)] px-4 py-3 -mx-1">
+          <MapPin size={18} className="text-warning shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-text-primary">Enable location for nearby food</p>
+            <p className="text-xs text-text-secondary">Tap the location pin in the top-left to set your location</p>
           </div>
-          <Link
-            href="/search"
-            className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline"
+          <button
+            onClick={requestLocation}
+            className="text-xs font-bold text-warning hover:underline shrink-0"
           >
-            See all <ChevronRight size={13} />
-          </Link>
+            Allow
+          </button>
         </div>
+      )}
 
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4">
-          {CUISINE_CATEGORIES.map((cuisine) => (
-            <Link
-              key={cuisine.value}
-              href={`/category/${cuisine.value}`}
-              className="flex flex-col items-center gap-2 shrink-0 group"
-            >
-              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">
-                <Image
-                  src={cuisine.image}
-                  alt={cuisine.label}
-                  width={64}
-                  height={64}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="text-[11px] font-semibold text-text-secondary text-center w-16 leading-tight group-hover:text-primary transition-colors">
-                {cuisine.label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ── TOP OFFERS ── */}
-      {withOffers.length > 0 && (
-        <section className="bg-bg-secondary -mx-4 px-4 py-5 rounded-2xl">
+      {/* ── FOOD CATEGORIES ── */}
+      {(categories.length > 0 || isLoading) && (
+        <section>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-bold text-text-primary">Top offers for you</h2>
-              <p className="text-xs text-text-tertiary mt-0.5">Best deals right now</p>
+              <h2 className="text-base font-bold text-text-primary">What&apos;s on your mind?</h2>
+              <p className="text-xs text-text-tertiary mt-0.5">Browse by food type</p>
             </div>
-            <Link href="/home?filter=offers" className="text-xs font-semibold text-primary hover:underline">
-              See all
-            </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
-            {withOffers.map((r) => (
-              <div key={r._id} className="shrink-0 w-64">
-                <RestaurantCard restaurant={r} variant="horizontal" />
+
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4">
+            {/* All chip */}
+            <button
+              onClick={() => setActiveCategory("all")}
+              className="flex flex-col items-center gap-1.5 shrink-0 group"
+            >
+              <div className={`w-16 h-16 rounded-full overflow-hidden border-2 shadow-md transition-all duration-200 flex items-center justify-center text-2xl bg-bg-secondary ${activeCategory === "all" ? "border-primary scale-105" : "border-white group-hover:shadow-lg group-hover:scale-105"}`}>
+                🍽️
               </div>
+              <span className={`text-[11px] font-semibold text-center w-16 leading-tight ${activeCategory === "all" ? "text-primary" : "text-text-secondary group-hover:text-primary"} transition-colors`}>
+                All
+              </span>
+            </button>
+
+            {categories.map((cat) => (
+              <button
+                key={cat._id}
+                onClick={() => setActiveCategory(activeCategory === cat.name ? "all" : cat.name)}
+                className="flex flex-col items-center gap-1.5 shrink-0 group"
+              >
+                <div className={`w-16 h-16 rounded-full overflow-hidden border-2 shadow-md transition-all duration-200 ${activeCategory === cat.name ? "border-primary scale-105" : "border-white group-hover:shadow-lg group-hover:scale-105"}`}>
+                  {cat.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-bg-secondary flex items-center justify-center text-2xl">🍽️</div>
+                  )}
+                </div>
+                <span className={`text-[11px] font-semibold text-center w-16 leading-tight transition-colors ${activeCategory === cat.name ? "text-primary" : "text-text-secondary group-hover:text-primary"}`}>
+                  {cat.name}
+                </span>
+              </button>
             ))}
           </div>
         </section>
       )}
 
-      {/* ── ALL RESTAURANTS ── */}
+      {/* ── FOOD NEAR YOU ── */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-bold text-text-primary">
-              Restaurants near you
+            <h2 className="text-base font-bold text-text-primary"> 
+              {activeCategory === "all" ? "Food near you " : `${activeCategory} near you`}
             </h2>
+            {locationStatus === "granted" && (
+              <p className="text-xs text-text-tertiary mt-0.5 flex items-center gap-1">
+                <MapPin size={11} /> Within 8 km
+              </p>
+            )}
+          </div>
+          {items.length > 0 && (
+            <span className="text-xs text-text-tertiary">{items.length} items</span>
+          )}
+        </div>
+
+        {locationStatus === "requesting" || isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array(8).fill(0).map((_, i) => (
+              <div key={i} className="bg-bg-primary rounded-[var(--radius-xl)] border border-border-light overflow-hidden animate-pulse">
+                <div className="aspect-[4/3] bg-bg-secondary" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-bg-secondary rounded w-3/4" />
+                  <div className="h-3 bg-bg-secondary rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12 border border-border-light rounded-[var(--radius-xl)] bg-bg-secondary">
+            <div className="text-4xl mb-3">🍽️</div>
+            <p className="text-text-primary font-semibold text-sm">
+              {locationStatus === "denied"
+                ? "Set your location to see food near you"
+                : activeCategory !== "all"
+                ? `No ${activeCategory} items found nearby`
+                : "No food items found nearby"}
+            </p>
+            <p className="text-text-secondary text-xs mt-1">
+              {locationStatus === "denied"
+                ? "Tap the location pin at the top to set your area"
+                : "Try a different category"}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {items.map((item) => (
+              <HomeFoodCard key={item._id} item={item} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── RESTAURANTS NEAR YOU ── */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-bold text-text-primary">Restaurants near you</h2>
             {restaurants.length > 0 && (
-              <p className="text-xs text-text-tertiary mt-0.5">{restaurants.length} restaurants available</p>
+              <p className="text-xs text-text-tertiary mt-0.5">{restaurants.length} restaurants</p>
             )}
           </div>
         </div>
 
-        {/* Filter bar */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-3">
-          {/* Filter toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 h-9 px-3 text-xs font-semibold rounded-full border transition-colors shrink-0 ${
-              showFilters || activeFilters.length
-                ? "bg-primary text-white border-primary"
-                : "bg-white text-text-primary border-border-default hover:border-primary hover:text-primary"
-            }`}
-          >
-            <SlidersHorizontal size={13} />
-            {activeFilters.length ? `Filters (${activeFilters.length})` : "Filter"}
-          </button>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="h-9 px-3 text-xs font-semibold bg-white border border-border-default rounded-full focus:outline-none focus:border-primary cursor-pointer shrink-0 text-text-primary"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-
-          {/* Quick filters */}
-          {QUICK_FILTERS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => toggleFilter(f.id)}
-              className={`flex items-center gap-1 h-9 px-3.5 text-xs font-semibold rounded-full border transition-all shrink-0 ${
-                activeFilters.includes(f.id)
-                  ? "bg-text-primary text-white border-text-primary"
-                  : "bg-white text-text-secondary border-border-default hover:border-primary hover:text-primary"
-              }`}
-            >
-              {f.label}
-              {activeFilters.includes(f.id) && <X size={11} className="ml-0.5" />}
-            </button>
-          ))}
-        </div>
-
-        {/* Active filters summary */}
-        {activeFilters.length > 0 && (
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs text-text-tertiary">{restaurants.length} results</span>
-            <span className="text-text-tertiary">·</span>
-            <button
-              onClick={() => setActiveFilters([])}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              Clear all
-            </button>
-          </div>
-        )}
-
-        {/* Restaurant grid */}
         {isLoading && restaurants.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array(6).fill(0).map((_, i) => <CardSkeleton key={i} />)}
+            {Array(3).fill(0).map((_, i) => <CardSkeleton key={i} />)}
           </div>
         ) : restaurants.length === 0 ? (
-          <div className="text-center py-16 border border-border-light rounded-2xl bg-bg-secondary">
-            <div className="w-12 h-12 rounded-full bg-bg-tertiary flex items-center justify-center mx-auto mb-4">
-              <Search size={20} className="text-text-tertiary" strokeWidth={1.5} />
-            </div>
-            <h3 className="text-sm font-semibold text-text-primary mb-1">No restaurants found</h3>
-            <p className="text-xs text-text-secondary mb-4">Try removing some filters</p>
-            <button
-              onClick={() => setActiveFilters([])}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              Clear filters
-            </button>
+          <div className="text-center py-12 border border-border-light rounded-[var(--radius-xl)] bg-bg-secondary">
+            <div className="text-4xl mb-3">🏪</div>
+            <p className="text-text-primary font-semibold text-sm">No restaurants found nearby</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {restaurants.map((r) => (
-              <RestaurantCard key={r._id} restaurant={r} />
+              <div key={r._id} className={!isRestaurantOpen(r) ? "grayscale opacity-70" : ""}>
+                <RestaurantCard restaurant={r} />
+              </div>
             ))}
           </div>
         )}
       </section>
-
-      {/* ── TOP RATED ── */}
-      {featured.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-bold text-text-primary">Top Rated</h2>
-              <p className="text-xs text-text-tertiary mt-0.5">Highest rated restaurants near you</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {featured.slice(0, 3).map((r) => (
-              <RestaurantCard key={r._id} restaurant={r} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Bottom padding for mobile nav */}
       <div className="h-4" />

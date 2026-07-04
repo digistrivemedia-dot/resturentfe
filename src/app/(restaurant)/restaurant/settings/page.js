@@ -22,6 +22,8 @@ import {
   CheckCircle2,
   X,
   IndianRupee,
+  Navigation,
+  Loader2,
 } from "lucide-react";
 import { Toggle } from "@/components/ui";
 import useRestaurantProfileStore from "@/stores/restaurantProfileStore";
@@ -308,12 +310,15 @@ function GeneralTab({ showToast }) {
 function LocationTab({ showToast }) {
   const { restaurant, updateProfile, isSaving } = useRestaurantProfileStore();
   const [saving, setSaving] = useState(false);
+  const [detecting, setDetecting] = useState(false);
   const [addr, setAddr] = useState({
     street: "",
     city: "",
     state: "",
     pincode: "",
     landmark: "",
+    lat: "",
+    lng: "",
   });
   const [hours, setHours] = useState(DEFAULT_HOURS);
   const [hydrated, setHydrated] = useState(false);
@@ -327,6 +332,8 @@ function LocationTab({ showToast }) {
           state: restaurant.address.state || "",
           pincode: restaurant.address.pincode || "",
           landmark: restaurant.address.landmark || "",
+          lat: restaurant.address.lat || "",
+          lng: restaurant.address.lng || "",
         });
       }
       if (restaurant.operatingHours) {
@@ -337,6 +344,35 @@ function LocationTab({ showToast }) {
   }, [restaurant]);
 
   const setAddr_ = (key) => (e) => setAddr((p) => ({ ...p, [key]: e.target.value }));
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      showToast("GPS not supported in this browser");
+      return;
+    }
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const newAddr = { ...addr, lat: String(lat), lng: String(lng) };
+        setAddr(newAddr);
+        // Auto-save immediately
+        try {
+          await updateProfile({ address: newAddr });
+          showToast("Location detected and saved ✓");
+        } catch {
+          showToast("Location detected — click Save to apply");
+        }
+        setDetecting(false);
+      },
+      () => {
+        showToast("Location access denied. Allow GPS in browser settings.");
+        setDetecting(false);
+      },
+      { timeout: 10000 }
+    );
+  };
 
   const setDay = (day, field, val) =>
     setHours((p) => ({ ...p, [day]: { ...p[day], [field]: val } }));
@@ -380,6 +416,37 @@ function LocationTab({ showToast }) {
               <FieldLabel>Landmark</FieldLabel>
               <TextInput value={addr.landmark} onChange={setAddr_("landmark")} placeholder="Near / opposite…" />
             </div>
+          </div>
+
+          {/* Coordinates for "near you" feature */}
+          <div className="mt-4 pt-4 border-t border-border-light">
+            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">
+              Location Coordinates <span className="text-text-tertiary font-normal normal-case">(required for &quot;Near You&quot; on home page)</span>
+            </p>
+
+            <button
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={detecting}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-primary-50 hover:bg-primary-100 border border-primary/20 rounded-[var(--radius-lg)] transition-colors disabled:opacity-60"
+            >
+              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0">
+                {detecting
+                  ? <Loader2 size={16} className="text-white animate-spin" />
+                  : <Navigation size={16} className="text-white" />
+                }
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-primary">
+                  {detecting ? "Detecting location…" : "Detect & save my location"}
+                </p>
+                <p className="text-xs text-text-secondary">
+                  {addr.lat && addr.lng
+                    ? `Current: ${Number(addr.lat).toFixed(5)}, ${Number(addr.lng).toFixed(5)}`
+                    : "Click to auto-fill your GPS coordinates"}
+                </p>
+              </div>
+            </button>
           </div>
         </div>
       </SectionCard>

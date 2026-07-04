@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Store, Users, ShoppingBag, Bike,
   Ticket, DollarSign, BarChart3, Star, Bell, Settings,
-  Image, ScrollText, ChevronLeft, Menu, X,
+  Image, ScrollText, ChevronLeft, Menu, X, LayoutGrid,
 } from "lucide-react";
 import { APP_NAME } from "@/constants";
 import useUiStore from "@/stores/uiStore";
@@ -14,6 +14,7 @@ import useAuthStore from "@/stores/authStore";
 const menuItems = [
   { href: "/admin/dashboard",         label: "Dashboard",         icon: LayoutDashboard },
   { href: "/admin/restaurants",       label: "Restaurants",       icon: Store },
+  { href: "/admin/categories",        label: "Food Categories",   icon: LayoutGrid },
   { href: "/admin/customers",         label: "Customers",         icon: Users },
   { href: "/admin/orders",            label: "Orders",            icon: ShoppingBag },
   { href: "/admin/delivery-partners", label: "Delivery Partners", icon: Bike },

@@ -108,6 +108,22 @@ const useAdminRestaurantStore = create((set, get) => ({
     }
   },
 
+  toggleRestaurantStatus: async (id, currentStatus) => {
+    const newStatus = currentStatus === "active" ? "closed" : "active";
+    set({ isSaving: true, error: null });
+    try {
+      const res = await api.put(`/admin/restaurants/${id}`, { status: newStatus });
+      set((state) => ({
+        restaurants: state.restaurants.map((r) => (r._id === id ? res.data.restaurant : r)),
+        isSaving: false,
+      }));
+      return res.data.restaurant;
+    } catch (err) {
+      set({ isSaving: false, error: err.message });
+      throw err;
+    }
+  },
+
   clearCurrentRestaurant: () => set({ currentRestaurant: null }),
   clearError: () => set({ error: null }),
 }));
