@@ -231,13 +231,16 @@ export default function MenuManagementPage() {
                   <VegBadge isVeg={item.isVeg} />
                 </div>
 
-                {/* Image Placeholder */}
-                <div
-                  className={`shrink-0 w-14 h-14 rounded-[var(--radius-lg)] flex items-center justify-center text-2xl ${
-                    item.isVeg ? "bg-success-light" : "bg-error-light"
-                  }`}
-                >
-                  {FOOD_EMOJIS[item.category] || "🍽️"}
+                {/* Image */}
+                <div className="shrink-0 w-14 h-14 rounded-[var(--radius-lg)] overflow-hidden flex items-center justify-center text-2xl bg-bg-secondary">
+                  {item.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className={`w-full h-full flex items-center justify-center ${item.isVeg ? "bg-success-light" : "bg-error-light"}`}>
+                      {FOOD_EMOJIS[item.category] || "🍽️"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Info */}

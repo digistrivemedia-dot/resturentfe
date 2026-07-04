@@ -20,13 +20,14 @@ const useCouponStore = create((set) => ({
     }
   },
 
-  // Validate coupon
-  validateCoupon: async (code, restaurantId, subtotal) => {
+  // Validate coupon — items is optional, needed for item-level coupons
+  validateCoupon: async (code, restaurantId, subtotal, items = []) => {
     try {
       const res = await api.post("/coupons/validate", {
         code,
         restaurantId,
         subtotal,
+        items,
       });
       return res.data.coupon;
     } catch (err) {

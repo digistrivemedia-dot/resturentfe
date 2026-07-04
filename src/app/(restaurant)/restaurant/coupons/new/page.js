@@ -14,9 +14,13 @@ import {
   Users,
   ShoppingCart,
   Tag,
+  UtensilsCrossed,
+  Search,
+  X,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import useRestaurantCouponStore, { mapCouponFromBackend } from "@/stores/restaurantCouponStore";
+import useMenuManagementStore from "@/stores/menuManagementStore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -46,6 +50,7 @@ const EMPTY_FORM = {
   validFrom: "",
   validTo: "",
   status: "active",
+  applicableItems: [], // [] = entire order, [ids...] = item-level
 };
 
 function formFromCoupon(c) {
@@ -58,9 +63,10 @@ function formFromCoupon(c) {
     minOrder: c.minOrder !== null && c.minOrder !== undefined ? String(c.minOrder) : "",
     usageLimit: c.usageLimit !== null && c.usageLimit !== undefined ? String(c.usageLimit) : "",
     perUserLimit: c.perUserLimit !== null && c.perUserLimit !== undefined ? String(c.perUserLimit) : "",
-    validFrom: c.validFrom || "",
-    validTo: c.validTo || "",
+    validFrom: c.validFrom ? c.validFrom.split("T")[0] : "",
+    validTo: c.validTo ? c.validTo.split("T")[0] : "",
     status: c.status === "paused" || c.status === "expired" ? "active" : (c.status || "active"),
+    applicableItems: (c.applicableItems || []).map((id) => (typeof id === "object" ? id._id || id : id)),
   };
 }
 
@@ -115,10 +121,12 @@ function PreviewCard({ form }) {
     if (form.type === "percent") {
       const val = form.value ? `${form.value}%` : "??%";
       const cap = form.maxDiscount ? ` (up to ₹${form.maxDiscount})` : "";
-      return `${val} OFF${cap}`;
+      const scope = form.applicableItems?.length > 0 ? " on selected items" : "";
+      return `${val} OFF${cap}${scope}`;
     }
     if (form.type === "flat") {
-      return form.value ? `₹${form.value} OFF` : "₹?? OFF";
+      const scope = form.applicableItems?.length > 0 ? " on selected items" : "";
+      return form.value ? `₹${form.value} OFF${scope}` : `₹?? OFF${scope}`;
     }
     return "FREE DELIVERY";
   }
@@ -128,6 +136,7 @@ function PreviewCard({ form }) {
     if (form.minOrder) parts.push(`Min order ₹${form.minOrder}`);
     if (form.usageLimit) parts.push(`${form.usageLimit} uses total`);
     if (form.perUserLimit) parts.push(`${form.perUserLimit} per user`);
+    if (form.applicableItems?.length > 0) parts.push(`On ${form.applicableItems.length} specific item${form.applicableItems.length > 1 ? "s" : ""}`);
     return parts.length ? parts.join(" · ") : "No conditions set";
   }
 
@@ -230,16 +239,20 @@ function CouponFormInner() {
   const isEdit = Boolean(editId);
 
   const { coupons: rawCoupons, fetchCoupons, createCoupon, updateCoupon, isSaving } = useRestaurantCouponStore();
+  const { fetchMenu, getAllItems } = useMenuManagementStore();
 
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [storeLoaded, setStoreLoaded] = useState(false);
   const [errors, setErrors] = useState({});
+  const [menuItems, setMenuItems] = useState([]);
+  const [itemSearch, setItemSearch] = useState("");
 
-  // Fetch coupons on mount so we can pre-fill edit mode
+  // Fetch coupons and menu on mount
   useEffect(() => {
     async function load() {
       try {
-        const list = await fetchCoupons();
+        const [list] = await Promise.all([fetchCoupons(), fetchMenu()]);
+        setMenuItems(getAllItems());
         if (editId && list) {
           const existing = list.find((c) => c._id === editId);
           if (existing) {
@@ -269,6 +282,21 @@ function CouponFormInner() {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: null }));
   }
 
+  function toggleItem(id) {
+    setForm((prev) => {
+      const existing = prev.applicableItems || [];
+      const has = existing.includes(id);
+      return {
+        ...prev,
+        applicableItems: has ? existing.filter((i) => i !== id) : [...existing, id],
+      };
+    });
+  }
+
+  const filteredMenuItems = menuItems.filter((item) =>
+    item.name.toLowerCase().includes(itemSearch.toLowerCase())
+  );
+
   function validate() {
     const e = {};
     if (!form.code.trim()) e.code = "Coupon code is required";
@@ -290,7 +318,6 @@ function CouponFormInner() {
       return;
     }
     try {
-      // Build form data — use description as title if backend requires it
       const formData = {
         ...form,
         title: form.description || form.code,
@@ -299,6 +326,7 @@ function CouponFormInner() {
         minOrder: form.minOrder ? Number(form.minOrder) : 0,
         usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
         perUserLimit: form.perUserLimit ? Number(form.perUserLimit) : null,
+        applicableItems: form.applicableItems || [],
       };
       if (isEdit) {
         await updateCoupon(editId, formData);
@@ -546,7 +574,114 @@ function CouponFormInner() {
               </Section>
             )}
 
-            {/* 4. Conditions */}
+            {/* 4. Apply To — Entire Order or Specific Items */}
+            {form.type !== "freeDelivery" && (
+              <Section title="Apply To">
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { value: "order", label: "Entire Order", desc: "Discount applies to the full cart total" },
+                      { value: "items", label: "Specific Items", desc: "Discount applies only to selected items" },
+                    ].map((opt) => {
+                      const isItemMode = form.applicableItems.length > 0;
+                      const selected = opt.value === "items" ? isItemMode : !isItemMode;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            if (opt.value === "order") set("applicableItems", []);
+                            else if (!isItemMode) set("applicableItems", []);
+                          }}
+                          className={`flex flex-col items-start gap-1 p-4 rounded-[var(--radius-lg)] border-2 text-left transition-all ${
+                            selected
+                              ? "border-[#FF5722] bg-[#FF57220A]"
+                              : "border-border-light hover:border-[#FF572260] hover:bg-bg-secondary"
+                          }`}
+                        >
+                          <span className={`text-sm font-semibold ${selected ? "text-[#FF5722]" : "text-text-primary"}`}>
+                            {opt.label}
+                          </span>
+                          <span className="text-xs text-text-secondary leading-relaxed">{opt.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Item picker — shown when Specific Items is selected */}
+                  <div>
+                    <div className="relative mb-3">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+                      <input
+                        type="text"
+                        value={itemSearch}
+                        onChange={(e) => setItemSearch(e.target.value)}
+                        placeholder="Search menu items…"
+                        className="w-full pl-8 pr-3 py-2 text-sm bg-bg-secondary border border-border-light rounded-[var(--radius-md)] text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-[#FF5722]/30"
+                      />
+                    </div>
+
+                    {/* Selected items chips */}
+                    {form.applicableItems.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {form.applicableItems.map((id) => {
+                          const item = menuItems.find((m) => m._id === id);
+                          if (!item) return null;
+                          return (
+                            <span
+                              key={id}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-[#FF57221A] text-[#FF5722] border border-[#FF572230]"
+                            >
+                              {item.name}
+                              <button type="button" onClick={() => toggleItem(id)}>
+                                <X size={11} />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="max-h-52 overflow-y-auto flex flex-col gap-1 border border-border-light rounded-[var(--radius-md)]">
+                      {filteredMenuItems.length === 0 ? (
+                        <p className="text-sm text-text-secondary text-center py-6">No items found</p>
+                      ) : (
+                        filteredMenuItems.map((item) => {
+                          const selected = form.applicableItems.includes(item._id);
+                          return (
+                            <button
+                              key={item._id}
+                              type="button"
+                              onClick={() => toggleItem(item._id)}
+                              className={`flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-bg-secondary ${
+                                selected ? "bg-[#FF57220A]" : ""
+                              }`}
+                            >
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
+                                selected ? "bg-[#FF5722] border-[#FF5722]" : "border-border-light"
+                              }`}>
+                                {selected && <span className="text-white text-[10px] font-bold">✓</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-text-primary truncate">{item.name}</p>
+                                <p className="text-xs text-text-secondary">{item.category} · ₹{item.discountedPrice || item.price}</p>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                    {form.applicableItems.length > 0 && (
+                      <p className="text-xs text-text-secondary mt-2">
+                        {form.applicableItems.length} item{form.applicableItems.length > 1 ? "s" : ""} selected
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {/* 5. Conditions (renamed from 4) */}
             <Section title="Conditions">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 <div>

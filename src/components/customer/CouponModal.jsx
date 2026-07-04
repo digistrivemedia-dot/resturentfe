@@ -9,15 +9,23 @@ export default function CouponModal({ subtotal, onClose }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { restaurant, coupon, applyCoupon, removeCoupon } = useCartStore();
+  const { restaurant, items: cartItems, coupon, applyCoupon, removeCoupon } = useCartStore();
   const { coupons, fetchCoupons, validateCoupon } = useCouponStore();
 
   useEffect(() => {
     fetchCoupons(restaurant?._id);
   }, [restaurant?._id]);
 
+  // Cart items in the format the backend expects
+  const cartItemsPayload = cartItems.map((i) => ({
+    menuItem: i.menuItem,
+    price: i.price,
+    quantity: i.quantity || 1,
+  }));
+
   const calcDiscount = (c) => {
     if (c.minOrderAmount && subtotal < c.minOrderAmount) return null;
+    if (c.type === "free_delivery") return null; // shown as "Free Delivery", not a rupee amount
     if (c.type === "percentage") {
       const d = (subtotal * c.value) / 100;
       return c.maxDiscount ? Math.min(d, c.maxDiscount) : d;
@@ -31,7 +39,7 @@ export default function CouponModal({ subtotal, onClose }) {
     setLoading(true);
     setError("");
     try {
-      const validated = await validateCoupon(trimmed, restaurant?._id, subtotal);
+      const validated = await validateCoupon(trimmed, restaurant?._id, subtotal, cartItemsPayload);
       applyCoupon({ ...validated, discount: validated.discount });
       setLoading(false);
       onClose?.();
@@ -42,10 +50,12 @@ export default function CouponModal({ subtotal, onClose }) {
   };
 
   const handleApplyCoupon = async (c) => {
-    const disc = calcDiscount(c);
-    if (disc === null) { setError(`Min order ₹${c.minOrderAmount} required for ${c.code}`); return; }
+    if (c.minOrderAmount && subtotal < c.minOrderAmount) {
+      setError(`Min order ₹${c.minOrderAmount} required for ${c.code}`);
+      return;
+    }
     try {
-      const validated = await validateCoupon(c.code, restaurant?._id, subtotal);
+      const validated = await validateCoupon(c.code, restaurant?._id, subtotal, cartItemsPayload);
       applyCoupon({ ...validated, discount: validated.discount });
       onClose?.();
     } catch (err) {
@@ -134,6 +144,12 @@ export default function CouponModal({ subtotal, onClose }) {
                           </span>
                         )}
                       </p>
+                    )}
+                    {c.type === "free_delivery" && (
+                      <p className="text-xs font-bold text-success mt-1">Free Delivery</p>
+                    )}
+                    {c.applicableItems?.length > 0 && (
+                      <p className="text-[10px] text-text-tertiary mt-1">Applies to specific items</p>
                     )}
                     {isEligible && disc > 0 && (
                       <p className="text-xs font-bold text-success mt-1">

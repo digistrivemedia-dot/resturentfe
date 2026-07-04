@@ -111,8 +111,24 @@ function mapCouponToBackend(data) {
     delete payload.status;
   }
 
+  // Frontend type names → backend type names
+  const TYPE_MAP = {
+    percent: "percentage",
+    freeDelivery: "free_delivery",
+    // "flat" matches backend already
+  };
+  if (payload.type && TYPE_MAP[payload.type]) {
+    payload.type = TYPE_MAP[payload.type];
+  }
+
   return payload;
 }
+
+const TYPE_MAP_REVERSE = {
+  percentage: "percent",
+  free_delivery: "freeDelivery",
+  // "flat" matches frontend already
+};
 
 // Map backend coupon to frontend shape (for display)
 export function mapCouponFromBackend(coupon) {
@@ -120,6 +136,7 @@ export function mapCouponFromBackend(coupon) {
   return {
     ...coupon,
     id: coupon._id,
+    type: TYPE_MAP_REVERSE[coupon.type] || coupon.type,
     minOrder: coupon.minOrderAmount,
     validTo: coupon.validUntil,
     status: coupon.isActive === false ? "paused" : (new Date(coupon.validUntil) < new Date() ? "expired" : "active"),
