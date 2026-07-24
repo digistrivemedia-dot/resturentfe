@@ -113,9 +113,69 @@ export default function CheckoutPage() {
         couponCode: coupon?.code || null,
         tip: tip || 0,
       };
-      const order = await placeOrder(orderData);
+
+      const result = await placeOrder(orderData);
+
+      // Online payment — open Razorpay checkout
+      if (paymentMethod === "online" && result.razorpay) {
+        const { loadRazorpay } = await import("@/lib/razorpay");
+        const loaded = await loadRazorpay();
+        if (!loaded) {
+          toast.error("Payment gateway failed to load. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        const options = {
+          key: result.razorpay.keyId,
+          amount: result.razorpay.amount,
+          currency: result.razorpay.currency,
+          name: "Sri Isha Cafe",
+          description: `Order #${result.order.orderNumber}`,
+          order_id: result.razorpay.orderId,
+          handler: async function (response) {
+            try {
+              const { verifyPayment } = useOrderStore.getState();
+              const verifiedOrder = await verifyPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              clearCart();
+              router.push(`/order/confirmed?orderNumber=${verifiedOrder.orderNumber}&orderId=${verifiedOrder._id}`);
+            } catch (err) {
+              toast.error("Payment verification failed. Please contact support.");
+              setLoading(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              toast.error("Payment cancelled");
+              setLoading(false);
+            },
+          },
+          prefill: {
+            name: user?.name || "",
+            email: user?.email || "",
+            contact: user?.phone || "",
+          },
+          theme: {
+            color: "#FF6B35",
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", function (response) {
+          toast.error(response.error.description || "Payment failed");
+          setLoading(false);
+        });
+        rzp.open();
+        return;
+      }
+
+      // COD — redirect immediately
       clearCart();
-      router.push(`/order/confirmed?orderNumber=${order.orderNumber}&orderId=${order._id}`);
+      router.push(`/order/confirmed?orderNumber=${result.order.orderNumber}&orderId=${result.order._id}`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to place order");
     }
