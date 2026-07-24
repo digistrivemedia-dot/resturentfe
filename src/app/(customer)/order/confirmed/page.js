@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   CheckCircle2, MapPin, Clock, Phone, ChevronRight,
   Home, Package, Star, Share2, Download, AlertCircle, Loader2,
+  Navigation, UtensilsCrossed,
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
 import { connectSocket } from "@/lib/socket";
@@ -18,15 +19,51 @@ const STATUS_STEPS = [
   { key: "delivered",        label: "Delivered" },
 ];
 
-const STATUS_ORDER = STATUS_STEPS.map((s) => s.key);
+const DINE_IN_STATUS_STEPS = [
+  { key: "placed", label: "Booking Placed" },
+  { key: "confirmed", label: "Restaurant Accepted" },
+  { key: "preparing", label: "Preparing Your Food" },
+  { key: "ready", label: "Ready at Restaurant" },
+  { key: "delivered", label: "Completed" },
+];
 
-function normalizeStatus(status) {
+function normalizeStatus(status, isDineIn = false) {
+  if (isDineIn) return status;
   if (["picked_up", "ready"].includes(status)) return "out_for_delivery";
   return status;
 }
 
-function getStepIndex(status) {
-  return STATUS_ORDER.indexOf(normalizeStatus(status));
+function getStepIndex(status, isDineIn = false) {
+  const steps = isDineIn ? DINE_IN_STATUS_STEPS : STATUS_STEPS;
+  return steps.findIndex((step) => step.key === normalizeStatus(status, isDineIn));
+}
+
+function getDirectionsUrl(address = {}) {
+  const destination = address.lat && address.lng ? `${address.lat},${address.lng}` : address.fullAddress;
+  return destination
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+    : null;
+}
+
+function getAddressText(address = {}) {
+  return address.fullAddress || [address.area, address.city, address.state, address.pincode]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function mergeRestaurantAddress(snapshot = {}, restaurantAddress = {}) {
+  return ["fullAddress", "area", "city", "state", "pincode", "lat", "lng"]
+    .reduce((merged, key) => ({
+      ...merged,
+      [key]: snapshot[key] || restaurantAddress[key],
+    }), {});
+}
+
+function formatVisitTime(iso) {
+  if (!iso) return "ASAP";
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true,
+  });
 }
 
 function OrderConfirmedContent() {
@@ -64,6 +101,10 @@ function OrderConfirmedContent() {
   useEffect(() => {
     if (!order) return;
 
+    if (order.orderType === "dine_in") {
+      return;
+    }
+
     if (order.status === "delivered") {
       const placed = new Date(order.createdAt).getTime();
       const delivered = order.deliveryTracking?.deliveredAt
@@ -80,7 +121,7 @@ function OrderConfirmedContent() {
     const deliveryDeadline = placedAt + estimatedMins * 60 * 1000;
     const remaining = Math.max(0, Math.floor((deliveryDeadline - Date.now()) / 1000));
     setCountdown(remaining);
-  }, [order?.status, order?.createdAt, order?.estimatedDeliveryTime]);
+  }, [order?.status, order?.createdAt, order?.estimatedDeliveryTime, order?.orderType]);
 
   // Live countdown tick — runs whenever countdown is set to a positive number
   useEffect(() => {
@@ -105,9 +146,14 @@ function OrderConfirmedContent() {
     );
   }
 
-  const currentStepIdx = getStepIndex(order.status);
+  const isDineIn = order.orderType === "dine_in";
+  const statusSteps = isDineIn ? DINE_IN_STATUS_STEPS : STATUS_STEPS;
+  const currentStepIdx = getStepIndex(order.status, isDineIn);
   const isDelivered = order.status === "delivered";
   const isCancelled = order.status === "cancelled";
+  const restaurantAddress = mergeRestaurantAddress(order.restaurantAddress, order.restaurant?.address);
+  const restaurantAddressText = getAddressText(restaurantAddress);
+  const directionsUrl = getDirectionsUrl(restaurantAddress);
 
   const mins = countdown !== null ? Math.floor(countdown / 60) : 0;
   const secs = countdown !== null ? countdown % 60 : 0;
@@ -138,11 +184,13 @@ function OrderConfirmedContent() {
         </div>
 
         <h1 className="text-2xl font-extrabold text-text-primary mb-1">
-          {isCancelled ? "Order Cancelled" : isDelivered ? "Delivered!" : "Order Placed!"}
+          {isCancelled ? "Order Cancelled" : isDineIn ? "Dine-in Booking Confirmed!" : isDelivered ? "Delivered!" : "Order Placed!"}
         </h1>
         <p className="text-text-secondary text-sm">
           {isCancelled
             ? `Reason: ${order.cancellation?.reason || "Cancelled"}`
+            : isDineIn
+            ? `Visit ${order.restaurant?.name || "the restaurant"} ${formatVisitTime(order.scheduledFor).toLowerCase()}`
             : isDelivered
             ? `Delivered in ${elapsedTime} min${elapsedTime !== 1 ? "s" : ""} 🎉`
             : "Your order has been received and will be prepared shortly"}
@@ -154,7 +202,7 @@ function OrderConfirmedContent() {
       </div>
 
       {/* ETA Card — hidden when delivered or cancelled */}
-      {!isDelivered && !isCancelled && countdown !== null && (
+      {!isDineIn && !isDelivered && !isCancelled && countdown !== null && (
         <div className={`bg-primary rounded-[var(--radius-xl)] px-5 py-5 text-white transition-all duration-700 delay-100 ${animStage >= 2 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -209,11 +257,11 @@ function OrderConfirmedContent() {
         <div className="relative">
           <div className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-border-light" />
           <div className="space-y-5">
-            {STATUS_STEPS.map((step, idx) => {
+            {statusSteps.map((step, idx) => {
               const done = idx < currentStepIdx || isDelivered;
               const active = idx === currentStepIdx && !isDelivered;
               const histEntry = order.statusHistory?.find((h) =>
-                normalizeStatus(h.status) === step.key
+                normalizeStatus(h.status, isDineIn) === step.key
               );
               return (
                 <div key={step.key} className="flex items-center gap-3 relative">
@@ -252,19 +300,32 @@ function OrderConfirmedContent() {
         </div>
       </div>
 
-      {/* Delivery Address */}
+      {/* Destination */}
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-            <MapPin size={16} className="text-primary" />
+            {isDineIn ? <UtensilsCrossed size={16} className="text-primary" /> : <MapPin size={16} className="text-primary" />}
           </div>
           <div className="flex-1">
-            <p className="text-sm font-bold text-text-primary">Delivery Address</p>
-            <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
-              {order.deliveryAddress?.fullAddress || "—"}
-            </p>
-            {order.deliveryAddress?.landmark && (
-              <p className="text-xs text-text-tertiary mt-0.5">Near {order.deliveryAddress.landmark}</p>
+            <p className="text-sm font-bold text-text-primary">{isDineIn ? "Restaurant Location" : "Delivery Address"}</p>
+            {isDineIn ? (
+              <>
+                <p className="text-sm text-text-primary mt-0.5 font-medium">{order.restaurant?.name}</p>
+                <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mt-2">Address</p>
+                <p className="text-sm text-text-secondary mt-0.5 leading-relaxed">{restaurantAddressText || "Restaurant address unavailable"}</p>
+                {restaurantAddress.area && <p className="text-xs text-text-tertiary mt-0.5">{restaurantAddress.area}, {restaurantAddress.city}</p>}
+                {order.scheduledFor && <p className="text-xs text-primary font-semibold mt-2">Visit time: {formatVisitTime(order.scheduledFor)}</p>}
+                {directionsUrl && (
+                  <a href={directionsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-primary hover:underline">
+                    <Navigation size={13} /> Get directions
+                  </a>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{order.deliveryAddress?.fullAddress || "—"}</p>
+                {order.deliveryAddress?.landmark && <p className="text-xs text-text-tertiary mt-0.5">Near {order.deliveryAddress.landmark}</p>}
+              </>
             )}
           </div>
         </div>

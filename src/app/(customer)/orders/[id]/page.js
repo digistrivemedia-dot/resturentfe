@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, MapPin, CreditCard, Download, HelpCircle,
   ChevronRight, Star, CheckCircle2, Clock, RefreshCw,
-  Package, Phone, MessageCircle, Share2,
+  Package, Phone, MessageCircle, Share2, Navigation, UtensilsCrossed,
 } from "lucide-react";
 import { Modal, CardSkeleton } from "@/components/ui";
 import useOrderStore from "@/stores/orderStore";
@@ -35,6 +35,27 @@ function formatDate(iso) {
 }
 function formatTime(iso) {
   return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+function getDirectionsUrl(address = {}) {
+  const destination = address.lat && address.lng ? `${address.lat},${address.lng}` : address.fullAddress;
+  return destination
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+    : null;
+}
+
+function getAddressText(address = {}) {
+  return address.fullAddress || [address.area, address.city, address.state, address.pincode]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function mergeRestaurantAddress(snapshot = {}, restaurantAddress = {}) {
+  return ["fullAddress", "area", "city", "state", "pincode", "lat", "lng"]
+    .reduce((merged, key) => ({
+      ...merged,
+      [key]: snapshot[key] || restaurantAddress[key],
+    }), {});
 }
 
 function StatusBadge({ status }) {
@@ -98,6 +119,10 @@ export default function OrderDetailPage({ params }) {
 
   const p = order.pricing;
   const isDelivered = order.status === "delivered";
+  const isDineIn = order.orderType === "dine_in";
+  const restaurantAddress = mergeRestaurantAddress(order.restaurantAddress, order.restaurant?.address);
+  const restaurantAddressText = getAddressText(restaurantAddress);
+  const directionsUrl = getDirectionsUrl(restaurantAddress);
   const isActive = !["delivered", "cancelled"].includes(order.status);
 
   const toggleTag = (t) => setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
@@ -158,10 +183,10 @@ export default function OrderDetailPage({ params }) {
 
           {isActive && (
             <Link
-              href={`/order/${order._id}/track`}
+              href={isDineIn ? `/order/confirmed?orderNumber=${order.orderNumber}&orderId=${order._id}` : `/order/${order._id}/track`}
               className="mt-3 flex items-center justify-center gap-2 h-9 bg-primary text-white text-xs font-bold rounded-[var(--radius-lg)] hover:bg-primary-dark transition-colors"
             >
-              <MapPin size={13} /> Track Live Order
+              <MapPin size={13} /> {isDineIn ? "View Booking" : "Track Live Order"}
             </Link>
           )}
         </div>
@@ -238,14 +263,30 @@ export default function OrderDetailPage({ params }) {
           )}
         </div>
 
-        {/* Delivery address */}
+        {/* Destination */}
         <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
           <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-            <MapPin size={14} className="text-primary" /> Delivery Address
+            {isDineIn ? <UtensilsCrossed size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
+            {isDineIn ? "Restaurant Location" : "Delivery Address"}
           </h3>
-          <p className="text-sm text-text-secondary leading-relaxed">{order.deliveryAddress.fullAddress}</p>
-          {order.deliveryAddress.landmark && (
-            <p className="text-xs text-text-tertiary mt-1">Near {order.deliveryAddress.landmark}</p>
+          {isDineIn ? (
+            <>
+              <p className="text-sm font-semibold text-text-primary">{order.restaurant?.name}</p>
+              <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mt-2">Address</p>
+              <p className="text-sm text-text-secondary leading-relaxed mt-0.5">{restaurantAddressText || "Restaurant address unavailable"}</p>
+              {restaurantAddress.area && <p className="text-xs text-text-tertiary mt-1">{restaurantAddress.area}, {restaurantAddress.city}</p>}
+              {order.scheduledFor && <p className="text-xs text-primary font-semibold mt-2">Visit time: {formatTime(order.scheduledFor)}</p>}
+              {directionsUrl && (
+                <a href={directionsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-primary hover:underline">
+                  <Navigation size={13} /> Get directions
+                </a>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-text-secondary leading-relaxed">{order.deliveryAddress?.fullAddress || "—"}</p>
+              {order.deliveryAddress?.landmark && <p className="text-xs text-text-tertiary mt-1">Near {order.deliveryAddress.landmark}</p>}
+            </>
           )}
         </div>
 

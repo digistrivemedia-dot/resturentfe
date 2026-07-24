@@ -58,6 +58,7 @@ function ActiveOrderCard({ order }) {
             <p className="text-xs text-text-tertiary mt-0.5">{order.orderNumber}</p>
           </div>
           <div className="text-right">
+            <p className="text-[11px] font-bold text-primary mb-1">{order.orderType === "dine_in" ? "Dine-in" : "Delivery"}</p>
             <p className="text-sm font-extrabold text-text-primary">₹{order.pricing.total}</p>
             <p className="text-xs text-text-tertiary">{order.items.length} item{order.items.length > 1 ? "s" : ""}</p>
           </div>
@@ -67,15 +68,15 @@ function ActiveOrderCard({ order }) {
         <p className="text-xs text-text-secondary line-clamp-1 mb-4">{itemNames}</p>
 
         {/* Progress steps */}
-        <OrderProgressBar status={order.status} />
+        <OrderProgressBar status={order.status} isDineIn={order.orderType === "dine_in"} />
 
         {/* CTA */}
         <div className="mt-4 flex gap-2">
           <Link
-            href={`/order/${order._id}/track`}
+            href={order.orderType === "dine_in" ? `/order/confirmed?orderNumber=${order.orderNumber}&orderId=${order._id}` : `/order/${order._id}/track`}
             className="flex-1 h-10 bg-primary text-white text-sm font-bold rounded-[var(--radius-lg)] flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors"
           >
-            <MapPin size={15} /> Track Order
+            <MapPin size={15} /> {order.orderType === "dine_in" ? "View Booking" : "Track Order"}
           </Link>
           <Link
             href={`/orders/${order._id}`}
@@ -89,10 +90,10 @@ function ActiveOrderCard({ order }) {
   );
 }
 
-function OrderProgressBar({ status }) {
-  const steps = ["placed", "confirmed", "preparing", "out_for_delivery", "delivered"];
+function OrderProgressBar({ status, isDineIn = false }) {
+  const steps = isDineIn ? ["placed", "confirmed", "preparing", "ready", "delivered"] : ["placed", "confirmed", "preparing", "out_for_delivery", "delivered"];
   const currentIdx = steps.indexOf(
-    ["ready", "picked_up"].includes(status) ? "out_for_delivery" : status
+    isDineIn ? status : (["ready", "picked_up"].includes(status) ? "out_for_delivery" : status)
   );
 
   return (
@@ -101,7 +102,7 @@ function OrderProgressBar({ status }) {
         const done = idx < currentIdx;
         const active = idx === currentIdx;
         const last = idx === steps.length - 1;
-        const labels = ["Placed", "Confirmed", "Cooking", "On Way", "Done"];
+        const labels = isDineIn ? ["Booked", "Confirmed", "Cooking", "Ready", "Done"] : ["Placed", "Confirmed", "Cooking", "On Way", "Done"];
 
         return (
           <div key={step} className="flex items-center flex-1 last:flex-none">

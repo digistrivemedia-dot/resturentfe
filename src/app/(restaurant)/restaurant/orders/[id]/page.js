@@ -112,7 +112,8 @@ const STATUS_CONFIG = {
 
 const STATUS_FLOW = ["placed", "confirmed", "preparing", "ready", "picked_up", "out_for_delivery", "delivered"];
 
-function getNextStatuses(current) {
+function getNextStatuses(current, isDineIn = false) {
+  if (isDineIn && current === "ready") return ["delivered"];
   const idx = STATUS_FLOW.indexOf(current);
   if (idx === -1 || idx === STATUS_FLOW.length - 1) return [];
   return STATUS_FLOW.slice(idx + 1, idx + 2);
@@ -323,7 +324,7 @@ export default function OrderDetailPage({ params }) {
   if (currentOrder._id !== id) return <OrderLoading />;
 
   const order = currentOrder;
-  const nextStatuses = getNextStatuses(currentStatus);
+  const nextStatuses = getNextStatuses(currentStatus, order.orderType === "dine_in");
   const pricing = order.pricing || {};
 
   async function handleStatusUpdate() {
@@ -414,17 +415,27 @@ export default function OrderDetailPage({ params }) {
                       </div>
                     </div>
                   )}
+                  {order.orderType === "dine_in" && (
+                    <div className="flex items-start gap-1.5 text-sm text-text-secondary">
+                      <Clock size={14} className="mt-0.5 shrink-0 text-text-tertiary" />
+                      <span>Visit time: {order.scheduledFor ? formatDateTime(order.scheduledFor) : "ASAP"}</span>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <span
                     className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-[var(--radius-full)] ${
                       order.orderType === "delivery"
                         ? "bg-primary-50 text-primary"
+                        : order.orderType === "dine_in"
+                        ? "bg-orange-100 text-orange-700"
                         : "bg-bg-secondary text-text-secondary"
                     }`}
                   >
                     {order.orderType === "delivery" ? (
                       <><Bike size={12} /> Delivery</>
+                    ) : order.orderType === "dine_in" ? (
+                      <><ShoppingBag size={12} /> Dine-in</>
                     ) : (
                       <><ShoppingBag size={12} /> Takeaway</>
                     )}

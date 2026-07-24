@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, MapPin, Plus, ChevronRight, CreditCard,
   Smartphone, Banknote, Wallet, ChevronDown, Loader2, ShieldCheck,
+  Bike, UtensilsCrossed, CalendarClock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import useCartStore from "@/stores/cartStore";
@@ -38,15 +39,24 @@ const PAYMENT_METHODS = [
   },
 ];
 
+function getLocalDateTimeMin() {
+  const date = new Date(Date.now() + 15 * 60 * 1000);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60 * 1000).toISOString().slice(0, 16);
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState("online");
+  const [orderType, setOrderType] = useState("delivery");
+  const [scheduleMode, setScheduleMode] = useState("asap");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [loading, setLoading] = useState(false);
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
 
   const {
     restaurant, items, coupon,
-    getSubtotal, getDeliveryFee, getTaxAmount, getCouponDiscount, getTotal, tip,
+    getSubtotal, getDeliveryFee, getTaxAmount, getCouponDiscount, tip,
     clearCart,
   } = useCartStore();
 
@@ -70,16 +80,25 @@ export default function CheckoutPage() {
   }, [fetchMe]);
 
   const subtotal = getSubtotal();
-  const deliveryFee = getDeliveryFee();
+  const isDineIn = orderType === "dine_in";
+  const deliveryFee = isDineIn ? 0 : getDeliveryFee();
   const tax = getTaxAmount();
-  const couponDiscount = getCouponDiscount();
-  const total = getTotal();
   const platformFee = 3;
+  const couponDiscount = coupon?.type === "free_delivery"
+    ? deliveryFee
+    : getCouponDiscount();
+  const effectiveTip = isDineIn ? 0 : tip || 0;
+  const total = Math.max(0, subtotal + deliveryFee + tax - couponDiscount + effectiveTip + platformFee);
   const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
+  const restaurantAddress = restaurant?.address || {};
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddr && !currentLocation) {
+    if (!isDineIn && !selectedAddr && !currentLocation) {
       toast.error("Please add a delivery address first");
+      return;
+    }
+    if (scheduleMode === "scheduled" && !scheduledFor) {
+      toast.error("Please choose a date and time");
       return;
     }
     setLoading(true);
@@ -94,17 +113,21 @@ export default function CheckoutPage() {
           addons: item.addons || [],
           specialInstructions: item.specialInstructions || "",
         })),
-        deliveryAddress: {
-          label: selectedAddr?.label || "Current Location",
-          fullAddress: selectedAddr?.fullAddress || currentLocation?.fullAddress || "",
-          landmark: selectedAddr?.landmark || "",
-          pincode: selectedAddr?.pincode || currentLocation?.pincode || "",
-          lat: selectedAddr?.lat || currentLocation?.lat,
-          lng: selectedAddr?.lng || currentLocation?.lng,
-        },
+        orderType,
+        ...(isDineIn ? {} : {
+          deliveryAddress: {
+            label: selectedAddr?.label || "Current Location",
+            fullAddress: selectedAddr?.fullAddress || currentLocation?.fullAddress || "",
+            landmark: selectedAddr?.landmark || "",
+            pincode: selectedAddr?.pincode || currentLocation?.pincode || "",
+            lat: selectedAddr?.lat || currentLocation?.lat,
+            lng: selectedAddr?.lng || currentLocation?.lng,
+          },
+        }),
+        scheduledFor: scheduleMode === "scheduled" ? new Date(scheduledFor).toISOString() : null,
         paymentMethod,
         couponCode: coupon?.code || null,
-        tip: tip || 0,
+        tip: effectiveTip,
       };
 
       const result = await placeOrder(orderData);
@@ -195,19 +218,100 @@ export default function CheckoutPage() {
         <h1 className="text-lg font-bold text-text-primary">Checkout</h1>
       </div>
 
-      {/* Delivery Address */}
+      {/* Fulfilment mode */}
+      <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
+        <div className="px-4 pt-4 pb-2">
+          <h2 className="text-sm font-bold text-text-primary">How would you like your order?</h2>
+          <p className="text-xs text-text-secondary mt-1">Delivery stays unchanged. Choose Dine-in to visit the restaurant yourself.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+          {[
+            { id: "delivery", label: "Delivery", desc: "Bring it to my address", icon: Bike },
+            { id: "dine_in", label: "Dine-in", desc: "Visit and enjoy at the restaurant", icon: UtensilsCrossed },
+          ].map(({ id, label, desc, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setOrderType(id)}
+              className={`text-left p-3 rounded-[var(--radius-lg)] border-2 transition-all ${
+                orderType === id ? "border-primary bg-primary-50" : "border-border-light hover:border-border-default"
+              }`}
+            >
+              <Icon size={18} className={orderType === id ? "text-primary" : "text-text-secondary"} />
+              <p className="text-sm font-semibold text-text-primary mt-2">{label}</p>
+              <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">{desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Visit / delivery time */}
+      <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+          <CalendarClock size={16} className="text-primary" />
+          <div>
+            <h2 className="text-sm font-bold text-text-primary">{isDineIn ? "When will you visit?" : "When should we prepare it?"}</h2>
+            <p className="text-xs text-text-secondary mt-0.5">Choose ASAP or schedule a time.</p>
+          </div>
+        </div>
+        <div className="px-4 pb-4 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {[{ id: "asap", label: "ASAP" }, { id: "scheduled", label: "Choose time" }].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setScheduleMode(option.id)}
+                className={`h-10 rounded-[var(--radius-lg)] border text-sm font-semibold transition-colors ${
+                  scheduleMode === option.id ? "border-primary bg-primary-50 text-primary" : "border-border-light text-text-secondary hover:border-border-default"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {scheduleMode === "scheduled" && (
+            <input
+              type="datetime-local"
+              value={scheduledFor}
+              min={getLocalDateTimeMin()}
+              onChange={(event) => setScheduledFor(event.target.value)}
+              className="w-full h-11 px-3 text-sm border border-border-default rounded-[var(--radius-lg)] text-text-primary focus:outline-none focus:border-primary"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Delivery Address / restaurant location */}
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MapPin size={16} className="text-primary" />
-            <span className="text-sm font-bold text-text-primary">Delivery Address</span>
+            <span className="text-sm font-bold text-text-primary">{isDineIn ? "Restaurant Location" : "Delivery Address"}</span>
           </div>
-          <Link href="/address/new?redirect=/checkout" className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5">
-            <Plus size={13} /> Add new
-          </Link>
+          {!isDineIn && (
+            <Link href="/address/new?redirect=/checkout" className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5">
+              <Plus size={13} /> Add new
+            </Link>
+          )}
         </div>
 
-        {selectedAddr ? (
+        {isDineIn ? (
+          <div className="px-4 pb-4">
+            <div className="flex items-start gap-3 bg-primary-50 border border-primary/20 rounded-[var(--radius-lg)] p-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <MapPin size={15} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-text-primary">{restaurant.name}</p>
+                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
+                  {restaurantAddress.fullAddress || "Restaurant address will be shown after confirmation."}
+                </p>
+                {restaurantAddress.area && <p className="text-xs text-text-tertiary mt-0.5">{restaurantAddress.area}, {restaurantAddress.city}</p>}
+              </div>
+            </div>
+            <p className="text-xs text-text-tertiary mt-2">You can use the address to visit and collect your order at the restaurant.</p>
+          </div>
+        ) : selectedAddr ? (
           <div className="px-4 pb-4">
             <div className="flex items-start gap-3 bg-primary-50 border border-primary/20 rounded-[var(--radius-lg)] p-3">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -255,7 +359,7 @@ export default function CheckoutPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-primary">Add a delivery address</p>
-                <p className="text-xs text-text-secondary mt-0.5">Required to place your order</p>
+                <p className="text-xs text-text-secondary mt-0.5">Required for delivery orders</p>
               </div>
             </Link>
           </div>
@@ -324,10 +428,10 @@ export default function CheckoutPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">{label}</span>
+                  <span className="text-sm font-semibold text-text-primary">{isDineIn && id === "cod" ? "Pay at Restaurant" : label}</span>
                   {tag && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tagColor}`}>{tag}</span>}
                 </div>
-                <span className="text-xs text-text-secondary">{desc}</span>
+                <span className="text-xs text-text-secondary">{isDineIn && id === "cod" ? "Pay when you visit" : desc}</span>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
                 paymentMethod === id ? "border-primary" : "border-border-default"
@@ -352,7 +456,7 @@ export default function CheckoutPage() {
             { label: "Delivery fee", val: deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`, cls: deliveryFee === 0 ? "text-success font-semibold" : "" },
             { label: "Platform fee", val: `₹${platformFee}` },
             { label: "GST (5%)", val: `₹${Math.round(tax)}` },
-            tip > 0 ? { label: "Delivery tip", val: `₹${tip}` } : null,
+            effectiveTip > 0 ? { label: "Delivery tip", val: `₹${effectiveTip}` } : null,
             couponDiscount > 0 ? { label: `Coupon (${coupon?.code})`, val: `-₹${Math.round(couponDiscount)}`, cls: "text-success font-semibold" } : null,
           ].filter(Boolean).map(({ label, val, cls = "" }) => (
             <div key={label} className="flex items-center justify-between text-sm">
@@ -387,7 +491,7 @@ export default function CheckoutPage() {
         >
           <div className="text-left">
             <div className="text-xs text-white/80">
-              {paymentMethod === "cod" ? "Cash on Delivery" : "Pay Online"}
+              {paymentMethod === "cod" ? (isDineIn ? "Pay at Restaurant" : "Cash on Delivery") : "Pay Online"}
             </div>
             <div className="text-base font-extrabold">Place Order</div>
           </div>

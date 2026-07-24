@@ -39,6 +39,7 @@ export default function HomeFoodCard({ item }) {
         _id: restaurant._id,
         name: restaurant.name,
         slug: restaurant.slug,
+        address: restaurant.address,
         deliveryFee: restaurant.deliverySettings?.deliveryFee || 0,
         freeDeliveryAbove: restaurant.deliverySettings?.freeDeliveryAbove,
         minOrderAmount: restaurant.deliverySettings?.minOrderAmount || 0,

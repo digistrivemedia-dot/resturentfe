@@ -91,6 +91,19 @@ function PaymentBadge({ method, status }) {
   );
 }
 
+function OrderTypeBadge({ order }) {
+  const isDineIn = order.orderType === "dine_in";
+  const scheduledTime = order.scheduledFor
+    ? new Date(order.scheduledFor).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true })
+    : null;
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-[var(--radius-full)] ${isDineIn ? "bg-orange-100 text-orange-700" : "bg-primary-50 text-primary"}`}>
+      {isDineIn ? "Dine-in" : order.orderType === "pickup" ? "Takeaway" : "Delivery"}
+      {scheduledTime && <span className="font-medium opacity-75"> · {scheduledTime}</span>}
+    </span>
+  );
+}
+
 // ── New-order card ─────────────────────────────────────────────────────────
 function NewOrderCard({ order, onAccept, onReject }) {
   return (
@@ -143,6 +156,7 @@ function NewOrderCard({ order, onAccept, onReject }) {
             <IndianRupee size={13} />
             {getTotal(order)}
           </span>
+          <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
         </div>
         <Link
@@ -223,6 +237,7 @@ function PreparingCard({ order, onMarkReady }) {
             <IndianRupee size={13} />
             {getTotal(order)}
           </span>
+          <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
         </div>
         <Link
@@ -281,6 +296,7 @@ function PickedUpCard({ order, onMarkDelivered }) {
           <span className="text-sm font-semibold text-text-primary flex items-center gap-0.5">
             <IndianRupee size={13} />{getTotal(order)}
           </span>
+          <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
         </div>
         <Link href={`/restaurant/orders/${order._id}`} className="text-xs text-primary font-medium hover:underline flex items-center gap-0.5">
@@ -300,7 +316,7 @@ function PickedUpCard({ order, onMarkDelivered }) {
 }
 
 // ── Ready card ─────────────────────────────────────────────────────────────
-function ReadyCard({ order, onMarkPickedUp }) {
+function ReadyCard({ order, onMarkPickedUp, onMarkDelivered }) {
   const mins = minsSince(getReadyAt(order));
   return (
     <div
@@ -350,6 +366,7 @@ function ReadyCard({ order, onMarkPickedUp }) {
             <IndianRupee size={13} />
             {getTotal(order)}
           </span>
+          <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
         </div>
         <Link
@@ -362,10 +379,10 @@ function ReadyCard({ order, onMarkPickedUp }) {
 
       <div className="border-t border-border-light">
         <button
-          onClick={() => onMarkPickedUp(order._id)}
-          className="w-full py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors cursor-pointer"
+          onClick={() => order.orderType === "dine_in" ? onMarkDelivered(order._id) : onMarkPickedUp(order._id)}
+          className={`w-full py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer ${order.orderType === "dine_in" ? "bg-success hover:bg-success-dark" : "bg-primary hover:bg-primary-dark"}`}
         >
-          Mark Picked Up
+          {order.orderType === "dine_in" ? "Complete Dine-in" : "Mark Picked Up"}
         </button>
       </div>
     </div>
@@ -647,7 +664,7 @@ export default function LiveOrdersPage() {
           <EmptyColumn label="No orders awaiting pickup" />
         ) : (
           readyOrders.map((o) => (
-            <ReadyCard key={o._id} order={o} onMarkPickedUp={handleMarkPickedUp} />
+            <ReadyCard key={o._id} order={o} onMarkPickedUp={handleMarkPickedUp} onMarkDelivered={handleMarkDelivered} />
           ))
         )}
       </div>
