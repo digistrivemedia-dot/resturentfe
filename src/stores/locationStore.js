@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 const useLocationStore = create(
   persist(
     (set) => ({
-      currentLocation: null, // { lat, lng, address, city, area }
+      currentLocation: null, // { lat, lng, fullAddress, city, area, pincode }
       savedAddresses: [],
       isLocationLoading: false,
 

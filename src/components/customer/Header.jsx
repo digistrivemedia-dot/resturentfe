@@ -25,7 +25,8 @@ export default function Header() {
   if (HIDE_PATHS.some((p) => pathname.startsWith(p))) return null;
   if (HIDE_HEADER_PATHS.some((p) => pathname.startsWith(p))) return null;
 
-  const locationLabel = currentLocation?.area || currentLocation?.city || "Set location";
+  const locationLabel = currentLocation?.pincode || currentLocation?.area || currentLocation?.city || "Set location";
+  const locationTitle = currentLocation?.fullAddress || locationLabel;
 
   return (
     <>
@@ -57,7 +58,8 @@ export default function Header() {
 
             <button
               onClick={() => setLocationOpen(true)}
-              className="hidden sm:flex items-center gap-1 group max-w-[200px] cursor-pointer"
+              title={locationTitle}
+              className="flex items-center gap-1 group max-w-[112px] sm:max-w-[200px] cursor-pointer"
             >
               <MapPin size={15} className="text-primary shrink-0" />
               <span className="text-sm font-semibold text-text-primary truncate group-hover:text-primary transition-colors">
@@ -111,7 +113,7 @@ export default function Header() {
         </div>
       </header>
 
-      <Modal isOpen={locationOpen} onClose={() => setLocationOpen(false)} title="Choose delivery location" size="sm">
+      <Modal isOpen={locationOpen} onClose={() => setLocationOpen(false)} title="Choose delivery location" size="md">
         <LocationSelector onClose={() => setLocationOpen(false)} />
       </Modal>
     </>

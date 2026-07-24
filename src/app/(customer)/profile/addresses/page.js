@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -32,15 +32,8 @@ export default function ManageAddressesPage() {
   const allIds = new Set(userAddrs.map((a) => a._id));
   const merged = [...userAddrs, ...storeAddrs.filter((a) => !allIds.has(a._id))];
 
-  const [addresses, setAddresses] = useState(merged);
+  const addresses = merged;
   const [deleteTarget, setDeleteTarget] = useState(null);
-
-  // Update addresses when user data changes
-  useEffect(() => {
-    if (user?.addresses?.length > 0) {
-      setAddresses(user.addresses);
-    }
-  }, [user?.addresses]);
 
   const setDefault = async (id) => {
     try {
@@ -134,6 +127,9 @@ export default function ManageAddressesPage() {
                         <p className="text-xs text-text-secondary mt-1 leading-relaxed">{addr.fullAddress}</p>
                         {addr.landmark && (
                           <p className="text-xs text-text-tertiary mt-0.5">Near {addr.landmark}</p>
+                        )}
+                        {addr.pincode && (
+                          <p className="text-xs text-text-tertiary mt-0.5">Pincode {addr.pincode}</p>
                         )}
                       </div>
                     </div>

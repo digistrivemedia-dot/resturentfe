@@ -67,15 +67,7 @@ export default function CheckoutPage() {
   // Fetch fresh user data on mount (ensures addresses are loaded)
   useEffect(() => {
     fetchMe();
-  }, []);
-
-  // Auto-select default address once addresses load
-  useEffect(() => {
-    if (addresses.length > 0 && !selectedAddrId) {
-      const def = addresses.find((a) => a.isDefault) || addresses[0];
-      if (def) setSelectedAddrId(def._id);
-    }
-  }, [addresses.length]);
+  }, [fetchMe]);
 
   const subtotal = getSubtotal();
   const deliveryFee = getDeliveryFee();
@@ -104,8 +96,9 @@ export default function CheckoutPage() {
         })),
         deliveryAddress: {
           label: selectedAddr?.label || "Current Location",
-          fullAddress: selectedAddr?.fullAddress || currentLocation?.address || "",
+          fullAddress: selectedAddr?.fullAddress || currentLocation?.fullAddress || "",
           landmark: selectedAddr?.landmark || "",
+          pincode: selectedAddr?.pincode || currentLocation?.pincode || "",
           lat: selectedAddr?.lat || currentLocation?.lat,
           lng: selectedAddr?.lng || currentLocation?.lng,
         },
@@ -225,6 +218,9 @@ export default function CheckoutPage() {
                 <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">{selectedAddr.fullAddress}</p>
                 {selectedAddr.landmark && (
                   <p className="text-xs text-text-tertiary mt-0.5">Near {selectedAddr.landmark}</p>
+                )}
+                {selectedAddr.pincode && (
+                  <p className="text-xs text-text-tertiary mt-0.5">Pincode {selectedAddr.pincode}</p>
                 )}
               </div>
               <Link href="/address/new?redirect=/checkout" className="text-xs text-primary font-medium hover:underline shrink-0">

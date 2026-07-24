@@ -12,6 +12,11 @@ const LABEL_OPTIONS = [
   { value: "other", label: "Other", icon: MapPin },
 ];
 
+const getPincode = (address = {}) => {
+  const match = String(address.postcode || "").match(/\d{6}/);
+  return match?.[0] || "";
+};
+
 function AddAddressContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,6 +27,7 @@ function AddAddressContent() {
   const [form, setForm] = useState({
     flatNo: "",
     area: "",
+    pincode: "",
     landmark: "",
     label: "home",
     isDefault: false,
@@ -51,6 +57,7 @@ function AddAddressContent() {
           );
           const data = await res.json();
           const a = data.address || {};
+          const pincode = getPincode(a);
           const area = [
             a.road || a.pedestrian || a.suburb,
             a.city_district || a.neighbourhood,
@@ -58,7 +65,13 @@ function AddAddressContent() {
             a.state,
           ].filter(Boolean).join(", ");
 
-          setForm((f) => ({ ...f, area: area || data.display_name || "", lat: latitude, lng: longitude }));
+          setForm((f) => ({
+            ...f,
+            area: area || data.display_name || "",
+            pincode: pincode || f.pincode,
+            lat: latitude,
+            lng: longitude,
+          }));
         } catch {
           // Reverse geocoding failed — fill coords only, let user type area
           setForm((f) => ({ ...f, lat: latitude, lng: longitude }));
@@ -80,6 +93,7 @@ function AddAddressContent() {
     const e = {};
     if (!form.flatNo.trim()) e.flatNo = "House/Flat number is required";
     if (!form.area.trim()) e.area = "Area is required";
+    if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = "Enter a valid 6-digit pincode";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -94,9 +108,10 @@ function AddAddressContent() {
         label: form.label,
         fullAddress,
         landmark: form.landmark,
+        pincode: form.pincode.trim(),
         isDefault: form.isDefault,
-        ...(form.lat && { lat: form.lat }),
-        ...(form.lng && { lng: form.lng }),
+        ...(form.lat !== null && { lat: form.lat }),
+        ...(form.lng !== null && { lng: form.lng }),
       });
       // Refresh user in authStore so checkout sees the new address
       await fetchMe();
@@ -206,6 +221,23 @@ function AddAddressContent() {
               ${errors.area ? "border-error focus:ring-error/20" : "border-border-light hover:border-border-default focus:border-primary focus:ring-primary/20"}`}
           />
           {errors.area && <p className="text-xs text-error mt-1">{errors.area}</p>}
+        </div>
+
+        {/* Pincode */}
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-1.5">
+            Pincode <span className="text-error">*</span>
+          </label>
+          <input
+            value={form.pincode}
+            onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="e.g. 560066"
+            inputMode="numeric"
+            maxLength={6}
+            className={`w-full h-11 px-4 text-sm border rounded-[var(--radius-lg)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 transition-colors
+              ${errors.pincode ? "border-error focus:ring-error/20" : "border-border-light hover:border-border-default focus:border-primary focus:ring-primary/20"}`}
+          />
+          {errors.pincode && <p className="text-xs text-error mt-1">{errors.pincode}</p>}
         </div>
 
         {/* Landmark */}
