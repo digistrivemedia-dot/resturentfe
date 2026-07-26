@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Loader2, MapPin, Save } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Save } from "lucide-react";
 import useAdminRestaurantStore from "@/stores/adminRestaurantStore";
 
 const CUISINES = [
@@ -16,10 +16,9 @@ const STEPS = [
   { id: 1, label: "Owner Details" },
   { id: 2, label: "Restaurant Basics" },
   { id: 3, label: "Location" },
-  { id: 4, label: "Documents" },
-  { id: 5, label: "Bank Details" },
-  { id: 6, label: "Commission" },
-  { id: 7, label: "Review" },
+  { id: 4, label: "Bank Details" },
+  { id: 5, label: "Commission" },
+  { id: 6, label: "Review" },
 ];
 
 const INITIAL_FORM = {
@@ -39,18 +38,14 @@ const INITIAL_FORM = {
   city: "",
   pincode: "",
   state: "",
+  availablePincodes: "",
   // Step 4
-  fssai: "",
-  fssaiExpiry: "",
-  gst: "",
-  pan: "",
-  // Step 5
   accountHolder: "",
   bankName: "",
   accountNumber: "",
   ifsc: "",
   accountType: "Savings",
-  // Step 6
+  // Step 5
   commission: 15,
   minOrder: 149,
   deliveryFee: 30,
@@ -59,7 +54,7 @@ const INITIAL_FORM = {
   deliveryRadius: 7,
 };
 
-function StepIndicator({ currentStep, completedSteps }) {
+function StepIndicator({ currentStep, completedSteps, onStepClick }) {
   return (
     <div className="w-full overflow-x-auto pb-2">
       <div className="flex items-center min-w-max gap-0">
@@ -67,10 +62,15 @@ function StepIndicator({ currentStep, completedSteps }) {
           const isActive = currentStep === step.id;
           const isCompleted = completedSteps.includes(step.id);
           const isLast = idx === STEPS.length - 1;
+          const canClick = isCompleted || isActive || completedSteps.includes(step.id - 1);
 
           return (
             <div key={step.id} className="flex items-center">
-              <div className="flex flex-col items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => canClick && onStepClick(step.id)}
+                className={`flex flex-col items-center gap-1.5 ${canClick ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+              >
                 <div
                   className={`w-8 h-8 rounded-[var(--radius-full)] flex items-center justify-center text-sm font-bold transition-all ${
                     isCompleted
@@ -93,7 +93,7 @@ function StepIndicator({ currentStep, completedSteps }) {
                 >
                   {step.label}
                 </span>
-              </div>
+              </button>
               {!isLast && (
                 <div
                   className={`h-0.5 w-12 mx-1 mt-[-18px] transition-colors ${
@@ -147,21 +147,11 @@ function SelectInput({ value, onChange, children, ...rest }) {
   );
 }
 
-function UploadBox({ label }) {
-  return (
-    <div className="border-2 border-dashed border-border-default rounded-[var(--radius-lg)] p-4 text-center hover:border-primary transition-colors cursor-pointer">
-      <p className="text-xs text-text-tertiary">
-        Click to upload {label} (PDF, JPG, PNG)
-      </p>
-      <p className="text-xs text-text-tertiary mt-0.5 opacity-60">Max 5MB</p>
-    </div>
-  );
-}
-
 // ---- STEP CONTENT COMPONENTS ----
 
 function Step1({ form, setForm }) {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const phoneError = form.ownerPhone && !/^\d{10}(\d{2})?$/.test(form.ownerPhone);
   return (
     <div className="space-y-5">
       <div>
@@ -176,7 +166,17 @@ function Step1({ form, setForm }) {
           <TextInput type="email" value={form.ownerEmail} onChange={set("ownerEmail")} placeholder="owner@restaurant.com" />
         </FieldRow>
         <FieldRow label="Phone Number" required>
-          <TextInput type="tel" value={form.ownerPhone} onChange={set("ownerPhone")} placeholder="10-digit mobile number" />
+          <TextInput
+            type="tel"
+            value={form.ownerPhone}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, "").slice(0, 12);
+              setForm((f) => ({ ...f, ownerPhone: val }));
+            }}
+            placeholder="10-digit mobile number"
+            maxLength={12}
+          />
+          {phoneError && <p className="text-xs text-error mt-0.5">Enter a valid 10 or 12 digit phone number</p>}
         </FieldRow>
         <FieldRow label="Role">
           <div className="flex items-center gap-2 px-3.5 py-2.5 bg-bg-secondary border border-border-light rounded-[var(--radius-lg)]">
@@ -292,72 +292,36 @@ function Step3({ form, setForm }) {
           </SelectInput>
         </FieldRow>
         <FieldRow label="Pincode" required>
-          <TextInput value={form.pincode} onChange={set("pincode")} placeholder="6-digit pincode" maxLength={6} />
+          <TextInput
+            value={form.pincode}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+              setForm((f) => ({ ...f, pincode: val }));
+            }}
+            placeholder="6-digit pincode"
+            maxLength={6}
+          />
         </FieldRow>
         <FieldRow label="State" required>
           <TextInput value={form.state} onChange={set("state")} placeholder="e.g. Maharashtra" />
         </FieldRow>
       </div>
 
-      {/* Map placeholder */}
-      <div className="rounded-[var(--radius-xl)] border border-border-default bg-bg-secondary overflow-hidden">
-        <div className="h-48 flex items-center justify-center">
-          <div className="text-center text-text-tertiary">
-            <MapPin size={28} className="mx-auto mb-2 opacity-50" />
-            <p className="text-sm font-medium">Map Preview</p>
-            <p className="text-xs mt-0.5 opacity-70">Enter address above to see location on map</p>
-          </div>
-        </div>
-      </div>
+      {/* Available Pincodes */}
+      <FieldRow label="Available Delivery Pincodes">
+        <TextInput
+          value={form.availablePincodes}
+          onChange={set("availablePincodes")}
+          placeholder="e.g. 560066, 560037, 560048 (comma separated)"
+        />
+        <p className="text-xs text-text-tertiary mt-0.5">Enter pincodes where this restaurant can deliver, separated by commas</p>
+      </FieldRow>
+
     </div>
   );
 }
 
 function Step4({ form, setForm }) {
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-text-primary">Documents</h2>
-        <p className="text-sm text-text-secondary mt-0.5">Upload required regulatory documents</p>
-      </div>
-
-      {/* FSSAI */}
-      <div className="p-4 bg-bg-secondary rounded-[var(--radius-xl)] border border-border-light space-y-3">
-        <h3 className="text-sm font-semibold text-text-primary">FSSAI License</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FieldRow label="FSSAI License Number" required>
-            <TextInput value={form.fssai} onChange={set("fssai")} placeholder="14-digit license number" maxLength={14} />
-          </FieldRow>
-          <FieldRow label="Expiry Date" required>
-            <TextInput type="date" value={form.fssaiExpiry} onChange={set("fssaiExpiry")} />
-          </FieldRow>
-        </div>
-        <UploadBox label="FSSAI Certificate" />
-      </div>
-
-      {/* GST */}
-      <div className="p-4 bg-bg-secondary rounded-[var(--radius-xl)] border border-border-light space-y-3">
-        <h3 className="text-sm font-semibold text-text-primary">GST Registration</h3>
-        <FieldRow label="GST Number">
-          <TextInput value={form.gst} onChange={set("gst")} placeholder="e.g. 27AABCT1332L1ZM" maxLength={15} />
-        </FieldRow>
-        <UploadBox label="GST Certificate" />
-      </div>
-
-      {/* PAN */}
-      <div className="p-4 bg-bg-secondary rounded-[var(--radius-xl)] border border-border-light space-y-3">
-        <h3 className="text-sm font-semibold text-text-primary">PAN Card</h3>
-        <FieldRow label="PAN Number" required>
-          <TextInput value={form.pan} onChange={set("pan")} placeholder="e.g. AABCT1332L" maxLength={10} />
-        </FieldRow>
-        <UploadBox label="PAN Card" />
-      </div>
-    </div>
-  );
-}
-
-function Step5({ form, setForm }) {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   return (
     <div className="space-y-5">
@@ -389,7 +353,7 @@ function Step5({ form, setForm }) {
   );
 }
 
-function Step6({ form, setForm }) {
+function Step5({ form, setForm }) {
   const setNum = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
   const setInput = (key) => (e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) }));
 
@@ -455,7 +419,7 @@ function ReviewRow({ label, value }) {
   );
 }
 
-function Step7({ form }) {
+function Step6({ form }) {
   return (
     <div className="space-y-5">
       <div>
@@ -490,15 +454,7 @@ function Step7({ form }) {
           <ReviewRow label="City" value={form.city} />
           <ReviewRow label="Pincode" value={form.pincode} />
           <ReviewRow label="State" value={form.state} />
-        </div>
-
-        {/* Documents */}
-        <div className="bg-bg-secondary rounded-[var(--radius-xl)] p-4 border border-border-light">
-          <h3 className="text-xs font-bold text-text-tertiary uppercase tracking-wide mb-3">Documents</h3>
-          <ReviewRow label="FSSAI" value={form.fssai} />
-          <ReviewRow label="FSSAI Expiry" value={form.fssaiExpiry} />
-          <ReviewRow label="GST" value={form.gst} />
-          <ReviewRow label="PAN" value={form.pan} />
+          <ReviewRow label="Delivery Pincodes" value={form.availablePincodes || "Not specified"} />
         </div>
 
         {/* Bank */}
@@ -532,10 +488,12 @@ export default function OnboardRestaurantPage() {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [form, setForm] = useState(INITIAL_FORM);
 
+  const [submitError, setSubmitError] = useState("");
   const { isSaving, onboardRestaurant } = useAdminRestaurantStore();
 
   function goNext() {
-    if (step < 7) {
+    if (step < 6) {
+      setSubmitError("");
       setCompletedSteps((prev) => prev.includes(step) ? prev : [...prev, step]);
       setStep((s) => s + 1);
     }
@@ -558,18 +516,15 @@ export default function OnboardRestaurantPage() {
       cuisines: form.cuisines,
       categories: form.categories,
       address: {
-        line: form.addressLine,
+        fullAddress: form.addressLine,
         area: form.area,
         city: form.city,
         pincode: form.pincode,
         state: form.state,
       },
-      documents: {
-        fssai: form.fssai,
-        fssaiExpiry: form.fssaiExpiry,
-        gst: form.gst,
-        pan: form.pan,
-      },
+      availablePincodes: form.availablePincodes
+        ? form.availablePincodes.split(",").map((p) => p.trim()).filter(Boolean)
+        : [],
       bank: {
         accountHolder: form.accountHolder,
         bankName: form.bankName,
@@ -590,7 +545,7 @@ export default function OnboardRestaurantPage() {
       router.push("/admin/restaurants");
     } catch (err) {
       console.error("Failed to onboard restaurant:", err);
-      alert("Failed to submit restaurant. Please try again.");
+      setSubmitError(err.message || "Failed to submit restaurant. Please try again.");
     }
   }
 
@@ -610,7 +565,7 @@ export default function OnboardRestaurantPage() {
 
       {/* Step Indicator */}
       <div className="bg-bg-primary rounded-[var(--radius-xl)] border border-border-light shadow-[var(--shadow-sm)] p-5">
-        <StepIndicator currentStep={step} completedSteps={completedSteps} />
+        <StepIndicator currentStep={step} completedSteps={completedSteps} onStepClick={(id) => setStep(id)} />
       </div>
 
       {/* Form Card */}
@@ -620,9 +575,16 @@ export default function OnboardRestaurantPage() {
         {step === 3 && <Step3 form={form} setForm={setForm} />}
         {step === 4 && <Step4 form={form} setForm={setForm} />}
         {step === 5 && <Step5 form={form} setForm={setForm} />}
-        {step === 6 && <Step6 form={form} setForm={setForm} />}
-        {step === 7 && <Step7 form={form} />}
+        {step === 6 && <Step6 form={form} />}
       </div>
+
+      {/* Error Banner */}
+      {submitError && (
+        <div className="flex items-center gap-3 bg-error/10 border border-error/30 rounded-[var(--radius-lg)] px-4 py-3">
+          <span className="text-error text-sm font-medium flex-1">{submitError}</span>
+          <button onClick={() => setSubmitError("")} className="text-error/60 hover:text-error text-lg font-bold cursor-pointer">×</button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex items-center justify-between gap-4 pb-4">
@@ -646,7 +608,7 @@ export default function OnboardRestaurantPage() {
           )}
         </div>
 
-        {step < 7 ? (
+        {step < 6 ? (
           <button
             onClick={goNext}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[var(--radius-lg)] bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors shadow-[var(--shadow-sm)] cursor-pointer"
