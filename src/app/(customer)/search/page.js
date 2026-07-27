@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Search, X, ArrowLeft, Clock, Flame, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import RestaurantCard from "@/components/customer/RestaurantCard";
+import FavouriteButton from "@/components/customer/FavouriteButton";
 import { VegBadge } from "@/components/ui";
 import useRestaurantStore from "@/stores/restaurantStore";
 import { CUISINES, SORT_OPTIONS } from "@/constants";
@@ -248,6 +249,8 @@ function SearchContent() {
                             <p className="text-xs text-text-tertiary mt-0.5">{restaurant.name}</p>
                           )}
                         </div>
+                        {/* ❤️ Favourite button */}
+                        <FavouriteButton item={item} size={18} variant="bare" className="shrink-0" />
                       </Link>
                     );
                   })}

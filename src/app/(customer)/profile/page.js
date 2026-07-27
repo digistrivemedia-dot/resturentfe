@@ -153,10 +153,11 @@ export default function ProfilePage() {
           </div>
 
           {/* Stats row */}
-          <div className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-border-light">
+          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-border-light">
             {[
-              { label: "Orders", value: "12" },
-              { label: "Favourites", value: user.favorites?.length || 0 },
+              { label: "Orders",        value: "12" },
+              { label: "Fav. Dishes",   value: user.favoriteDishes?.length || 0 },
+              { label: "Fav. Places",   value: user.favorites?.length || 0 },
             ].map(({ label, value }) => (
               <div key={label} className="text-center">
                 <p className="text-lg font-extrabold text-text-primary">{value}</p>

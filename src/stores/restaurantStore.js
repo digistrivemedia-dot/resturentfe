@@ -89,10 +89,20 @@ const useRestaurantStore = create((set, get) => ({
     }
   },
 
-  // Toggle favorite
+  // Toggle favorite restaurant
   toggleFavorite: async (restaurantId) => {
     try {
       const res = await api.post(`/restaurants/${restaurantId}/favorite`);
+      return res.data;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // Toggle favorite dish
+  toggleFavoriteDish: async (dishId) => {
+    try {
+      const res = await api.post(`/dishes/${dishId}/favorite`);
       return res.data;
     } catch (err) {
       throw err;

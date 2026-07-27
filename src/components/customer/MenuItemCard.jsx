@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Minus, ChevronDown } from "lucide-react";
 import { VegBadge, Modal } from "@/components/ui";
 import AddonSelector from "./AddonSelector";
+import FavouriteButton from "./FavouriteButton";
 import useCartStore from "@/stores/cartStore";
 
 const TAG_STYLES = {
@@ -127,6 +128,8 @@ export default function MenuItemCard({ item, restaurant }) {
                 <span className="text-[10px] font-bold text-text-secondary">Unavailable</span>
               </div>
             )}
+            {/* ❤️ Favourite button */}
+            <FavouriteButton item={item} size={13} className="absolute top-1 right-1 !w-7 !h-7" />
           </div>
 
           {/* Add / Quantity control */}

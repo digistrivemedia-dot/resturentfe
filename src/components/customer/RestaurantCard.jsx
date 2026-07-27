@@ -4,6 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Star, Clock, ChevronRight, Heart, Zap } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { useCallback } from "react";
+import useAuthStore from "@/stores/authStore";
+import useRestaurantStore from "@/stores/restaurantStore";
 
 function getRatingColor(r) {
   if (r >= 4) return "bg-success";
@@ -15,8 +18,33 @@ export default function RestaurantCard({ restaurant, variant = "default" }) {
   const {
     slug, name, cuisines = [], coverImage, logo,
     rating = {}, deliverySettings = {}, costForTwo, offers = [],
-    isFeatured,
+    isFeatured, _id,
   } = restaurant;
+
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const optimisticToggleFavoriteRestaurant = useAuthStore((s) => s.optimisticToggleFavoriteRestaurant);
+  const toggleFavorite = useRestaurantStore((s) => s.toggleFavorite);
+
+  const isFav = user?.favorites?.some((r) => {
+    const id = typeof r === "object" ? r._id : r;
+    return id?.toString() === _id?.toString();
+  }) ?? false;
+
+  const handleFavClick = useCallback(async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      alert("Please log in to save favourite restaurants.");
+      return;
+    }
+    optimisticToggleFavoriteRestaurant(_id);
+    try {
+      await toggleFavorite(_id);
+    } catch {
+      optimisticToggleFavoriteRestaurant(_id); // revert
+    }
+  }, [_id, isAuthenticated, optimisticToggleFavoriteRestaurant, toggleFavorite]);
 
   const { average: ratingVal = 4.0, totalReviews = 0 } = rating;
   const { avgDeliveryTime = 30, deliveryFee = 0, freeDeliveryAbove, minOrderAmount = 0 } = deliverySettings;
@@ -78,10 +106,11 @@ export default function RestaurantCard({ restaurant, variant = "default" }) {
         )}
         {/* Favourite */}
         <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onClick={handleFavClick}
+          aria-label={isFav ? "Remove from favourites" : "Save restaurant"}
           className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors"
         >
-          <Heart size={14} className="text-text-tertiary hover:text-error transition-colors" />
+          <Heart size={14} className={isFav ? "text-rose-500 fill-rose-500" : "text-gray-400 hover:text-rose-400 transition-colors"} />
         </button>
       </div>
 

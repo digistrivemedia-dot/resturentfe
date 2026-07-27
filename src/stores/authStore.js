@@ -104,6 +104,44 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // ── Optimistic restaurant favourite toggle ─────────────────────────────────
+  optimisticToggleFavoriteRestaurant: (restaurantId) => {
+    set((state) => {
+      if (!state.user) return {};
+      const current = state.user.favorites || [];
+      const exists = current.some((r) => {
+        const id = typeof r === "object" ? r._id : r;
+        return id?.toString() === restaurantId?.toString();
+      });
+      const updated = exists
+        ? current.filter((r) => {
+            const id = typeof r === "object" ? r._id : r;
+            return id?.toString() !== restaurantId?.toString();
+          })
+        : [...current, restaurantId];
+      return { user: { ...state.user, favorites: updated } };
+    });
+  },
+
+  // ── Optimistic dish favourite toggle ──────────────────────────────────────
+  optimisticToggleFavoriteDish: (dish) => {
+    set((state) => {
+      if (!state.user) return {};
+      const current = state.user.favoriteDishes || [];
+      const exists = current.some((d) => {
+        const id = typeof d === "object" ? d._id : d;
+        return id?.toString() === dish._id?.toString();
+      });
+      const updated = exists
+        ? current.filter((d) => {
+            const id = typeof d === "object" ? d._id : d;
+            return id?.toString() !== dish._id?.toString();
+          })
+        : [...current, dish];
+      return { user: { ...state.user, favoriteDishes: updated } };
+    });
+  },
+
   completeProfile: async (data) => {
     set({ isLoading: true, error: null });
     try {

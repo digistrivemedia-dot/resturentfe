@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Minus, Tag } from "lucide-react";
 import { VegBadge, Modal } from "@/components/ui";
 import AddonSelector from "./AddonSelector";
+import FavouriteButton from "./FavouriteButton";
 import useCartStore from "@/stores/cartStore";
 
 function couponLabel(coupon) {
@@ -92,6 +93,8 @@ export default function HomeFoodCard({ item }) {
               {Math.round(((item.price - item.discountedPrice) / item.price) * 100)}% OFF
             </span>
           )}
+          {/* ❤️ Favourite button */}
+          <FavouriteButton item={item} size={14} className="absolute top-2 right-2" />
         </div>
 
         {/* Info */}
