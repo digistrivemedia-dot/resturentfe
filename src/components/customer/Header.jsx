@@ -25,6 +25,8 @@ export default function Header() {
   if (HIDE_PATHS.some((p) => pathname.startsWith(p))) return null;
   if (HIDE_HEADER_PATHS.some((p) => pathname.startsWith(p))) return null;
 
+  const isSearchPage = pathname.startsWith("/search");
+
   const locationLabel = currentLocation?.pincode || currentLocation?.area || currentLocation?.city || "Set location";
   const locationTitle = currentLocation?.fullAddress || locationLabel;
 
@@ -69,20 +71,25 @@ export default function Header() {
             </button>
           </div>
 
-          {/* Center: Search (desktop) */}
-          <Link
-            href="/search"
-            className="hidden md:flex items-center gap-2 flex-1 max-w-md mx-4 h-10 px-4 bg-bg-secondary rounded-[var(--radius-full)] text-sm text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary transition-colors"
-          >
-            <Search size={15} />
-            <span>Search restaurants or dishes…</span>
-          </Link>
+          {/* Center: Search (desktop) — hidden on /search since that page has its own input */}
+          {!isSearchPage && (
+            <Link
+              href="/search"
+              className="hidden md:flex items-center gap-2 flex-1 max-w-md mx-4 h-10 px-4 bg-bg-secondary rounded-[var(--radius-full)] text-sm text-text-tertiary hover:bg-bg-tertiary hover:text-text-secondary transition-colors"
+            >
+              <Search size={15} />
+              <span>Search restaurants or dishes…</span>
+            </Link>
+          )}
 
           {/* Right: Actions */}
           <div className="flex items-center gap-1">
-            <Link href="/search" className="md:hidden p-2 rounded-[var(--radius-md)] text-text-secondary hover:bg-bg-hover transition-colors">
-              <Search size={20} />
-            </Link>
+            {/* Mobile search icon — hidden on /search */}
+            {!isSearchPage && (
+              <Link href="/search" className="md:hidden p-2 rounded-[var(--radius-md)] text-text-secondary hover:bg-bg-hover transition-colors">
+                <Search size={20} />
+              </Link>
+            )}
 
             {isAuthenticated && (
               <Link href="/notifications" className="p-2 rounded-[var(--radius-md)] text-text-secondary hover:bg-bg-hover transition-colors relative">

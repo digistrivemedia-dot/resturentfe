@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,8 +11,12 @@ import {
 import { Modal } from "@/components/ui";
 import useAuthStore from "@/stores/authStore";
 import useProfileStore from "@/stores/profileStore";
+import useOrderStore from "@/stores/orderStore";
 import useImageUpload from "@/hooks/useImageUpload";
 import toast from "react-hot-toast";
+
+// Statuses that count as real orders (matches the orders page display)
+const COUNTED_STATUSES = new Set(["placed", "confirmed", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"]);
 
 const MENU_ITEMS = [
   {
@@ -43,11 +47,23 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, logoutUser, fetchMe } = useAuthStore();
   const { updateProfile } = useProfileStore();
+  const { orders, fetchMyOrders, pagination: orderPagination } = useOrderStore();
+
+  // Order count: use in-store data if available, fetch if not
+  // Exclude pending_payment (payment not completed) to match orders page display
+  const orderCount = orders.length > 0
+    ? orders.filter((o) => COUNTED_STATUSES.has(o.status)).length
+    : orderPagination.total ?? 0;
   const [editOpen, setEditOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Fetch orders if store is empty (first visit)
+  useEffect(() => {
+    if (!orders.length) fetchMyOrders();
+  }, []);
 
   const avatarRef = useRef(null);
   const { upload: uploadAvatar, isUploading: isUploadingAvatar, progress: avatarProgress } = useImageUpload({ type: "avatar" });
@@ -155,7 +171,7 @@ export default function ProfilePage() {
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-border-light">
             {[
-              { label: "Orders",        value: "12" },
+              { label: "Orders",        value: orderCount },
               { label: "Fav. Dishes",   value: user.favoriteDishes?.length || 0 },
               { label: "Fav. Places",   value: user.favorites?.length || 0 },
             ].map(({ label, value }) => (
