@@ -9,6 +9,7 @@ import {
 import MenuItemCard from "@/components/customer/MenuItemCard";
 import { Toggle, Badge, CardSkeleton } from "@/components/ui";
 import useRestaurantStore from "@/stores/restaurantStore";
+import useAuthStore from "@/stores/authStore";
 
 export default function RestaurantPage({ params }) {
   const { slug } = use(params);
@@ -20,14 +21,18 @@ export default function RestaurantPage({ params }) {
     fetchRestaurantBySlug,
     fetchMenu,
     clearSelectedRestaurant,
+    toggleFavorite,
   } = useRestaurantStore();
+
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const optimisticToggleFavoriteRestaurant = useAuthStore((s) => s.optimisticToggleFavoriteRestaurant);
 
   const [vegOnly, setVegOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [activeCategory, setActiveCategory] = useState("");
   const [infoExpanded, setInfoExpanded] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
 
   const sectionRefs = useRef({});
   const categoryBarRef = useRef(null);
@@ -130,6 +135,24 @@ export default function RestaurantPage({ params }) {
   const { average: ratingVal, totalReviews } = rating;
   const { avgDeliveryTime, deliveryFee, freeDeliveryAbove, minOrderAmount } = deliverySettings;
 
+  const isFav = user?.favorites?.some((r) => {
+    const id = typeof r === "object" ? r._id : r;
+    return id?.toString() === restaurant._id?.toString();
+  }) ?? false;
+
+  const handleFavClick = async () => {
+    if (!isAuthenticated) {
+      alert("Please log in to save favourite restaurants.");
+      return;
+    }
+    optimisticToggleFavoriteRestaurant(restaurant._id);
+    try {
+      await toggleFavorite(restaurant._id);
+    } catch {
+      optimisticToggleFavoriteRestaurant(restaurant._id); // revert
+    }
+  };
+
   const isOpen = timing?.isOpen ?? true;
   const totalItemsInSearch = searchQuery
     ? allItems.filter((i) => {
@@ -155,11 +178,29 @@ export default function RestaurantPage({ params }) {
 
       {/* ── HERO COVER ── */}
       <div className="relative -mx-4 md:-mx-6 h-52 md:h-64 bg-gradient-to-br from-orange-200 via-red-100 to-orange-300 overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center select-none">
-            <div className="text-8xl md:text-9xl opacity-30">🍛</div>
+        {restaurant.bannerVideo ? (
+          <video
+            src={restaurant.bannerVideo}
+            className="absolute inset-0 w-full h-full object-cover"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+        ) : restaurant.bannerImage || restaurant.coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={restaurant.bannerImage || restaurant.coverImage}
+            alt={name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center select-none">
+              <div className="text-8xl md:text-9xl opacity-30">🍛</div>
+            </div>
           </div>
-        </div>
+        )}
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
@@ -172,10 +213,11 @@ export default function RestaurantPage({ params }) {
         {/* Top actions */}
         <div className="absolute top-14 right-4 flex gap-2">
           <button
-            onClick={() => setIsLiked(!isLiked)}
+            onClick={handleFavClick}
+            aria-label={isFav ? "Remove from favourites" : "Save restaurant"}
             className="w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors"
           >
-            <Heart size={16} className={isLiked ? "text-error fill-error" : "text-text-secondary"} />
+            <Heart size={16} className={isFav ? "text-error fill-error" : "text-text-secondary"} />
           </button>
           <button className="w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors">
             <Share2 size={16} className="text-text-secondary" />

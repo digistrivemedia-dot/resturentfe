@@ -5,7 +5,7 @@ import {
   Star, MapPin, Clock, Phone, Mail, Globe,
   Camera, Edit2, Check, X, Shield, Leaf,
   ChevronDown, ChevronUp, Save, ImageIcon, UtensilsCrossed,
-  BadgeCheck, Bike, Timer, Link,
+  BadgeCheck, Bike, Timer, Link, Video,
   Loader2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -16,13 +16,6 @@ const FEATURED_ITEMS = [
   { name: "Butter Chicken", price: 280, veg: false, gradient: "from-orange-400 to-red-500" },
   { name: "Dal Makhani", price: 220, veg: true, gradient: "from-amber-400 to-orange-500" },
   { name: "Chicken Biryani", price: 320, veg: false, gradient: "from-yellow-400 to-amber-500" },
-];
-
-const PHOTO_GRADIENTS = [
-  "from-pink-400 to-rose-500",
-  "from-violet-400 to-purple-500",
-  "from-cyan-400 to-blue-500",
-  "from-emerald-400 to-teal-500",
 ];
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -59,34 +52,76 @@ export default function RestaurantProfilePage() {
   const [isOpenLocal, setIsOpenLocal] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [bannerTab, setBannerTab] = useState("image"); // "image" | "video"
 
-  const photoInputRef = useRef(null);
+  const cardImageInputRef = useRef(null);
+  const bannerImageInputRef = useRef(null);
+  const bannerVideoInputRef = useRef(null);
 
-  const { upload: uploadPhoto, isUploading: isPhotoUploading, progress: photoProgress, error: photoUploadError } = useImageUpload({
+  // Home page card image (coverImage)
+  const { upload: uploadCardImage, isUploading: isCardImageUploading, progress: cardImageProgress } = useImageUpload({
     type: "restaurant",
     onSuccess: async (result) => {
       try {
-        await updateProfile({ logo: result.url });
-        showToast("Photo uploaded successfully!");
-      } catch (err) {
-        showToast("Photo uploaded but failed to save to profile");
+        await updateProfile({ coverImage: result.url });
+        showToast("Home card image updated!");
+      } catch {
+        showToast("Uploaded but failed to save to profile");
       }
     },
-    onError: (msg) => {
-      showToast(`Photo upload failed: ${msg}`);
-    },
+    onError: (msg) => showToast(`Upload failed: ${msg}`),
   });
 
-  async function handlePhotoFileChange(e) {
+  // Restaurant page banner image
+  const { upload: uploadBannerImage, isUploading: isBannerImageUploading, progress: bannerImageProgress } = useImageUpload({
+    type: "restaurant",
+    onSuccess: async (result) => {
+      try {
+        await updateProfile({ bannerImage: result.url, bannerVideo: "" });
+        showToast("Restaurant page banner updated!");
+      } catch {
+        showToast("Uploaded but failed to save to profile");
+      }
+    },
+    onError: (msg) => showToast(`Upload failed: ${msg}`),
+  });
+
+  // Restaurant page banner video
+  const { uploadVideo: uploadBannerVideo, isUploading: isBannerVideoUploading, progress: bannerVideoProgress } = useImageUpload({
+    type: "restaurant-video",
+    onSuccess: async (result) => {
+      try {
+        await updateProfile({ bannerVideo: result.url, bannerImage: "" });
+        showToast("Restaurant page banner updated!");
+      } catch {
+        showToast("Uploaded but failed to save to profile");
+      }
+    },
+    onError: (msg) => showToast(`Upload failed: ${msg}`),
+  });
+
+  const isBannerUploading = isBannerImageUploading || isBannerVideoUploading;
+  const bannerProgress = bannerTab === "video" ? bannerVideoProgress : bannerImageProgress;
+
+  async function handleCardImageChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset input so same file can be re-selected
     e.target.value = "";
-    try {
-      await uploadPhoto(file);
-    } catch {
-      // error handled by onError callback
-    }
+    await uploadCardImage(file);
+  }
+
+  async function handleBannerImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    await uploadBannerImage(file);
+  }
+
+  async function handleBannerVideoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    await uploadBannerVideo(file);
   }
 
   useEffect(() => {
@@ -477,50 +512,130 @@ export default function RestaurantProfilePage() {
             )}
           </div>
 
-          {/* Photos section */}
+          {/* Home card image */}
           <div className="bg-white rounded-[var(--radius-xl)] border border-border-light p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-bold text-text-primary">Restaurant Photos</h3>
-                <p className="text-xs text-text-tertiary mt-0.5">Showcased on your public listing</p>
+                <h3 className="text-sm font-bold text-text-primary">Home Card Image</h3>
+                <p className="text-xs text-text-tertiary mt-0.5">Shown on your restaurant&apos;s box on the home page</p>
               </div>
               <button
-                onClick={() => photoInputRef.current?.click()}
-                disabled={isPhotoUploading}
-                className="flex items-center gap-1.5 h-8 px-3 border border-dashed border-[#FF5722] text-[#FF5722] text-xs font-bold rounded-[var(--radius-md)] hover:bg-[#FF5722]/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                onClick={() => cardImageInputRef.current?.click()}
+                disabled={isCardImageUploading}
+                className="flex items-center gap-1.5 h-8 px-3 border border-dashed border-[#FF5722] text-[#FF5722] text-xs font-bold rounded-[var(--radius-md)] hover:bg-[#FF5722]/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
               >
-                {isPhotoUploading ? (
+                {isCardImageUploading ? (
                   <>
                     <span className="w-3 h-3 border-2 border-[#FF5722]/40 border-t-[#FF5722] rounded-full animate-spin shrink-0" />
-                    {photoProgress > 0 ? `${photoProgress}%` : "Uploading…"}
+                    {cardImageProgress > 0 ? `${cardImageProgress}%` : "Uploading…"}
                   </>
                 ) : (
                   <>
-                    <Camera size={13} /> Add Photo
+                    <Camera size={13} /> {restaurant?.coverImage ? "Change" : "Upload"} Image
                   </>
                 )}
               </button>
               <input
-                ref={photoInputRef}
+                ref={cardImageInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
-                onChange={handlePhotoFileChange}
+                onChange={handleCardImageChange}
               />
             </div>
-            <div className="grid grid-cols-4 gap-3">
-              {PHOTO_GRADIENTS.map((grad, i) => (
-                <div
-                  key={i}
-                  className={`aspect-square rounded-[var(--radius-lg)] bg-gradient-to-br ${grad} flex items-center justify-center group relative overflow-hidden cursor-pointer`}
-                >
-                  <ImageIcon size={20} className="text-white/70 group-hover:text-white transition-colors" />
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-white text-[10px] font-bold">Photo {i + 1}</span>
-                  </div>
+            <div className="w-full h-36 rounded-[var(--radius-lg)] bg-bg-secondary overflow-hidden flex items-center justify-center">
+              {restaurant?.coverImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={restaurant.coverImage} alt="Home card" className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center text-text-tertiary">
+                  <ImageIcon size={22} />
+                  <span className="text-xs mt-1">No image uploaded yet</span>
                 </div>
-              ))}
+              )}
             </div>
+          </div>
+
+          {/* Restaurant page banner */}
+          <div className="bg-white rounded-[var(--radius-xl)] border border-border-light p-6">
+            <h3 className="text-sm font-bold text-text-primary">Restaurant Page Banner</h3>
+            <p className="text-xs text-text-tertiary mt-0.5 mb-4">
+              Shown at the top of your restaurant page. Upload an image or a short video (max 50MB). If left empty, your Home Card Image will be used instead.
+            </p>
+
+            {/* Preview */}
+            <div className="w-full h-36 rounded-[var(--radius-lg)] bg-bg-secondary overflow-hidden flex items-center justify-center mb-3 relative">
+              {restaurant?.bannerVideo ? (
+                <video src={restaurant.bannerVideo} className="w-full h-full object-cover" controls muted />
+              ) : restaurant?.bannerImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={restaurant.bannerImage} alt="Restaurant page banner" className="w-full h-full object-cover" />
+              ) : restaurant?.coverImage ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={restaurant.coverImage} alt="Restaurant page banner (using home card image)" className="w-full h-full object-cover" />
+                  <span className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold bg-black/60 text-white px-1.5 py-0.5 rounded">
+                    Using Home Card Image (fallback)
+                  </span>
+                </>
+              ) : (
+                <div className="flex flex-col items-center text-text-tertiary">
+                  <ImageIcon size={22} />
+                  <span className="text-xs mt-1">No banner uploaded yet</span>
+                </div>
+              )}
+            </div>
+
+            {/* Image / Video tabs */}
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => setBannerTab("image")}
+                className={`flex-1 flex items-center justify-center gap-1.5 h-8 text-xs font-bold rounded-[var(--radius-md)] border transition-colors ${
+                  bannerTab === "image" ? "border-[#FF5722] bg-[#FF5722]/5 text-[#FF5722]" : "border-border-light text-text-secondary hover:border-border-default"
+                }`}
+              >
+                <ImageIcon size={13} /> Image
+              </button>
+              <button
+                onClick={() => setBannerTab("video")}
+                className={`flex-1 flex items-center justify-center gap-1.5 h-8 text-xs font-bold rounded-[var(--radius-md)] border transition-colors ${
+                  bannerTab === "video" ? "border-[#FF5722] bg-[#FF5722]/5 text-[#FF5722]" : "border-border-light text-text-secondary hover:border-border-default"
+                }`}
+              >
+                <Video size={13} /> Video
+              </button>
+            </div>
+
+            <button
+              onClick={() => (bannerTab === "image" ? bannerImageInputRef.current?.click() : bannerVideoInputRef.current?.click())}
+              disabled={isBannerUploading}
+              className="w-full flex items-center justify-center gap-1.5 h-9 border border-dashed border-[#FF5722] text-[#FF5722] text-xs font-bold rounded-[var(--radius-md)] hover:bg-[#FF5722]/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isBannerUploading ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-[#FF5722]/40 border-t-[#FF5722] rounded-full animate-spin shrink-0" />
+                  {bannerProgress > 0 ? `${bannerProgress}%` : "Uploading…"}
+                </>
+              ) : bannerTab === "image" ? (
+                <><Camera size={13} /> Upload Banner Image</>
+              ) : (
+                <><Video size={13} /> Upload Banner Video</>
+              )}
+            </button>
+            <input
+              ref={bannerImageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleBannerImageChange}
+            />
+            <input
+              ref={bannerVideoInputRef}
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime"
+              className="hidden"
+              onChange={handleBannerVideoChange}
+            />
           </div>
         </div>
 
@@ -533,10 +648,20 @@ export default function RestaurantProfilePage() {
               <p className="text-xs font-bold text-text-tertiary uppercase tracking-widest">Customer Preview</p>
             </div>
 
-            {/* Cover image placeholder */}
-            <div className="mx-4 h-32 rounded-[var(--radius-lg)] bg-gradient-to-br from-orange-400 via-[#FF5722] to-red-600 flex items-center justify-center relative overflow-hidden">
-              <UtensilsCrossed size={32} className="text-white/40" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            {/* Cover / banner preview — mirrors what customers see on the restaurant page */}
+            <div className="mx-4 h-32 rounded-[var(--radius-lg)] overflow-hidden relative bg-gradient-to-br from-orange-400 via-[#FF5722] to-red-600 flex items-center justify-center">
+              {restaurant?.bannerVideo ? (
+                <video src={restaurant.bannerVideo} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+              ) : restaurant?.bannerImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={restaurant.bannerImage} alt={info.name} className="w-full h-full object-cover" />
+              ) : restaurant?.coverImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={restaurant.coverImage} alt={info.name} className="w-full h-full object-cover" />
+              ) : (
+                <UtensilsCrossed size={32} className="text-white/40" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
               <div className="absolute bottom-2 left-3">
                 <p className="text-white text-xs font-semibold opacity-80">Cover Photo</p>
               </div>
@@ -614,7 +739,7 @@ export default function RestaurantProfilePage() {
                 { label: "Restaurant info", done: !!restaurant?.name },
                 { label: "Contact details", done: !!(restaurant?.contact?.phone || restaurant?.contact?.email) },
                 { label: "Description", done: !!restaurant?.description },
-                { label: "Cover photo", done: false },
+                { label: "Cover photo", done: !!(restaurant?.bannerImage || restaurant?.bannerVideo || restaurant?.coverImage) },
                 { label: "Social links", done: !!(restaurant?.social?.instagram || restaurant?.social?.facebook) },
               ].map(({ label, done }) => (
                 <div key={label} className="flex items-center gap-2">

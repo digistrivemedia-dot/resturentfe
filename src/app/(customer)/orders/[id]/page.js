@@ -12,6 +12,7 @@ import { Modal, CardSkeleton } from "@/components/ui";
 import useOrderStore from "@/stores/orderStore";
 
 const STATUS_META = {
+  pending_payment:  { label: "Payment Pending",     color: "text-warning",   bg: "bg-warning-light" },
   placed:           { label: "Order Placed",       color: "text-primary",   bg: "bg-primary-50" },
   confirmed:        { label: "Confirmed",           color: "text-primary",   bg: "bg-primary-50" },
   preparing:        { label: "Preparing",           color: "text-warning",   bg: "bg-warning-light" },
@@ -358,11 +359,6 @@ export default function OrderDetailPage({ params }) {
             </Link>
           )}
         </div>
-
-        {/* Download receipt */}
-        <button className="w-full flex items-center justify-center gap-2 h-11 border border-border-light text-text-secondary text-sm font-medium rounded-[var(--radius-xl)] hover:bg-bg-hover transition-colors">
-          <Download size={15} /> Download Invoice / Receipt
-        </button>
 
         <div className="h-2" />
       </div>

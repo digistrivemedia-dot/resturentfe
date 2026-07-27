@@ -1,15 +1,18 @@
 import { useState, useCallback } from "react";
 import api from "@/lib/api";
 
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+
 /**
- * Hook for uploading images to Cloudinary via the backend.
+ * Hook for uploading images (and optionally videos) to the backend's disk-storage upload API.
  *
  * @param {Object} options
- * @param {string} options.type - Upload type: "menu-item", "restaurant", "avatar", "banner", "general"
- * @param {Function} options.onSuccess - Callback with upload result { url, publicId, width, height }
+ * @param {string} options.type - Upload type: "menu-item", "restaurant", "avatar", "banner", "restaurant-video", "general"
+ * @param {Function} options.onSuccess - Callback with upload result { url, filename, size, mimetype }
  * @param {Function} options.onError - Callback with error message
  *
- * @returns {{ upload, uploadMultiple, remove, isUploading, progress, error }}
+ * @returns {{ upload, uploadMultiple, uploadVideo, remove, isUploading, progress, error }}
  */
 export default function useImageUpload({ type = "general", onSuccess, onError } = {}) {
   const [isUploading, setIsUploading] = useState(false);
@@ -94,6 +97,59 @@ export default function useImageUpload({ type = "general", onSuccess, onError } 
     [type, onSuccess, onError]
   );
 
+  const uploadVideo = useCallback(
+    async (file) => {
+      if (!file) return null;
+
+      if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+        const msg = "Only MP4, WebM, or MOV videos are allowed";
+        setError(msg);
+        onError?.(msg);
+        return null;
+      }
+      if (file.size > MAX_VIDEO_SIZE) {
+        const msg = "Video must be under 50MB";
+        setError(msg);
+        onError?.(msg);
+        return null;
+      }
+
+      setIsUploading(true);
+      setProgress(0);
+      setError(null);
+
+      try {
+        const formData = new FormData();
+        formData.append("video", file);
+        formData.append("type", type);
+
+        const res = await api.post("/upload/video", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 180000, // videos can take a while on slower connections
+          onUploadProgress: (e) => {
+            if (e.total) {
+              setProgress(Math.round((e.loaded * 100) / e.total));
+            }
+          },
+        });
+
+        const result = res.data;
+        setIsUploading(false);
+        setProgress(100);
+        onSuccess?.(result);
+        return result;
+      } catch (err) {
+        const msg = err.response?.data?.message || err.message || "Video upload failed";
+        setError(msg);
+        setIsUploading(false);
+        setProgress(0);
+        onError?.(msg);
+        return null;
+      }
+    },
+    [type, onSuccess, onError]
+  );
+
   const remove = useCallback(async (publicId) => {
     try {
       await api.delete("/upload/image", { data: { publicId } });
@@ -110,5 +166,5 @@ export default function useImageUpload({ type = "general", onSuccess, onError } 
     setIsUploading(false);
   }, []);
 
-  return { upload, uploadMultiple, remove, reset, isUploading, progress, error };
+  return { upload, uploadMultiple, uploadVideo, remove, reset, isUploading, progress, error };
 }

@@ -9,6 +9,7 @@ import {
 import useOrderStore from "@/stores/orderStore";
 
 const STATUS_META = {
+  pending_payment:  { label: "Payment Pending",     color: "text-warning",    bg: "bg-warning-light", dot: "bg-warning" },
   placed:           { label: "Order Placed",       color: "text-primary",    bg: "bg-primary-50",    dot: "bg-primary" },
   confirmed:        { label: "Confirmed",           color: "text-primary",    bg: "bg-primary-50",    dot: "bg-primary" },
   preparing:        { label: "Preparing",           color: "text-warning",    bg: "bg-warning-light", dot: "bg-warning" },
@@ -19,7 +20,8 @@ const STATUS_META = {
   cancelled:        { label: "Cancelled",           color: "text-error",      bg: "bg-error-light",   dot: "bg-error" },
 };
 
-const ACTIVE_STATUSES = new Set(["placed", "confirmed", "preparing", "ready", "picked_up", "out_for_delivery"]);
+// Anything not yet delivered or cancelled is a "live" order
+const LIVE_STATUSES = new Set(["pending_payment", "placed", "confirmed", "preparing", "ready", "picked_up", "out_for_delivery"]);
 
 function orderTypeLabel(type) {
   if (type === "dine_in") return "Dine-in";
@@ -39,13 +41,13 @@ function StatusBadge({ status }) {
   const m = STATUS_META[status] || STATUS_META.placed;
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${m.bg} ${m.color}`}>
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ACTIVE_STATUSES.has(status) ? `${m.dot} animate-pulse` : m.dot}`} />
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${LIVE_STATUSES.has(status) ? `${m.dot} animate-pulse` : m.dot}`} />
       {m.label}
     </span>
   );
 }
 
-function ActiveOrderCard({ order }) {
+function LiveOrderCard({ order }) {
   const lastStatus = order.statusHistory[order.statusHistory.length - 1];
   const itemNames = order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ");
   const isDelivery = order.orderType === "delivery";
@@ -144,7 +146,7 @@ function OrderProgressBar({ status, atRestaurant = false }) {
   );
 }
 
-function PastOrderCard({ order, onRate }) {
+function DeliveredOrderCard({ order, onRate }) {
   const itemNames = order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ");
   const isRated = !!order.rating;
 
@@ -201,19 +203,22 @@ function PastOrderCard({ order, onRate }) {
 }
 
 export default function OrdersPage() {
-  const [tab, setTab] = useState("active");
+  const [tab, setTab] = useState("live");
   const [search, setSearch] = useState("");
   const [rateOrderData, setRateOrderData] = useState(null);
   const { orders, isLoading, fetchMyOrders, rateOrder } = useOrderStore();
 
   useEffect(() => {
-    fetchMyOrders();
+    // The backend defaults to 10 orders per page — fetch a much larger batch here
+    // since this page needs the *complete* order history to split into live/delivered
+    // (a capped fetch would silently drop older orders from both tabs).
+    fetchMyOrders({ limit: 100 });
   }, []);
 
-  const active = orders.filter((o) => ACTIVE_STATUSES.has(o.status));
-  const past = orders.filter((o) => !ACTIVE_STATUSES.has(o.status));
+  const live = orders.filter((o) => LIVE_STATUSES.has(o.status));
+  const delivered = orders.filter((o) => !LIVE_STATUSES.has(o.status));
 
-  const filteredPast = past.filter((o) =>
+  const filteredDelivered = delivered.filter((o) =>
     !search || o.restaurant?.name?.toLowerCase().includes(search.toLowerCase()) ||
     o.orderNumber?.toLowerCase().includes(search.toLowerCase())
   );
@@ -233,8 +238,8 @@ export default function OrdersPage() {
         {/* Tabs */}
         <div className="flex bg-bg-secondary rounded-[var(--radius-xl)] p-1 mb-5">
           {[
-            { key: "active", label: "Active", count: active.length },
-            { key: "past", label: "Past Orders", count: past.length },
+            { key: "live", label: "Live", count: live.length },
+            { key: "delivered", label: "Delivered", count: delivered.length },
           ].map(({ key, label, count }) => (
             <button
               key={key}
@@ -255,23 +260,23 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        {/* Active tab */}
-        {tab === "active" && (
+        {/* Live tab */}
+        {tab === "live" && (
           <div className="space-y-4">
-            {active.length === 0 ? (
+            {live.length === 0 ? (
               <EmptyOrders
                 icon={Clock}
-                title="No active orders"
-                desc="Your active orders will appear here. Order something delicious!"
+                title="No live orders"
+                desc="Your live orders will appear here. Order something delicious!"
               />
             ) : (
-              active.map((o) => <ActiveOrderCard key={o._id} order={o} />)
+              live.map((o) => <LiveOrderCard key={o._id} order={o} />)
             )}
           </div>
         )}
 
-        {/* Past tab */}
-        {tab === "past" && (
+        {/* Delivered tab */}
+        {tab === "delivered" && (
           <div className="space-y-3">
             {/* Search */}
             <div className="relative mb-2">
@@ -284,15 +289,15 @@ export default function OrdersPage() {
               />
             </div>
 
-            {filteredPast.length === 0 ? (
+            {filteredDelivered.length === 0 ? (
               <EmptyOrders
                 icon={ShoppingBag}
-                title="No past orders"
+                title="No delivered orders"
                 desc="Your completed and cancelled orders will appear here."
               />
             ) : (
-              filteredPast.map((o) => (
-                <PastOrderCard key={o._id} order={o} onRate={setRateOrderData} />
+              filteredDelivered.map((o) => (
+                <DeliveredOrderCard key={o._id} order={o} onRate={setRateOrderData} />
               ))
             )}
           </div>

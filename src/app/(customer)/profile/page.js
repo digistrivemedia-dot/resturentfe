@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   MapPin, Heart, Bell, HelpCircle, LogOut, ChevronRight,
   Pencil, CheckCircle2, Loader2, ShoppingBag,
-  Star, Shield, Phone, Mail, Camera, X,
+  Shield, Phone, Mail, Camera, X,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import useAuthStore from "@/stores/authStore";
@@ -37,8 +37,7 @@ const MENU_ITEMS = [
   {
     group: "More",
     items: [
-      { href: "#", label: "Rate the App", icon: Star,   desc: "Love Sri Isha Cafe? Tell us!" },
-      { href: "#", label: "Privacy Policy", icon: Shield, desc: "" },
+      { href: "/privacy", label: "Privacy Policy", icon: Shield, desc: "How we handle your data" },
     ],
   },
 ];

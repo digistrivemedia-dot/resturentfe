@@ -55,9 +55,14 @@ export default function RestaurantCard({ restaurant, variant = "default" }) {
     return (
       <Link href={`/restaurant/${slug}`} className="flex gap-4 bg-white rounded-[var(--radius-xl)] border border-border-light p-3 hover:shadow-[var(--shadow-md)] transition-all group">
         <div className="relative w-24 h-24 rounded-[var(--radius-lg)] overflow-hidden shrink-0 bg-bg-secondary">
-          <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-100 to-red-100">
-            🍽️
-          </div>
+          {coverImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverImage} alt={name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-100 to-red-100">
+              🍽️
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0 py-0.5">
           <div className="flex items-start justify-between gap-2">
@@ -86,9 +91,14 @@ export default function RestaurantCard({ restaurant, variant = "default" }) {
     <Link href={`/restaurant/${slug}`} className="group flex flex-col bg-white rounded-[var(--radius-xl)] overflow-hidden border border-border-light hover:shadow-[var(--shadow-lg)] transition-all">
       {/* Image */}
       <div className="relative h-44 bg-gradient-to-br from-orange-100 to-red-100 overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center text-7xl select-none">
-          🍽️
-        </div>
+        {coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={coverImage} alt={name} className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-7xl select-none">
+            🍽️
+          </div>
+        )}
         {/* Offer badge */}
         {hasOffer && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
