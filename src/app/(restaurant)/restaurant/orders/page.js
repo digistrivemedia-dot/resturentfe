@@ -93,12 +93,16 @@ function PaymentBadge({ method, status }) {
 
 function OrderTypeBadge({ order }) {
   const isDineIn = order.orderType === "dine_in";
+  const isSelfService = order.orderType === "self_service";
+  const isPickup = order.orderType === "pickup";
+  const atRestaurant = isDineIn || isSelfService;
+  const label = isDineIn ? "Dine-in" : isSelfService ? "Self Service" : isPickup ? "Takeaway" : "Delivery";
   const scheduledTime = order.scheduledFor
     ? new Date(order.scheduledFor).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true })
     : null;
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-[var(--radius-full)] ${isDineIn ? "bg-orange-100 text-orange-700" : "bg-primary-50 text-primary"}`}>
-      {isDineIn ? "Dine-in" : order.orderType === "pickup" ? "Takeaway" : "Delivery"}
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-[var(--radius-full)] ${atRestaurant ? "bg-orange-100 text-orange-700" : "bg-primary-50 text-primary"}`}>
+      {label}
       {scheduledTime && <span className="font-medium opacity-75"> · {scheduledTime}</span>}
     </span>
   );

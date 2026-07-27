@@ -101,7 +101,7 @@ function OrderConfirmedContent() {
   useEffect(() => {
     if (!order) return;
 
-    if (order.orderType === "dine_in") {
+    if (order.orderType !== "delivery") {
       return;
     }
 
@@ -146,9 +146,13 @@ function OrderConfirmedContent() {
     );
   }
 
+  const isDelivery = order.orderType === "delivery";
   const isDineIn = order.orderType === "dine_in";
-  const statusSteps = isDineIn ? DINE_IN_STATUS_STEPS : STATUS_STEPS;
-  const currentStepIdx = getStepIndex(order.status, isDineIn);
+  const isPickup = order.orderType === "pickup";
+  const isSelfService = order.orderType === "self_service";
+  const atRestaurant = !isDelivery;
+  const statusSteps = atRestaurant ? DINE_IN_STATUS_STEPS : STATUS_STEPS;
+  const currentStepIdx = getStepIndex(order.status, atRestaurant);
   const isDelivered = order.status === "delivered";
   const isCancelled = order.status === "cancelled";
   const restaurantAddress = mergeRestaurantAddress(order.restaurantAddress, order.restaurant?.address);
@@ -184,7 +188,13 @@ function OrderConfirmedContent() {
         </div>
 
         <h1 className="text-2xl font-extrabold text-text-primary mb-1">
-          {isCancelled ? "Order Cancelled" : isDineIn ? "Dine-in Booking Confirmed!" : isDelivered ? "Delivered!" : "Order Placed!"}
+          {isCancelled
+            ? "Order Cancelled"
+            : isDineIn
+            ? "Dine-in Booking Confirmed!"
+            : isDelivered
+            ? (isDelivery ? "Delivered!" : "Order Completed!")
+            : "Order Placed!"}
         </h1>
         <p className="text-text-secondary text-sm">
           {isCancelled
@@ -192,7 +202,11 @@ function OrderConfirmedContent() {
             : isDineIn
             ? `Visit ${order.restaurant?.name || "the restaurant"} ${formatVisitTime(order.scheduledFor).toLowerCase()}`
             : isDelivered
-            ? `Delivered in ${elapsedTime} min${elapsedTime !== 1 ? "s" : ""} 🎉`
+            ? (isDelivery ? `Delivered in ${elapsedTime} min${elapsedTime !== 1 ? "s" : ""} 🎉` : "Hope you enjoyed your meal! 🎉")
+            : isPickup
+            ? `Pick up your order from ${order.restaurant?.name || "the restaurant"} once it's ready`
+            : isSelfService
+            ? `Head to ${order.restaurant?.name || "the restaurant"} and collect your order when it's ready`
             : "Your order has been received and will be prepared shortly"}
         </p>
         <div className="mt-3 inline-flex items-center gap-2 bg-bg-secondary px-4 py-2 rounded-[var(--radius-full)]">
@@ -202,7 +216,7 @@ function OrderConfirmedContent() {
       </div>
 
       {/* ETA Card — hidden when delivered or cancelled */}
-      {!isDineIn && !isDelivered && !isCancelled && countdown !== null && (
+      {isDelivery && !isDelivered && !isCancelled && countdown !== null && (
         <div className={`bg-primary rounded-[var(--radius-xl)] px-5 py-5 text-white transition-all duration-700 delay-100 ${animStage >= 2 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -261,7 +275,7 @@ function OrderConfirmedContent() {
               const done = idx < currentStepIdx || isDelivered;
               const active = idx === currentStepIdx && !isDelivered;
               const histEntry = order.statusHistory?.find((h) =>
-                normalizeStatus(h.status, isDineIn) === step.key
+                normalizeStatus(h.status, atRestaurant) === step.key
               );
               return (
                 <div key={step.key} className="flex items-center gap-3 relative">
@@ -304,11 +318,11 @@ function OrderConfirmedContent() {
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-            {isDineIn ? <UtensilsCrossed size={16} className="text-primary" /> : <MapPin size={16} className="text-primary" />}
+            {atRestaurant ? <UtensilsCrossed size={16} className="text-primary" /> : <MapPin size={16} className="text-primary" />}
           </div>
           <div className="flex-1">
-            <p className="text-sm font-bold text-text-primary">{isDineIn ? "Restaurant Location" : "Delivery Address"}</p>
-            {isDineIn ? (
+            <p className="text-sm font-bold text-text-primary">{atRestaurant ? "Restaurant Location" : "Delivery Address"}</p>
+            {atRestaurant ? (
               <>
                 <p className="text-sm text-text-primary mt-0.5 font-medium">{order.restaurant?.name}</p>
                 <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mt-2">Address</p>

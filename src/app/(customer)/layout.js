@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Header from "@/components/customer/Header";
 import BottomNav from "@/components/customer/BottomNav";
 import LiveOrderBar from "@/components/customer/LiveOrderBar";
+import CartBar from "@/components/customer/CartBar";
 import ProtectedRoute from "@/components/ui/ProtectedRoute";
 
 // Auth pages — no layout chrome
@@ -12,6 +13,9 @@ const AUTH_PATHS = ["/login", "/verify-otp", "/complete-profile"];
 // Browsable without login — show header/nav but no auth gate
 const BROWSE_PATHS = ["/home", "/search", "/restaurant", "/category"];
 
+// Pages where the floating "view cart" bar shouldn't show (already on/past cart)
+const HIDE_CARTBAR_PATHS = ["/cart", "/checkout", "/payment"];
+
 export default function CustomerLayout({ children }) {
   const pathname = usePathname();
 
@@ -19,6 +23,7 @@ export default function CustomerLayout({ children }) {
   if (isAuth) return <>{children}</>;
 
   const isBrowse = BROWSE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const showCartBar = !HIDE_CARTBAR_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   // Browsable pages: show header/nav, no auth gate
   if (isBrowse) {
@@ -37,6 +42,7 @@ export default function CustomerLayout({ children }) {
           </div>
         </main>
         <LiveOrderBar />
+        {showCartBar && <CartBar />}
         <BottomNav />
       </>
     );
@@ -58,6 +64,7 @@ export default function CustomerLayout({ children }) {
         </div>
       </main>
       <LiveOrderBar />
+      {showCartBar && <CartBar />}
       <BottomNav />
     </ProtectedRoute>
   );

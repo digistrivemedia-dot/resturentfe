@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   MapPin, Heart, Bell, HelpCircle, LogOut, ChevronRight,
-  Pencil, CheckCircle2, Loader2, Wallet, ShoppingBag,
+  Pencil, CheckCircle2, Loader2, ShoppingBag,
   Star, Shield, Phone, Mail, Camera, X,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
@@ -153,11 +153,10 @@ export default function ProfilePage() {
           </div>
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-border-light">
+          <div className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-border-light">
             {[
               { label: "Orders", value: "12" },
               { label: "Favourites", value: user.favorites?.length || 0 },
-              { label: "Wallet", value: `₹${user.wallet?.balance || 0}` },
             ].map(({ label, value }) => (
               <div key={label} className="text-center">
                 <p className="text-lg font-extrabold text-text-primary">{value}</p>
@@ -165,20 +164,6 @@ export default function ProfilePage() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Wallet quick access */}
-        <div className="bg-gradient-to-r from-primary to-primary-dark rounded-[var(--radius-xl)] px-5 py-4 mb-5 flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/20 rounded-[var(--radius-lg)] flex items-center justify-center">
-            <Wallet size={22} className="text-white" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-white/70 font-medium">Sri Isha Cafe Wallet</p>
-            <p className="text-2xl font-extrabold text-white">₹{user.wallet?.balance || 0}</p>
-          </div>
-          <button className="h-9 px-4 bg-white text-primary text-sm font-bold rounded-[var(--radius-full)] hover:bg-primary-50 transition-colors">
-            Add Money
-          </button>
         </div>
 
         {/* Menu groups */}

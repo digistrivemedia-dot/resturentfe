@@ -6,12 +6,18 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Trash2, Plus, Minus, Tag, ChevronRight,
   ShoppingBag, AlertCircle, Pencil, X, MessageSquare,
-  Bike, HandCoins, Receipt, CheckCircle2, Sparkles,
+  Bike, UtensilsCrossed, Package, Store, Receipt, CheckCircle2, Sparkles,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import CouponModal from "@/components/customer/CouponModal";
 import useCartStore from "@/stores/cartStore";
-import { TIP_OPTIONS } from "@/constants";
+
+const ORDER_TYPES = [
+  { id: "delivery", label: "Delivery", desc: "Bring it to my address", icon: Bike },
+  { id: "dine_in", label: "Dine-in", desc: "Visit and enjoy at the restaurant", icon: UtensilsCrossed },
+  { id: "pickup", label: "Takeout", desc: "Pick up and take away", icon: Package },
+  { id: "self_service", label: "Self Service", desc: "I'm at the restaurant, collect myself", icon: Store },
+];
 
 export default function CartPage() {
   const router = useRouter();
@@ -19,8 +25,8 @@ export default function CartPage() {
   const [clearWarning, setClearWarning] = useState(false);
 
   const {
-    restaurant, items, coupon, tip,
-    removeItem, updateQuantity, removeCoupon, setTip, clearCart,
+    restaurant, items, coupon, tip, orderType,
+    removeItem, updateQuantity, removeCoupon, setOrderType, clearCart,
     getSubtotal, getDeliveryFee, getTaxAmount, getCouponDiscount, getTotal,
   } = useCartStore();
 
@@ -70,14 +76,26 @@ export default function CartPage() {
           </button>
         </div>
 
-        {/* ── Delivery time banner ── */}
-        <div className="flex items-center gap-3 bg-success-light rounded-[var(--radius-xl)] px-4 py-3 mb-5">
-          <div className="w-8 h-8 bg-success rounded-full flex items-center justify-center shrink-0">
-            <Bike size={15} className="text-white" strokeWidth={2} />
+        {/* ── Order type ── */}
+        <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden mb-5">
+          <div className="px-4 pt-4 pb-2">
+            <h2 className="text-sm font-bold text-text-primary">How would you like your order?</h2>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-success-dark">Delivery in {restaurant?.avgDeliveryTime || 35} mins</p>
-            <p className="text-xs text-success-dark/70">Shipment from {restaurant.name}</p>
+          <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+            {ORDER_TYPES.map(({ id, label, desc, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setOrderType(id)}
+                className={`text-left p-3 rounded-[var(--radius-lg)] border-2 transition-all ${
+                  orderType === id ? "border-primary bg-primary-50" : "border-border-light hover:border-border-default"
+                }`}
+              >
+                <Icon size={18} className={orderType === id ? "text-primary" : "text-text-secondary"} />
+                <p className="text-sm font-semibold text-text-primary mt-2">{label}</p>
+                <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">{desc}</p>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -197,36 +215,6 @@ export default function CartPage() {
               <ChevronRight size={16} className="text-text-tertiary" />
             </button>
           )}
-        </div>
-
-        {/* ── Tip ── */}
-        <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-              <HandCoins size={16} className="text-primary" strokeWidth={1.8} />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-text-primary">Tip your delivery partner</p>
-              <p className="text-xs text-text-secondary">100% of the tip goes to them</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {TIP_OPTIONS.map((amount) => (
-              <button
-                key={amount}
-                onClick={() => setTip(amount === tip ? 0 : amount)}
-                className={`flex-1 h-9 text-sm font-semibold rounded-[var(--radius-lg)] border-2 transition-all ${
-                  tip === amount && amount > 0
-                    ? "border-primary bg-primary-50 text-primary"
-                    : amount === 0
-                      ? "border-border-light text-text-tertiary text-xs"
-                      : "border-border-light text-text-primary hover:border-primary"
-                }`}
-              >
-                {amount === 0 ? "No Tip" : `₹${amount}`}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* ── Bill Details ── */}

@@ -72,9 +72,8 @@ const MOCK = {
 const PERIODS = ["Week", "Month", "Quarter"];
 
 const PAYMENT_METHODS = [
-  { label: "Online (UPI/Card)", pct: 65, color: "#2563EB" },
-  { label: "Cash on Delivery", pct: 25, color: "#FF5722" },
-  { label: "Wallet", pct: 10, color: "#8B5CF6" },
+  { label: "Online (UPI/Card)", pct: 70, color: "#2563EB" },
+  { label: "Cash on Delivery", pct: 30, color: "#FF5722" },
 ];
 
 // Heatmap: 7 rows (Mon–Sun) × 12 cols (8am–8pm)
@@ -294,34 +293,24 @@ export default function SalesAnalysis() {
                 <svg width="120" height="120" viewBox="0 0 120 120">
                   {/* BG circle */}
                   <circle cx="60" cy="60" r="48" fill="none" stroke="#F3F4F6" strokeWidth="14" />
-                  {/* Online 65% */}
+                  {/* Online 70% */}
                   <circle
                     cx="60" cy="60" r="48"
                     fill="none"
                     stroke="#2563EB"
                     strokeWidth="14"
-                    strokeDasharray={`${2 * Math.PI * 48 * 0.65} ${2 * Math.PI * 48}`}
+                    strokeDasharray={`${2 * Math.PI * 48 * 0.70} ${2 * Math.PI * 48}`}
                     strokeDashoffset={0}
                     transform="rotate(-90 60 60)"
                   />
-                  {/* COD 25% — offset = 65% */}
+                  {/* COD 30% — offset = 70% */}
                   <circle
                     cx="60" cy="60" r="48"
                     fill="none"
                     stroke="#FF5722"
                     strokeWidth="14"
-                    strokeDasharray={`${2 * Math.PI * 48 * 0.25} ${2 * Math.PI * 48}`}
-                    strokeDashoffset={-2 * Math.PI * 48 * 0.65}
-                    transform="rotate(-90 60 60)"
-                  />
-                  {/* Wallet 10% — offset = 90% */}
-                  <circle
-                    cx="60" cy="60" r="48"
-                    fill="none"
-                    stroke="#8B5CF6"
-                    strokeWidth="14"
-                    strokeDasharray={`${2 * Math.PI * 48 * 0.10} ${2 * Math.PI * 48}`}
-                    strokeDashoffset={-2 * Math.PI * 48 * 0.90}
+                    strokeDasharray={`${2 * Math.PI * 48 * 0.30} ${2 * Math.PI * 48}`}
+                    strokeDashoffset={-2 * Math.PI * 48 * 0.70}
                     transform="rotate(-90 60 60)"
                   />
                   <text x="60" y="57" textAnchor="middle" className="text-xs" fontSize="11" fontWeight="700" fill="#1F2937">

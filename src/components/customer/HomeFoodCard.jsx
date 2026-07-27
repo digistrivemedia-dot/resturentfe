@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Tag } from "lucide-react";
+import { Plus, Minus, Tag } from "lucide-react";
 import { VegBadge, Modal } from "@/components/ui";
 import AddonSelector from "./AddonSelector";
 import useCartStore from "@/stores/cartStore";
@@ -16,7 +16,7 @@ function couponLabel(coupon) {
 
 export default function HomeFoodCard({ item }) {
   const [addonOpen, setAddonOpen] = useState(false);
-  const { addItem } = useCartStore();
+  const { items, addItem, updateQuantity, removeItem } = useCartStore();
 
   const restaurant = item.restaurant;
   const displayPrice = item.discountedPrice || item.price;
@@ -24,6 +24,10 @@ export default function HomeFoodCard({ item }) {
   const hasCustomisation = item.addonGroups?.length > 0 || item.variants?.length > 0;
   const coupon = item.coupon;
   const couponText = couponLabel(coupon);
+
+  // Find matching cart items for this menu item
+  const cartItems = items.filter((i) => i.menuItem === item._id);
+  const totalInCart = cartItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
 
   // Determine if restaurant is currently open
   const isOpen = restaurant?.timing?.isOpen !== false && restaurant?.status === "active";
@@ -55,6 +59,16 @@ export default function HomeFoodCard({ item }) {
         quantity: 1,
       }
     );
+  };
+
+  const handleDecrement = () => {
+    if (cartItems.length === 0) return;
+    const last = cartItems[cartItems.length - 1];
+    if (last.quantity > 1) {
+      updateQuantity(last.cartId, last.quantity - 1);
+    } else {
+      removeItem(last.cartId);
+    }
   };
 
   return (
@@ -106,12 +120,30 @@ export default function HomeFoodCard({ item }) {
             </div>
 
             {isOpen ? (
-              <button
-                onClick={handleAdd}
-                className="h-8 w-16 border-2 border-primary text-primary text-xs font-bold rounded-[var(--radius-md)] flex items-center justify-center gap-0.5 hover:bg-primary-50 transition-colors"
-              >
-                <Plus size={12} /> ADD
-              </button>
+              totalInCart === 0 ? (
+                <button
+                  onClick={handleAdd}
+                  className="h-8 w-16 border-2 border-primary text-primary text-xs font-bold rounded-[var(--radius-md)] flex items-center justify-center gap-0.5 hover:bg-primary-50 transition-colors"
+                >
+                  <Plus size={12} /> ADD
+                </button>
+              ) : (
+                <div className="h-8 w-16 border-2 border-primary rounded-[var(--radius-md)] flex items-center justify-between px-1">
+                  <button
+                    onClick={handleDecrement}
+                    className="w-6 h-6 flex items-center justify-center text-primary hover:bg-primary-50 rounded transition-colors"
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <span className="text-sm font-bold text-primary tabular-nums">{totalInCart}</span>
+                  <button
+                    onClick={handleAdd}
+                    className="w-6 h-6 flex items-center justify-center text-primary hover:bg-primary-50 rounded transition-colors"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
+              )
             ) : (
               <span className="text-[10px] font-semibold text-text-tertiary">Unavailable</span>
             )}

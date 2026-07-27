@@ -33,7 +33,6 @@ const STATUS_CONFIG = {
 const PAYMENT_METHOD_CONFIG = {
   online: { label: "Online", className: "bg-primary-50 text-primary" },
   cod:    { label: "COD",    className: "bg-warning-light text-warning-dark" },
-  wallet: { label: "Wallet", className: "bg-success-light text-success-dark" },
 };
 
 const PAYMENT_STATUS_CONFIG = {

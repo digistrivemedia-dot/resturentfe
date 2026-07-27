@@ -42,15 +42,11 @@ const FAQ_SECTIONS = [
     faqs: [
       {
         q: "What payment methods are accepted?",
-        a: "We accept UPI (Google Pay, PhonePe, Paytm, BHIM), Credit/Debit cards, Net Banking, and Sri Isha Cafe Wallet.",
+        a: "We accept UPI (Google Pay, PhonePe, Paytm, BHIM), Credit/Debit cards, Net Banking, and Cash on Delivery.",
       },
       {
         q: "How long do refunds take?",
-        a: "Refunds are processed within 5–7 business days to your original payment method. Wallet refunds are instant.",
-      },
-      {
-        q: "What is Sri Isha Cafe Wallet?",
-        a: "Sri Isha Cafe Wallet is a prepaid wallet for faster, seamless payments. Cashback and refunds can be credited here instantly.",
+        a: "Refunds are processed within 5–7 business days to your original payment method.",
       },
     ],
   },

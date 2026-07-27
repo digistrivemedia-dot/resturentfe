@@ -120,8 +120,7 @@ export default function CustomerDetailPage({ params }) {
     }, 900);
   }
 
-  // Derive wallet balance and avg order from store data
-  const walletBalance = customer?.wallet?.balance ?? customer?.wallet ?? 0;
+  // Derive avg order from store data
   const avgOrder      = totalOrders > 0 ? Math.round(totalSpent / totalOrders) : 0;
   const addressList   = customer?.addresses ?? [];
 
@@ -129,7 +128,6 @@ export default function CustomerDetailPage({ params }) {
     { label: "Total Orders",    value: totalOrders,               sub: "lifetime" },
     { label: "Total Spent",     value: formatPrice(totalSpent),   sub: "lifetime", big: true },
     { label: "Avg Order Value", value: formatPrice(avgOrder),     sub: "per order" },
-    { label: "Wallet Balance",  value: formatPrice(walletBalance), sub: "credits available" },
   ];
 
   return (
@@ -203,11 +201,6 @@ export default function CustomerDetailPage({ params }) {
                     Joined {formatDate(customer?.createdAt)}
                   </div>
                 </div>
-                {walletBalance > 0 && (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-50 text-primary px-2.5 py-1 rounded-[var(--radius-full)]">
-                    Wallet: {formatPrice(walletBalance)} credits
-                  </span>
-                )}
               </div>
             </div>
           </div>

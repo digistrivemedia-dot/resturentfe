@@ -76,7 +76,6 @@ export const ORDER_STATUSES = [
 export const PAYMENT_METHODS = [
   { value: "online", label: "Pay Online", description: "UPI, Cards, Net Banking, Wallets" },
   { value: "cod", label: "Cash on Delivery", description: "Pay when your order arrives" },
-  { value: "wallet", label: "Wallet", description: "Pay from your wallet balance" },
 ];
 
 // Tip options

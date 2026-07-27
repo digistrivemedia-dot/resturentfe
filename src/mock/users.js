@@ -29,7 +29,6 @@ export const mockUser = {
     },
   ],
   favorites: ["rest_001", "rest_005"],
-  wallet: { balance: 150 },
   status: "active",
   createdAt: "2026-01-15T10:00:00Z",
 };

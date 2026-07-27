@@ -427,7 +427,7 @@ export default function OrderDetailPage({ params }) {
                     className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-[var(--radius-full)] ${
                       order.orderType === "delivery"
                         ? "bg-primary-50 text-primary"
-                        : order.orderType === "dine_in"
+                        : order.orderType === "dine_in" || order.orderType === "self_service"
                         ? "bg-orange-100 text-orange-700"
                         : "bg-bg-secondary text-text-secondary"
                     }`}
@@ -436,6 +436,8 @@ export default function OrderDetailPage({ params }) {
                       <><Bike size={12} /> Delivery</>
                     ) : order.orderType === "dine_in" ? (
                       <><ShoppingBag size={12} /> Dine-in</>
+                    ) : order.orderType === "self_service" ? (
+                      <><ShoppingBag size={12} /> Self Service</>
                     ) : (
                       <><ShoppingBag size={12} /> Takeaway</>
                     )}

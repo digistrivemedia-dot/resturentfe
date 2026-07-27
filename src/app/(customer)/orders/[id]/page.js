@@ -25,7 +25,6 @@ const STATUS_META = {
 const PAYMENT_LABELS = {
   online: "Paid Online",
   cod: "Cash on Delivery",
-  wallet: "Wallet",
 };
 
 function formatDate(iso) {
@@ -119,7 +118,9 @@ export default function OrderDetailPage({ params }) {
 
   const p = order.pricing;
   const isDelivered = order.status === "delivered";
+  const isDelivery = order.orderType === "delivery";
   const isDineIn = order.orderType === "dine_in";
+  const atRestaurant = !isDelivery;
   const restaurantAddress = mergeRestaurantAddress(order.restaurantAddress, order.restaurant?.address);
   const restaurantAddressText = getAddressText(restaurantAddress);
   const directionsUrl = getDirectionsUrl(restaurantAddress);
@@ -183,10 +184,10 @@ export default function OrderDetailPage({ params }) {
 
           {isActive && (
             <Link
-              href={isDineIn ? `/order/confirmed?orderNumber=${order.orderNumber}&orderId=${order._id}` : `/order/${order._id}/track`}
+              href={atRestaurant ? `/order/confirmed?orderNumber=${order.orderNumber}&orderId=${order._id}` : `/order/${order._id}/track`}
               className="mt-3 flex items-center justify-center gap-2 h-9 bg-primary text-white text-xs font-bold rounded-[var(--radius-lg)] hover:bg-primary-dark transition-colors"
             >
-              <MapPin size={13} /> {isDineIn ? "View Booking" : "Track Live Order"}
+              <MapPin size={13} /> {isDineIn ? "View Booking" : isDelivery ? "Track Live Order" : "View Order"}
             </Link>
           )}
         </div>
@@ -266,10 +267,10 @@ export default function OrderDetailPage({ params }) {
         {/* Destination */}
         <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
           <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-            {isDineIn ? <UtensilsCrossed size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
-            {isDineIn ? "Restaurant Location" : "Delivery Address"}
+            {atRestaurant ? <UtensilsCrossed size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
+            {atRestaurant ? "Restaurant Location" : "Delivery Address"}
           </h3>
-          {isDineIn ? (
+          {atRestaurant ? (
             <>
               <p className="text-sm font-semibold text-text-primary">{order.restaurant?.name}</p>
               <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mt-2">Address</p>

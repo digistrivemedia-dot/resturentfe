@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, MapPin, Plus, ChevronRight, CreditCard,
-  Smartphone, Banknote, Wallet, ChevronDown, Loader2, ShieldCheck,
-  Bike, UtensilsCrossed, CalendarClock,
+  Smartphone, Banknote, ChevronDown, Loader2, ShieldCheck,
+  Bike, CalendarClock, HandCoins,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import useCartStore from "@/stores/cartStore";
 import useLocationStore from "@/stores/locationStore";
 import useAuthStore from "@/stores/authStore";
 import useOrderStore from "@/stores/orderStore";
+import { TIP_OPTIONS } from "@/constants";
 
 const PAYMENT_METHODS = [
   {
@@ -30,13 +31,6 @@ const PAYMENT_METHODS = [
     icon: Banknote,
     tag: null,
   },
-  {
-    id: "wallet",
-    label: "Pay via Wallet",
-    desc: "Wallet balance: ₹150",
-    icon: Wallet,
-    tag: null,
-  },
 ];
 
 function getLocalDateTimeMin() {
@@ -48,15 +42,14 @@ function getLocalDateTimeMin() {
 export default function CheckoutPage() {
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState("online");
-  const [orderType, setOrderType] = useState("delivery");
   const [scheduleMode, setScheduleMode] = useState("asap");
   const [scheduledFor, setScheduledFor] = useState("");
   const [loading, setLoading] = useState(false);
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
 
   const {
-    restaurant, items, coupon,
-    getSubtotal, getDeliveryFee, getTaxAmount, getCouponDiscount, tip,
+    restaurant, items, coupon, orderType, tip, setTip,
+    getSubtotal, getDeliveryFee, getTaxAmount, getCouponDiscount,
     clearCart,
   } = useCartStore();
 
@@ -80,20 +73,22 @@ export default function CheckoutPage() {
   }, [fetchMe]);
 
   const subtotal = getSubtotal();
+  const isDelivery = orderType === "delivery";
   const isDineIn = orderType === "dine_in";
-  const deliveryFee = isDineIn ? 0 : getDeliveryFee();
+  const showSchedule = isDelivery || isDineIn;
+  const deliveryFee = getDeliveryFee();
   const tax = getTaxAmount();
   const platformFee = 3;
   const couponDiscount = coupon?.type === "free_delivery"
     ? deliveryFee
     : getCouponDiscount();
-  const effectiveTip = isDineIn ? 0 : tip || 0;
+  const effectiveTip = isDelivery ? tip || 0 : 0;
   const total = Math.max(0, subtotal + deliveryFee + tax - couponDiscount + effectiveTip + platformFee);
   const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
   const restaurantAddress = restaurant?.address || {};
 
   const handlePlaceOrder = async () => {
-    if (!isDineIn && !selectedAddr && !currentLocation) {
+    if (isDelivery && !selectedAddr && !currentLocation) {
       toast.error("Please add a delivery address first");
       return;
     }
@@ -114,7 +109,7 @@ export default function CheckoutPage() {
           specialInstructions: item.specialInstructions || "",
         })),
         orderType,
-        ...(isDineIn ? {} : {
+        ...(!isDelivery ? {} : {
           deliveryAddress: {
             label: selectedAddr?.label || "Current Location",
             fullAddress: selectedAddr?.fullAddress || currentLocation?.fullAddress || "",
@@ -218,34 +213,53 @@ export default function CheckoutPage() {
         <h1 className="text-lg font-bold text-text-primary">Checkout</h1>
       </div>
 
-      {/* Fulfilment mode */}
-      <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
-        <div className="px-4 pt-4 pb-2">
-          <h2 className="text-sm font-bold text-text-primary">How would you like your order?</h2>
-          <p className="text-xs text-text-secondary mt-1">Delivery stays unchanged. Choose Dine-in to visit the restaurant yourself.</p>
+      {/* Delivery time banner — delivery only */}
+      {isDelivery && (
+        <div className="flex items-center gap-3 bg-success-light rounded-[var(--radius-xl)] px-4 py-3">
+          <div className="w-8 h-8 bg-success rounded-full flex items-center justify-center shrink-0">
+            <Bike size={15} className="text-white" strokeWidth={2} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-success-dark">Delivery in {restaurant?.avgDeliveryTime || 35} mins</p>
+            <p className="text-xs text-success-dark/70">Shipment from {restaurant.name}</p>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-          {[
-            { id: "delivery", label: "Delivery", desc: "Bring it to my address", icon: Bike },
-            { id: "dine_in", label: "Dine-in", desc: "Visit and enjoy at the restaurant", icon: UtensilsCrossed },
-          ].map(({ id, label, desc, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setOrderType(id)}
-              className={`text-left p-3 rounded-[var(--radius-lg)] border-2 transition-all ${
-                orderType === id ? "border-primary bg-primary-50" : "border-border-light hover:border-border-default"
-              }`}
-            >
-              <Icon size={18} className={orderType === id ? "text-primary" : "text-text-secondary"} />
-              <p className="text-sm font-semibold text-text-primary mt-2">{label}</p>
-              <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">{desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
-      {/* Visit / delivery time */}
+      {/* Tip — delivery only */}
+      {isDelivery && (
+        <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
+              <HandCoins size={16} className="text-primary" strokeWidth={1.8} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-text-primary">Tip your delivery partner</p>
+              <p className="text-xs text-text-secondary">100% of the tip goes to them</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {TIP_OPTIONS.map((amount) => (
+              <button
+                key={amount}
+                onClick={() => setTip(amount === tip ? 0 : amount)}
+                className={`flex-1 h-9 text-sm font-semibold rounded-[var(--radius-lg)] border-2 transition-all ${
+                  tip === amount && amount > 0
+                    ? "border-primary bg-primary-50 text-primary"
+                    : amount === 0
+                      ? "border-border-light text-text-tertiary text-xs"
+                      : "border-border-light text-text-primary hover:border-primary"
+                }`}
+              >
+                {amount === 0 ? "No Tip" : `₹${amount}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Visit / prepare time — not needed for takeout/self service */}
+      {showSchedule && (
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <CalendarClock size={16} className="text-primary" />
@@ -280,22 +294,23 @@ export default function CheckoutPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Delivery Address / restaurant location */}
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MapPin size={16} className="text-primary" />
-            <span className="text-sm font-bold text-text-primary">{isDineIn ? "Restaurant Location" : "Delivery Address"}</span>
+            <span className="text-sm font-bold text-text-primary">{isDelivery ? "Delivery Address" : "Restaurant Location"}</span>
           </div>
-          {!isDineIn && (
+          {isDelivery && (
             <Link href="/address/new?redirect=/checkout" className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5">
               <Plus size={13} /> Add new
             </Link>
           )}
         </div>
 
-        {isDineIn ? (
+        {!isDelivery ? (
           <div className="px-4 pb-4">
             <div className="flex items-start gap-3 bg-primary-50 border border-primary/20 rounded-[var(--radius-lg)] p-3">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -428,10 +443,10 @@ export default function CheckoutPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">{isDineIn && id === "cod" ? "Pay at Restaurant" : label}</span>
+                  <span className="text-sm font-semibold text-text-primary">{!isDelivery && id === "cod" ? "Pay at Restaurant" : label}</span>
                   {tag && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tagColor}`}>{tag}</span>}
                 </div>
-                <span className="text-xs text-text-secondary">{isDineIn && id === "cod" ? "Pay when you visit" : desc}</span>
+                <span className="text-xs text-text-secondary">{!isDelivery && id === "cod" ? "Pay when you visit" : desc}</span>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
                 paymentMethod === id ? "border-primary" : "border-border-default"
@@ -491,7 +506,7 @@ export default function CheckoutPage() {
         >
           <div className="text-left">
             <div className="text-xs text-white/80">
-              {paymentMethod === "cod" ? (isDineIn ? "Pay at Restaurant" : "Cash on Delivery") : "Pay Online"}
+              {paymentMethod === "cod" ? (!isDelivery ? "Pay at Restaurant" : "Cash on Delivery") : "Pay Online"}
             </div>
             <div className="text-base font-extrabold">Place Order</div>
           </div>

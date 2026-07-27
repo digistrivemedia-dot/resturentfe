@@ -8,6 +8,7 @@ const useCartStore = create(
       items: [],
       coupon: null, // { code, discount, type, value }
       tip: 0,
+      orderType: "delivery", // delivery | dine_in | pickup | self_service
 
       // Add item to cart
       addItem: (restaurant, item) => {
@@ -78,9 +79,16 @@ const useCartStore = create(
       setTip: (tip) =>
         set({ tip }),
 
+      // Set order type (delivery, dine_in, pickup, self_service)
+      setOrderType: (orderType) =>
+        set((state) => ({
+          orderType,
+          tip: orderType === "delivery" ? state.tip : 0,
+        })),
+
       // Clear entire cart
       clearCart: () =>
-        set({ restaurant: null, items: [], coupon: null, tip: 0 }),
+        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery" }),
 
       // Computed values
       getItemCount: () => {
@@ -101,7 +109,8 @@ const useCartStore = create(
       },
 
       getDeliveryFee: () => {
-        const { restaurant } = get();
+        const { restaurant, orderType } = get();
+        if (orderType !== "delivery") return 0;
         const subtotal = get().getSubtotal();
         if (!restaurant) return 0;
         if (

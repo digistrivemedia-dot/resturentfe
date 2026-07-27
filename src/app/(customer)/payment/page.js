@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, ShieldCheck, CreditCard, Smartphone, Banknote,
-  Wallet, ChevronRight, Loader2, Lock, CheckCircle2,
+  ChevronRight, Loader2, Lock, CheckCircle2,
 } from "lucide-react";
 
 const UPI_APPS = [
@@ -20,7 +20,7 @@ function PaymentContent() {
   const amount = searchParams.get("amount") || "0";
   const orderRef = searchParams.get("ref") || "ORD-20260606-042";
 
-  const [method, setMethod] = useState("upi"); // upi | card | netbanking | wallet
+  const [method, setMethod] = useState("upi"); // upi | card | netbanking
   const [upiApp, setUpiApp] = useState("gpay");
   const [upiId, setUpiId] = useState("");
   const [stage, setStage] = useState("idle"); // idle | processing | verifying | success | failed
@@ -98,12 +98,11 @@ function PaymentContent() {
 
       {/* Method tabs */}
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
-        <div className="grid grid-cols-4 border-b border-border-light">
+        <div className="grid grid-cols-3 border-b border-border-light">
           {[
             { id: "upi", label: "UPI", icon: Smartphone },
             { id: "card", label: "Card", icon: CreditCard },
             { id: "netbanking", label: "Net Banking", icon: Banknote },
-            { id: "wallet", label: "Wallet", icon: Wallet },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -223,24 +222,6 @@ function PaymentContent() {
               <button className="text-xs text-primary font-semibold hover:underline flex items-center gap-1 mt-1">
                 View all banks <ChevronRight size={12} />
               </button>
-            </div>
-          )}
-
-          {/* Wallet */}
-          {method === "wallet" && (
-            <div className="space-y-3">
-              <div className="bg-success-light rounded-[var(--radius-lg)] px-4 py-3 flex items-center gap-3">
-                <Wallet size={18} className="text-success" />
-                <div>
-                  <p className="text-sm font-bold text-success">Wallet Balance: ₹150.00</p>
-                  <p className="text-xs text-success-dark/70">Available for use</p>
-                </div>
-              </div>
-              {parseFloat(amount) > 150 && (
-                <div className="bg-warning-light rounded-[var(--radius-lg)] px-4 py-3 text-xs text-warning-dark">
-                  ⚠️ Insufficient wallet balance. Remaining ₹{(parseFloat(amount) - 150).toFixed(0)} will be charged via UPI/Card.
-                </div>
-              )}
             </div>
           )}
         </div>

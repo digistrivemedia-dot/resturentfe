@@ -7,7 +7,6 @@ import {
   MapPin, Info, Heart, Share2, Search, X, Zap,
 } from "lucide-react";
 import MenuItemCard from "@/components/customer/MenuItemCard";
-import CartBar from "@/components/customer/CartBar";
 import { Toggle, Badge, CardSkeleton } from "@/components/ui";
 import useRestaurantStore from "@/stores/restaurantStore";
 
@@ -440,9 +439,6 @@ export default function RestaurantPage({ params }) {
           </div>
         </div>
       )}
-
-      {/* ── CART BAR ── */}
-      <CartBar />
     </div>
   );
 }
