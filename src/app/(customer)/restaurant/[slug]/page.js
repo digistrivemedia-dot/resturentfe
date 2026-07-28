@@ -3,11 +3,11 @@
 import { use, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Star, Clock, ChevronDown, ChevronRight,
+  ArrowLeft, Star, Clock, ChevronDown,
   MapPin, Info, Heart, Share2, Search, X, Zap,
 } from "lucide-react";
 import MenuItemCard from "@/components/customer/MenuItemCard";
-import { Toggle, Badge, CardSkeleton } from "@/components/ui";
+import { Toggle, CardSkeleton } from "@/components/ui";
 import useRestaurantStore from "@/stores/restaurantStore";
 import useAuthStore from "@/stores/authStore";
 
@@ -164,18 +164,6 @@ export default function RestaurantPage({ params }) {
   return (
     <div className="pb-24">
 
-      {/* ── BACK BUTTON (mobile sticky) ── */}
-      <div className="sticky top-[var(--header-height)] left-0 right-0 pointer-events-none" style={{ zIndex: 10 }}>
-        <div className="pointer-events-auto absolute top-3 left-0">
-          <Link
-            href="/home"
-            className="flex items-center gap-1.5 bg-white shadow-[var(--shadow-md)] text-text-primary text-sm font-medium rounded-[var(--radius-full)] px-3 py-2 hover:bg-bg-hover transition-colors"
-          >
-            <ArrowLeft size={16} /> Back
-          </Link>
-        </div>
-      </div>
-
       {/* ── HERO COVER ── */}
       <div className="relative -mx-4 md:-mx-6 h-52 md:h-64 bg-gradient-to-br from-orange-200 via-red-100 to-orange-300 overflow-hidden">
         {restaurant.bannerVideo ? (
@@ -210,8 +198,17 @@ export default function RestaurantPage({ params }) {
           <p className="text-white/80 text-sm mt-0.5">{cuisines?.join(" · ")}</p>
         </div>
 
+        {/* Back button — scrolls away with the hero, doesn't persist over the menu */}
+        <Link
+          href="/home"
+          aria-label="Back"
+          className="absolute top-4 left-4 w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+        >
+          <ArrowLeft size={16} className="text-text-secondary" />
+        </Link>
+
         {/* Top actions */}
-        <div className="absolute top-14 right-4 flex gap-2">
+        <div className="absolute top-4 right-4 flex gap-2">
           <button
             onClick={handleFavClick}
             aria-label={isFav ? "Remove from favourites" : "Save restaurant"}
@@ -425,8 +422,8 @@ export default function RestaurantPage({ params }) {
             {/* Mobile category tabs */}
             <div
               ref={categoryBarRef}
-              className="md:hidden sticky bg-white border-b border-border-light flex gap-0 overflow-x-auto scrollbar-hide -mx-4 px-4"
-              style={{ top: `calc(var(--header-height) + 165px)`, zIndex: 5 }}
+              className="md:hidden sticky bg-white border-b border-border-light shadow-sm flex gap-0 overflow-x-auto scrollbar-hide -mx-4 px-4"
+              style={{ top: `var(--header-height)`, zIndex: 5 }}
             >
               {categories.map((cat) => (
                 <button
