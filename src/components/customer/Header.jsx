@@ -13,7 +13,7 @@ import useLocationStore from "@/stores/locationStore";
 import { APP_NAME } from "@/constants";
 
 const HIDE_PATHS = ["/login", "/verify-otp", "/complete-profile"];
-const HIDE_HEADER_PATHS = ["/checkout", "/payment"];
+const HIDE_HEADER_PATHS = ["/checkout", "/payment", "/quick-order/location"];
 
 export default function Header() {
   const pathname = usePathname();

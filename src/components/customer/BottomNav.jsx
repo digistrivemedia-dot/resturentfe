@@ -15,7 +15,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   // Don't show on auth pages
-  const hideOn = ["/login", "/verify-otp", "/complete-profile", "/checkout", "/payment"];
+  const hideOn = ["/login", "/verify-otp", "/complete-profile", "/checkout", "/payment", "/quick-order/location"];
   if (hideOn.some((path) => pathname.startsWith(path))) {
     return null;
   }

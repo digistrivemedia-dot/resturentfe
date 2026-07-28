@@ -11,10 +11,10 @@ import ProtectedRoute from "@/components/ui/ProtectedRoute";
 const AUTH_PATHS = ["/login", "/verify-otp", "/complete-profile"];
 
 // Browsable without login — show header/nav but no auth gate
-const BROWSE_PATHS = ["/home", "/search", "/restaurant", "/category"];
+const BROWSE_PATHS = ["/home", "/search", "/restaurant", "/category", "/quick-order"];
 
 // Pages where the floating "view cart" bar shouldn't show (already on/past cart)
-const HIDE_CARTBAR_PATHS = ["/cart", "/checkout", "/payment"];
+const HIDE_CARTBAR_PATHS = ["/cart", "/checkout", "/payment", "/quick-order/location"];
 
 export default function CustomerLayout({ children }) {
   const pathname = usePathname();

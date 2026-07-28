@@ -18,7 +18,7 @@ const STATUS_CONFIG = {
 
 const HIDE_PATHS = [
   "/login", "/verify-otp", "/complete-profile",
-  "/checkout", "/payment",
+  "/checkout", "/payment", "/quick-order/location",
 ];
 
 function OrderCard({ order, onClick, compact = false }) {
