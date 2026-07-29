@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -10,6 +9,9 @@ import {
 } from "lucide-react";
 import useAuthStore from "@/stores/authStore";
 import useLocationStore from "@/stores/locationStore";
+import RestaurantCard from "@/components/customer/RestaurantCard";
+import { CardSkeleton } from "@/components/ui";
+import api from "@/lib/api";
 
 const LABEL_ICONS = { home: Home, work: Briefcase };
 
@@ -19,7 +21,6 @@ const getPincode = (address = {}) => {
 };
 
 export default function QuickOrderLocationPage() {
-  const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
   const { setCurrentLocation } = useLocationStore();
 
@@ -29,6 +30,9 @@ export default function QuickOrderLocationPage() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualPincode, setManualPincode] = useState("");
   const [manualError, setManualError] = useState("");
+
+  const [restaurants, setRestaurants] = useState([]);
+  const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
 
   const savedAddresses = user?.addresses || [];
 
@@ -95,32 +99,49 @@ export default function QuickOrderLocationPage() {
     setShowManualEntry(false);
   };
 
-  const handleContinue = () => {
+  const fetchNearbyRestaurants = async (lat, lng) => {
+    setIsLoadingRestaurants(true);
+    try {
+      const params = new URLSearchParams();
+      if (lat) params.set("lat", lat);
+      if (lng) params.set("lng", lng);
+      const res = await api.get(`/home/feed?${params.toString()}`);
+      setRestaurants(res.data.restaurants || []);
+    } catch {
+      setRestaurants([]);
+    } finally {
+      setIsLoadingRestaurants(false);
+    }
+  };
+
+  // As soon as a location is picked (current/saved/manual) — save it and show restaurants
+  // right on this page, no extra "Continue" step.
+  useEffect(() => {
     if (!selected) return;
     const { type, data } = selected;
 
-    if (type === "saved") {
-      setCurrentLocation({
-        lat: data.lat ?? null,
-        lng: data.lng ?? null,
-        area: data.fullAddress || data.label,
-        city: "",
-        pincode: data.pincode || "",
-        fullAddress: data.fullAddress || "",
-      });
-    } else {
-      setCurrentLocation({
-        lat: data.lat ?? null,
-        lng: data.lng ?? null,
-        area: data.area,
-        city: data.city || "",
-        pincode: data.pincode || "",
-        fullAddress: data.fullAddress || data.area,
-      });
-    }
+    const location = type === "saved"
+      ? {
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
+          area: data.fullAddress || data.label,
+          city: "",
+          pincode: data.pincode || "",
+          fullAddress: data.fullAddress || "",
+        }
+      : {
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
+          area: data.area,
+          city: data.city || "",
+          pincode: data.pincode || "",
+          fullAddress: data.fullAddress || data.area,
+        };
 
-    router.push("/quick-order/menu");
-  };
+    setCurrentLocation(location);
+    fetchNearbyRestaurants(location.lat, location.lng);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   const isSelected = (type, key) => selected?.type === type && (type !== "saved" || selected.data._id === key);
 
@@ -135,7 +156,7 @@ export default function QuickOrderLocationPage() {
         <p className="text-sm text-text-secondary mt-1">We need your location to show food near you</p>
       </div>
 
-      <div className="flex-1 px-5 max-w-md w-full mx-auto space-y-5 pb-28">
+      <div className="flex-1 px-5 max-w-md w-full mx-auto space-y-5 pb-8">
         {/* Current location detection */}
         <div>
           {status !== "detected" && (
@@ -197,6 +218,31 @@ export default function QuickOrderLocationPage() {
             </div>
           )}
         </div>
+
+        {/* Restaurants for the selected location — appears right here, same screen */}
+        {selected && (
+          <div>
+            <p className="text-xs font-bold text-text-tertiary uppercase tracking-wide mb-2">
+              Restaurants near you
+            </p>
+            {isLoadingRestaurants ? (
+              <div className="space-y-3">
+                {Array(3).fill(0).map((_, i) => <CardSkeleton key={i} />)}
+              </div>
+            ) : restaurants.length === 0 ? (
+              <div className="text-center py-10 border border-border-light rounded-[var(--radius-xl)] bg-bg-secondary">
+                <div className="text-3xl mb-2">🏪</div>
+                <p className="text-text-primary font-semibold text-sm">No restaurants found nearby</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {restaurants.map((r) => (
+                  <RestaurantCard key={r._id} restaurant={r} variant="horizontal" linkHref={`/quick-order/menu?restaurant=${r.slug}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Saved addresses */}
         {isAuthenticated && savedAddresses.length > 0 && (
@@ -272,17 +318,6 @@ export default function QuickOrderLocationPage() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Continue CTA */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border-light px-5 py-4">
-        <button
-          onClick={handleContinue}
-          disabled={!selected}
-          className="max-w-md w-full mx-auto flex items-center justify-center gap-2 h-[52px] bg-primary text-white font-bold text-sm rounded-[var(--radius-xl)] hover:bg-primary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Continue <ChevronRight size={18} />
-        </button>
       </div>
     </div>
   );

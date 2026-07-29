@@ -1,75 +1,77 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { MapPin, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import HomeFoodCard from "@/components/customer/HomeFoodCard";
-import api from "@/lib/api";
+import useRestaurantStore from "@/stores/restaurantStore";
 import useLocationStore from "@/stores/locationStore";
 
-export default function QuickOrderMenuPage() {
+function QuickOrderMenuContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const slug = searchParams.get("restaurant");
   const { currentLocation } = useLocationStore();
 
-  const [categories, setCategories] = useState([]);
-  const [items, setItems] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    selectedRestaurant: restaurant,
+    menu: menuData,
+    categories,
+    isLoading,
+    fetchRestaurantBySlug,
+    fetchMenu,
+    clearSelectedRestaurant,
+  } = useRestaurantStore();
 
-  // No location selected yet — send them back to pick one first
+  const [activeCategory, setActiveCategory] = useState("all");
+
+  // No location or no restaurant picked yet — send them back to pick one first
   useEffect(() => {
-    if (!currentLocation) {
+    if (!currentLocation || !slug) {
       router.replace("/quick-order/location");
     }
-  }, [currentLocation, router]);
+  }, [currentLocation, slug, router]);
 
-  const fetchFeed = useCallback(async (category) => {
-    if (!currentLocation) return;
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (currentLocation.lat) params.set("lat", currentLocation.lat);
-      if (currentLocation.lng) params.set("lng", currentLocation.lng);
-      if (category && category !== "all") params.set("category", category);
-
-      const res = await api.get(`/home/feed?${params.toString()}`);
-      setCategories(res.data.categories || []);
-      setItems(res.data.items || []);
-    } catch {
-      // silent fail
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentLocation]);
-
+  // Fetch this restaurant's own menu
   useEffect(() => {
-    fetchFeed(activeCategory);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory, currentLocation]);
+    if (!slug) return;
+    const load = async () => {
+      const rest = await fetchRestaurantBySlug(slug);
+      if (rest?._id) await fetchMenu(rest._id);
+    };
+    load();
+    return () => clearSelectedRestaurant();
+  }, [slug]);
 
-  if (!currentLocation) return null;
+  if (!currentLocation || !slug) return null;
+
+  const categoryMap = new Map();
+  menuData.forEach((group) => categoryMap.set(group.category, group.items));
+
+  const visibleCategories = activeCategory === "all" ? categories : [activeCategory];
+  const visibleItems = visibleCategories.flatMap((cat) => categoryMap.get(cat) || []);
+  // HomeFoodCard expects item.restaurant populated — the menu endpoint returns items without it
+  const itemsWithRestaurant = restaurant ? visibleItems.map((item) => ({ ...item, restaurant })) : [];
 
   return (
     <div className="py-4">
-      {/* Delivery location bar */}
-      <div className="flex items-center justify-between gap-3 mb-4 bg-bg-secondary rounded-[var(--radius-xl)] px-4 py-2.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <MapPin size={15} className="text-primary shrink-0" />
-          <span className="text-sm font-semibold text-text-primary truncate">
-            {currentLocation.area || "Selected location"}
-            {currentLocation.pincode ? ` · ${currentLocation.pincode}` : ""}
-          </span>
-        </div>
-        <Link href="/quick-order/location" className="text-xs font-bold text-primary hover:underline shrink-0 flex items-center gap-0.5">
-          Change <ChevronRight size={12} />
+      {/* Top bar */}
+      <div className="flex items-center gap-3 mb-4">
+        <Link href="/quick-order/location" className="p-1.5 rounded-[var(--radius-md)] text-text-secondary hover:bg-bg-hover transition-colors shrink-0">
+          <ArrowLeft size={20} />
         </Link>
+        <div className="min-w-0">
+          <h1 className="text-base font-extrabold text-text-primary truncate">{restaurant?.name || "Menu"}</h1>
+          <p className="text-xs text-text-tertiary flex items-center gap-1 truncate">
+            <MapPin size={11} className="shrink-0" />
+            {currentLocation.area}{currentLocation.pincode ? ` · ${currentLocation.pincode}` : ""}
+          </p>
+        </div>
       </div>
 
-      <h1 className="text-lg font-extrabold text-text-primary mb-4">Order Food</h1>
-
       <div className="flex gap-3 sm:gap-5">
-        {/* ── Left: category sidebar ── */}
+        {/* ── Left: this restaurant's category sidebar ── */}
         <div className="w-16 sm:w-20 shrink-0">
           <div
             className="sticky flex flex-col items-center gap-3 max-h-[75vh] overflow-y-auto scrollbar-hide pb-4"
@@ -91,29 +93,24 @@ export default function QuickOrderMenuPage() {
 
             {categories.map((cat) => (
               <button
-                key={cat._id}
-                onClick={() => setActiveCategory(activeCategory === cat.name ? "all" : cat.name)}
+                key={cat}
+                onClick={() => setActiveCategory(activeCategory === cat ? "all" : cat)}
                 className="flex flex-col items-center gap-1 shrink-0 group w-full"
               >
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden flex items-center justify-center text-xl shrink-0 border-2 transition-all ${
-                  activeCategory === cat.name ? "border-primary scale-105" : "border-border-light group-hover:border-border-default"
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl shrink-0 border-2 transition-all ${
+                  activeCategory === cat ? "border-primary bg-primary-50 scale-105" : "border-border-light bg-bg-secondary group-hover:border-border-default"
                 }`}>
-                  {cat.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-bg-secondary flex items-center justify-center">🍽️</div>
-                  )}
+                  🍴
                 </div>
-                <span className={`text-[10px] font-semibold text-center leading-tight line-clamp-2 ${activeCategory === cat.name ? "text-primary" : "text-text-secondary"}`}>
-                  {cat.name}
+                <span className={`text-[10px] font-semibold text-center leading-tight line-clamp-2 ${activeCategory === cat ? "text-primary" : "text-text-secondary"}`}>
+                  {cat}
                 </span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* ── Right: items ── */}
+        {/* ── Right: items grid ── */}
         <div className="flex-1 min-w-0">
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -127,17 +124,16 @@ export default function QuickOrderMenuPage() {
                 </div>
               ))}
             </div>
-          ) : items.length === 0 ? (
+          ) : itemsWithRestaurant.length === 0 ? (
             <div className="text-center py-16 border border-border-light rounded-[var(--radius-xl)] bg-bg-secondary">
               <div className="text-4xl mb-3">🍽️</div>
               <p className="text-text-primary font-semibold text-sm">
-                {activeCategory !== "all" ? `No ${activeCategory} items found nearby` : "No food items found nearby"}
+                {activeCategory !== "all" ? `No ${activeCategory} items found` : "No menu items found"}
               </p>
-              <p className="text-text-secondary text-xs mt-1">Try a different category</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {items.map((item) => (
+              {itemsWithRestaurant.map((item) => (
                 <HomeFoodCard key={item._id} item={item} />
               ))}
             </div>
@@ -148,5 +144,13 @@ export default function QuickOrderMenuPage() {
       {/* Bottom padding for mobile nav */}
       <div className="h-4" />
     </div>
+  );
+}
+
+export default function QuickOrderMenuPage() {
+  return (
+    <Suspense>
+      <QuickOrderMenuContent />
+    </Suspense>
   );
 }

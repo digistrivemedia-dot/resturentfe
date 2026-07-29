@@ -14,12 +14,14 @@ function getRatingColor(r) {
   return "bg-error";
 }
 
-export default function RestaurantCard({ restaurant, variant = "default" }) {
+export default function RestaurantCard({ restaurant, variant = "default", linkHref }) {
   const {
     slug, name, cuisines = [], coverImage, logo,
     rating = {}, deliverySettings = {}, costForTwo, offers = [],
     isFeatured, _id,
   } = restaurant;
+
+  const href = linkHref || `/restaurant/${slug}`;
 
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -53,7 +55,7 @@ export default function RestaurantCard({ restaurant, variant = "default" }) {
 
   if (variant === "horizontal") {
     return (
-      <Link href={`/restaurant/${slug}`} className="flex gap-4 bg-white rounded-[var(--radius-xl)] border border-border-light p-3 hover:shadow-[var(--shadow-md)] transition-all group">
+      <Link href={href} className="flex gap-4 bg-white rounded-[var(--radius-xl)] border border-border-light p-3 hover:shadow-[var(--shadow-md)] transition-all group">
         <div className="relative w-24 h-24 rounded-[var(--radius-lg)] overflow-hidden shrink-0 bg-bg-secondary">
           {coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -88,7 +90,7 @@ export default function RestaurantCard({ restaurant, variant = "default" }) {
   }
 
   return (
-    <Link href={`/restaurant/${slug}`} className="group flex flex-col bg-white rounded-[var(--radius-xl)] overflow-hidden border border-border-light hover:shadow-[var(--shadow-lg)] transition-all">
+    <Link href={href} className="group flex flex-col bg-white rounded-[var(--radius-xl)] overflow-hidden border border-border-light hover:shadow-[var(--shadow-lg)] transition-all">
       {/* Image */}
       <div className="relative h-44 bg-gradient-to-br from-orange-100 to-red-100 overflow-hidden">
         {coverImage ? (
