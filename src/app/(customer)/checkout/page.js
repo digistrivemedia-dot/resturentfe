@@ -81,28 +81,13 @@ export default function CheckoutPage() {
   const canCheckServiceability = isDelivery && !!restaurant?._id && !!dropLat && !!dropLng;
   const serviceabilityKey = canCheckServiceability ? `${restaurant._id}:${dropLat}:${dropLng}` : null;
 
-  console.log("[Flash Debug] render:", {
-    orderType,
-    isDelivery,
-    restaurantId: restaurant?._id,
-    selectedAddr,
-    currentLocation,
-    dropLat,
-    dropLng,
-    canCheckServiceability,
-    serviceabilityKey,
-  });
-
   // Check Flash rider serviceability whenever the delivery address changes
   useEffect(() => {
-    console.log("[Flash Debug] effect fired, serviceabilityKey =", serviceabilityKey);
     if (!serviceabilityKey) return;
     let cancelled = false;
-    console.log("[Flash Debug] calling POST /delivery/serviceability", { restaurantId: restaurant._id, dropLat, dropLng });
     api
       .post("/delivery/serviceability", { restaurantId: restaurant._id, dropLat, dropLng })
       .then((res) => {
-        console.log("[Flash Debug] response:", res);
         if (cancelled) return;
         const data = res.data || {};
         setServiceability({
@@ -111,8 +96,7 @@ export default function CheckoutPage() {
           forKey: serviceabilityKey,
         });
       })
-      .catch((err) => {
-        console.log("[Flash Debug] error:", err);
+      .catch(() => {
         if (cancelled) return;
         // Don't block checkout if the check itself fails
         setServiceability({ serviceable: true, deliveryCost: null, forKey: serviceabilityKey });
@@ -133,11 +117,19 @@ export default function CheckoutPage() {
   const deliveryFee = hasFlashDeliveryCost ? serviceability.deliveryCost : staticDeliveryFee;
   const tax = getTaxAmount();
   const platformFee = 3;
-  const couponDiscount = coupon?.type === "free_delivery"
+  const rawCouponDiscount = coupon?.type === "free_delivery"
     ? deliveryFee
     : getCouponDiscount();
+  // Active membership gets 20% off subtotal — the exact % and actual charge are always
+  // recomputed authoritatively server-side; this is just a preview using the standard rate.
+  const isMember = !!(user?.membership?.expiresAt && new Date(user.membership.expiresAt) > new Date());
+  const rawMembershipDiscount = isMember ? Math.round(subtotal * 0.20 * 100) / 100 : 0;
+  // Membership and coupon discounts don't stack — whichever is worth more applies
+  const useMembershipDiscount = rawMembershipDiscount > rawCouponDiscount;
+  const couponDiscount = useMembershipDiscount ? 0 : rawCouponDiscount;
+  const membershipDiscount = useMembershipDiscount ? rawMembershipDiscount : 0;
   const effectiveTip = isDelivery ? tip || 0 : 0;
-  const total = Math.max(0, subtotal + deliveryFee + tax - couponDiscount + effectiveTip + platformFee);
+  const total = Math.max(0, subtotal + deliveryFee + tax - couponDiscount - membershipDiscount + effectiveTip + platformFee);
   const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
   const restaurantAddress = restaurant?.address || {};
 
@@ -566,6 +558,7 @@ export default function CheckoutPage() {
             { label: "Platform fee", val: `₹${platformFee}` },
             { label: "GST (5%)", val: `₹${Math.round(tax)}` },
             effectiveTip > 0 ? { label: "Delivery tip", val: `₹${effectiveTip}` } : null,
+            membershipDiscount > 0 ? { label: "Membership discount (20%)", val: `-₹${Math.round(membershipDiscount)}`, cls: "text-success font-semibold" } : null,
             couponDiscount > 0 ? { label: `Coupon (${coupon?.code})`, val: `-₹${Math.round(couponDiscount)}`, cls: "text-success font-semibold" } : null,
           ].filter(Boolean).map(({ label, val, cls = "" }) => (
             <div key={label} className="flex items-center justify-between text-sm">
@@ -578,9 +571,9 @@ export default function CheckoutPage() {
           <span className="font-bold text-text-primary">Total</span>
           <span className="text-lg font-extrabold text-text-primary">₹{Math.round(total)}</span>
         </div>
-        {couponDiscount > 0 && (
+        {(couponDiscount > 0 || membershipDiscount > 0) && (
           <p className="text-xs text-success font-semibold mt-1 text-right">
-            🎉 Saving ₹{Math.round(couponDiscount)} on this order
+            🎉 Saving ₹{Math.round(couponDiscount + membershipDiscount)} on this order
           </p>
         )}
       </div>

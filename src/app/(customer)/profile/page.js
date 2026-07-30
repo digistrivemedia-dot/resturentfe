@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   MapPin, Heart, Bell, HelpCircle, LogOut, ChevronRight,
   Pencil, CheckCircle2, Loader2, ShoppingBag,
-  Shield, Phone, Mail, Camera, X,
+  Shield, Phone, Mail, Camera, X, Crown,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import useAuthStore from "@/stores/authStore";
@@ -14,6 +14,8 @@ import useProfileStore from "@/stores/profileStore";
 import useOrderStore from "@/stores/orderStore";
 import useImageUpload from "@/hooks/useImageUpload";
 import toast from "react-hot-toast";
+import api from "@/lib/api";
+import { loadRazorpay } from "@/lib/razorpay";
 
 // Statuses that count as real orders (matches the orders page display)
 const COUNTED_STATUSES = new Set(["placed", "confirmed", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"]);
@@ -63,6 +65,75 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!orders.length) fetchMyOrders();
   }, []);
+
+  // Membership status + purchase flow
+  const [membership, setMembership] = useState(null);
+  const [membershipLoading, setMembershipLoading] = useState(true);
+  const [purchasingMembership, setPurchasingMembership] = useState(false);
+
+  useEffect(() => {
+    api.get("/customer/membership")
+      .then((res) => setMembership(res.data))
+      .catch(() => {})
+      .finally(() => setMembershipLoading(false));
+  }, []);
+
+  const handleBuyMembership = async () => {
+    setPurchasingMembership(true);
+    try {
+      const checkoutRes = await api.post("/customer/membership/checkout");
+      const { razorpay } = checkoutRes.data;
+
+      const loaded = await loadRazorpay();
+      if (!loaded) {
+        toast.error("Payment gateway failed to load. Please try again.");
+        setPurchasingMembership(false);
+        return;
+      }
+
+      const options = {
+        key: razorpay.keyId,
+        amount: razorpay.amount,
+        currency: razorpay.currency,
+        name: "Sri Isha Cafe",
+        description: "Membership — 20% off all orders",
+        order_id: razorpay.orderId,
+        handler: async (response) => {
+          try {
+            const verifyRes = await api.post("/customer/membership/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            setMembership((m) => ({ ...m, ...verifyRes.data }));
+            await fetchMe();
+            toast.success("Membership activated! Enjoy your discount.");
+          } catch {
+            toast.error("Payment succeeded but activation failed — contact support.");
+          }
+          setPurchasingMembership(false);
+        },
+        modal: {
+          ondismiss: () => {
+            toast.error("Payment cancelled");
+            setPurchasingMembership(false);
+          },
+        },
+        prefill: { name: user?.name || "", email: user?.email || "", contact: user?.phone || "" },
+        theme: { color: "#FF6B35" },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response) => {
+        toast.error(response.error.description || "Payment failed");
+        setPurchasingMembership(false);
+      });
+      rzp.open();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to start membership purchase");
+      setPurchasingMembership(false);
+    }
+  };
 
   const avatarRef = useRef(null);
   const { upload: uploadAvatar, isUploading: isUploadingAvatar, progress: avatarProgress } = useImageUpload({ type: "avatar" });
@@ -180,6 +251,56 @@ export default function ProfilePage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Membership card */}
+        <div className={`rounded-[var(--radius-xl)] border px-5 py-5 mb-5 ${
+          membership?.isActive ? "bg-gradient-to-br from-primary to-primary-dark border-primary" : "bg-white border-border-light"
+        }`}>
+          {membershipLoading ? (
+            <div className="h-12 flex items-center justify-center">
+              <Loader2 size={18} className="animate-spin text-text-tertiary" />
+            </div>
+          ) : membership?.isActive ? (
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <Crown size={22} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white">Member · {membership.discountPercent}% off all orders</p>
+                <p className="text-xs text-white/80 mt-0.5">
+                  {membership.daysLeft} day{membership.daysLeft !== 1 ? "s" : ""} left · expires{" "}
+                  {new Date(membership.expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                </p>
+              </div>
+              <button
+                onClick={handleBuyMembership}
+                disabled={purchasingMembership}
+                className="text-xs font-bold text-white bg-white/20 hover:bg-white/30 px-3 py-2 rounded-[var(--radius-lg)] transition-colors shrink-0 disabled:opacity-60"
+              >
+                {purchasingMembership ? <Loader2 size={14} className="animate-spin" /> : "Renew"}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
+                <Crown size={22} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-text-primary">Become a Member</p>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  ₹{membership?.price ?? 299}/month · {membership?.discountPercent ?? 20}% off all orders
+                </p>
+              </div>
+              <button
+                onClick={handleBuyMembership}
+                disabled={purchasingMembership}
+                className="text-xs font-bold text-white bg-primary hover:bg-primary-dark px-3 py-2 rounded-[var(--radius-lg)] transition-colors shrink-0 disabled:opacity-60"
+              >
+                {purchasingMembership ? <Loader2 size={14} className="animate-spin" /> : "Buy"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Menu groups */}

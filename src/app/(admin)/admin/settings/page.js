@@ -416,6 +416,9 @@ function PaymentsTab({ showToast }) {
   const [payoutFreq, setPayoutFreq] = useState("weekly");
   const [payoutThreshold, setPayoutThreshold] = useState("500");
   const [commission, setCommission] = useState("18");
+  const [membershipPrice, setMembershipPrice] = useState("299");
+  const [membershipDiscountPercent, setMembershipDiscountPercent] = useState("20");
+  const [membershipDurationDays, setMembershipDurationDays] = useState("30");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -437,6 +440,9 @@ function PaymentsTab({ showToast }) {
       if (settings.payoutFreq) setPayoutFreq(settings.payoutFreq);
       if (settings.payoutThreshold) setPayoutThreshold(String(settings.payoutThreshold));
       if (settings.commission) setCommission(String(settings.commission));
+      if (settings.membershipPrice?.value !== undefined) setMembershipPrice(String(settings.membershipPrice.value));
+      if (settings.membershipDiscountPercent?.value !== undefined) setMembershipDiscountPercent(String(settings.membershipDiscountPercent.value));
+      if (settings.membershipDurationDays?.value !== undefined) setMembershipDurationDays(String(settings.membershipDurationDays.value));
     }
   }, [settings]);
 
@@ -451,6 +457,9 @@ function PaymentsTab({ showToast }) {
         payoutFreq,
         payoutThreshold: Number(payoutThreshold),
         commission: Number(commission),
+        membershipPrice: { value: Number(membershipPrice), category: "payments" },
+        membershipDiscountPercent: { value: Number(membershipDiscountPercent), category: "payments" },
+        membershipDurationDays: { value: Number(membershipDurationDays), category: "payments" },
       });
       showToast("Payment settings saved");
     } catch (err) {
@@ -546,6 +555,23 @@ function PaymentsTab({ showToast }) {
             </span>
           </div>
         </Field>
+      </SectionCard>
+
+      <SectionCard title="Membership">
+        <p className="text-sm text-text-secondary -mt-3 mb-4">
+          Customers pay to get a flat discount on every order for a fixed period.
+        </p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Field label="Price (₹)" hint="Charged per purchase/renewal">
+            <TextInput value={membershipPrice} onChange={setMembershipPrice} type="number" placeholder="299" />
+          </Field>
+          <Field label="Discount %" hint="Applied to every order's item total">
+            <TextInput value={membershipDiscountPercent} onChange={setMembershipDiscountPercent} type="number" placeholder="20" />
+          </Field>
+          <Field label="Duration (days)" hint="How long each purchase/renewal lasts">
+            <TextInput value={membershipDurationDays} onChange={setMembershipDurationDays} type="number" placeholder="30" />
+          </Field>
+        </div>
       </SectionCard>
 
       <div className="flex justify-end">
