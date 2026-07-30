@@ -9,6 +9,7 @@ const useRestaurantStore = create((set, get) => ({
   selectedRestaurant: null,
   menu: [],
   categories: [],
+  categoryImages: {},
   searchResults: { restaurants: [], dishes: [] },
   suggestions: [],
   isLoading: false,
@@ -80,6 +81,7 @@ const useRestaurantStore = create((set, get) => ({
       set({
         menu: res.data.menu,
         categories: res.data.categories,
+        categoryImages: res.data.categoryImages || {},
         isLoading: false,
       });
       return res.data;
@@ -148,7 +150,7 @@ const useRestaurantStore = create((set, get) => ({
   },
 
   // Clear states
-  clearSelectedRestaurant: () => set({ selectedRestaurant: null, menu: [], categories: [] }),
+  clearSelectedRestaurant: () => set({ selectedRestaurant: null, menu: [], categories: [], categoryImages: {} }),
   clearSearch: () => set({ searchResults: { restaurants: [], dishes: [] }, suggestions: [] }),
 }));
 

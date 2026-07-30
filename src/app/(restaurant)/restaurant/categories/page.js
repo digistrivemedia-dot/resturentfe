@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   GripVertical,
   Pencil,
@@ -11,9 +11,12 @@ import {
   LayoutGrid,
   UtensilsCrossed,
   AlertTriangle,
+  Camera,
+  Loader2,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import useMenuManagementStore from "@/stores/menuManagementStore";
+import useImageUpload from "@/hooks/useImageUpload";
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CategoriesPage() {
@@ -24,6 +27,7 @@ export default function CategoriesPage() {
     fetchCategories,
     addCategory,
     updateCategory,
+    updateCategoryImage,
     deleteCategory,
   } = useMenuManagementStore();
 
@@ -241,6 +245,7 @@ export default function CategoriesPage() {
               onCancelEdit={cancelEdit}
               onEditKeyDown={(e) => handleEditKeyDown(e, cat.name)}
               onDelete={() => openDelete(cat)}
+              onImageUploaded={(url) => updateCategoryImage(cat.name, url)}
             />
           ))}
         </div>
@@ -407,7 +412,19 @@ function CategoryRow({
   onCancelEdit,
   onEditKeyDown,
   onDelete,
+  onImageUploaded,
 }) {
+  const fileRef = useRef(null);
+  const { upload, isUploading } = useImageUpload({ type: "category" });
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await upload(file);
+    if (result) onImageUploaded(result.url);
+    e.target.value = "";
+  };
+
   return (
     <div
       className={`
@@ -421,6 +438,30 @@ function CategoryRow({
         size={16}
         className="text-text-tertiary shrink-0 cursor-grab opacity-50 group-hover:opacity-100 transition-opacity"
       />
+
+      {/* Category image thumbnail — click to upload/replace */}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={isUploading}
+        className="relative w-10 h-10 rounded-[var(--radius-md)] bg-bg-secondary border border-border-light overflow-hidden shrink-0 hover:border-primary transition-colors disabled:opacity-60"
+        title="Upload category image"
+      >
+        {cat.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Camera size={14} className="text-text-tertiary" />
+          </div>
+        )}
+        {isUploading && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <Loader2 size={14} className="text-white animate-spin" />
+          </div>
+        )}
+      </button>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
 
       {/* Sort order badge */}
       <span className="w-6 h-6 rounded-full bg-bg-secondary border border-border-light text-xs font-semibold text-text-tertiary flex items-center justify-center shrink-0">

@@ -18,6 +18,7 @@ function QuickOrderMenuContent() {
     selectedRestaurant: restaurant,
     menu: menuData,
     categories,
+    categoryImages,
     isLoading,
     fetchRestaurantBySlug,
     fetchMenu,
@@ -91,22 +92,30 @@ function QuickOrderMenuContent() {
               </span>
             </button>
 
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(activeCategory === cat ? "all" : cat)}
-                className="flex flex-col items-center gap-1 shrink-0 group w-full"
-              >
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl shrink-0 border-2 transition-all ${
-                  activeCategory === cat ? "border-primary bg-primary-50 scale-105" : "border-border-light bg-bg-secondary group-hover:border-border-default"
-                }`}>
-                  🍴
-                </div>
-                <span className={`text-[10px] font-semibold text-center leading-tight line-clamp-2 ${activeCategory === cat ? "text-primary" : "text-text-secondary"}`}>
-                  {cat}
-                </span>
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const image = categoryImages?.[cat];
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(activeCategory === cat ? "all" : cat)}
+                  className="flex flex-col items-center gap-1 shrink-0 group w-full"
+                >
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden flex items-center justify-center text-xl shrink-0 border-2 transition-all ${
+                    activeCategory === cat ? "border-primary bg-primary-50 scale-105" : "border-border-light bg-bg-secondary group-hover:border-border-default"
+                  }`}>
+                    {image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={image} alt={cat} className="w-full h-full object-cover" />
+                    ) : (
+                      "🍴"
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-semibold text-center leading-tight line-clamp-2 ${activeCategory === cat ? "text-primary" : "text-text-secondary"}`}>
+                    {cat}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

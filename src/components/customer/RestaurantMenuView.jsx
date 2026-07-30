@@ -12,13 +12,13 @@ import useRestaurantStore from "@/stores/restaurantStore";
 import useAuthStore from "@/stores/authStore";
 
 // Full restaurant-menu experience (hero, category sidebar, search, veg filter).
-// Shared by /restaurant/[slug] (normal browsing) and /quick-order/menu (quick-order flow) —
-// `backHref` controls where the back button / not-found link points.
+// Used by /restaurant/[slug] — `backHref` controls where the back button / not-found link points.
 export default function RestaurantMenuView({ slug, backHref = "/home" }) {
   const {
     selectedRestaurant: restaurant,
     menu: menuData,
     categories,
+    categoryImages,
     isLoading,
     fetchRestaurantBySlug,
     fetchMenu,
@@ -399,17 +399,22 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
             <div className="sticky top-[calc(var(--header-height)+160px)] max-h-[60vh] overflow-y-auto py-4 pr-2 scrollbar-hide">
               {categories.map((cat) => {
                 const filtered = getFilteredItems(categoryMap.get(cat) || []);
+                const image = categoryImages?.[cat];
                 return (
                   <button
                     key={cat}
                     onClick={() => scrollToCategory(cat)}
-                    className={`w-full text-left px-3 py-2.5 text-sm rounded-[var(--radius-md)] transition-all mb-0.5 flex items-center justify-between group ${
+                    className={`w-full text-left px-3 py-2.5 text-sm rounded-[var(--radius-md)] transition-all mb-0.5 flex items-center gap-2 group ${
                       activeCategory === cat
                         ? "bg-primary-50 text-primary font-semibold border-l-2 border-primary"
                         : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     }`}
                   >
-                    <span className="truncate">{cat}</span>
+                    {image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={image} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                    )}
+                    <span className="truncate flex-1">{cat}</span>
                     <span className={`text-xs ml-1 shrink-0 ${activeCategory === cat ? "text-primary" : "text-text-tertiary"}`}>
                       {filtered.length}
                     </span>
@@ -432,12 +437,16 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
                   key={cat}
                   data-cat={cat}
                   onClick={() => scrollToCategory(cat)}
-                  className={`shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative ${
+                  className={`shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative flex items-center gap-1.5 ${
                     activeCategory === cat
                       ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
                       : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
+                  {categoryImages?.[cat] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={categoryImages[cat]} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                  )}
                   {cat}
                 </button>
               ))}

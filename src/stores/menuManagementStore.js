@@ -172,6 +172,18 @@ const useMenuManagementStore = create((set, get) => ({
     }
   },
 
+  updateCategoryImage: async (name, image) => {
+    set({ isSaving: true, error: null });
+    try {
+      await api.put(`/restaurant/categories/${encodeURIComponent(name)}/image`, { image });
+      await get().fetchCategories();
+      set({ isSaving: false });
+    } catch (err) {
+      set({ isSaving: false, error: err.message });
+      throw err;
+    }
+  },
+
   // ─── Addon Groups ───────────────────────────────────────────────────
 
   fetchAddons: async () => {
