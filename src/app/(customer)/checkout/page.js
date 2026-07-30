@@ -14,6 +14,8 @@ import useLocationStore from "@/stores/locationStore";
 import useAuthStore from "@/stores/authStore";
 import useOrderStore from "@/stores/orderStore";
 import { TIP_OPTIONS } from "@/constants";
+import api from "@/lib/api";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 const PAYMENT_METHODS = [
   {
@@ -46,6 +48,7 @@ export default function CheckoutPage() {
   const [scheduledFor, setScheduledFor] = useState("");
   const [loading, setLoading] = useState(false);
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
+  const [serviceability, setServiceability] = useState({ serviceable: true, deliveryCost: null, forKey: null });
 
   const {
     restaurant, items, coupon, orderType, tip, setTip,
@@ -72,11 +75,62 @@ export default function CheckoutPage() {
     fetchMe();
   }, [fetchMe]);
 
-  const subtotal = getSubtotal();
   const isDelivery = orderType === "delivery";
+  const dropLat = selectedAddr?.lat || currentLocation?.lat;
+  const dropLng = selectedAddr?.lng || currentLocation?.lng;
+  const canCheckServiceability = isDelivery && !!restaurant?._id && !!dropLat && !!dropLng;
+  const serviceabilityKey = canCheckServiceability ? `${restaurant._id}:${dropLat}:${dropLng}` : null;
+
+  console.log("[Flash Debug] render:", {
+    orderType,
+    isDelivery,
+    restaurantId: restaurant?._id,
+    selectedAddr,
+    currentLocation,
+    dropLat,
+    dropLng,
+    canCheckServiceability,
+    serviceabilityKey,
+  });
+
+  // Check Flash rider serviceability whenever the delivery address changes
+  useEffect(() => {
+    console.log("[Flash Debug] effect fired, serviceabilityKey =", serviceabilityKey);
+    if (!serviceabilityKey) return;
+    let cancelled = false;
+    console.log("[Flash Debug] calling POST /delivery/serviceability", { restaurantId: restaurant._id, dropLat, dropLng });
+    api
+      .post("/delivery/serviceability", { restaurantId: restaurant._id, dropLat, dropLng })
+      .then((res) => {
+        console.log("[Flash Debug] response:", res);
+        if (cancelled) return;
+        const data = res.data || {};
+        setServiceability({
+          serviceable: data.serviceable !== false,
+          deliveryCost: data.deliveryCost ?? null,
+          forKey: serviceabilityKey,
+        });
+      })
+      .catch((err) => {
+        console.log("[Flash Debug] error:", err);
+        if (cancelled) return;
+        // Don't block checkout if the check itself fails
+        setServiceability({ serviceable: true, deliveryCost: null, forKey: serviceabilityKey });
+      });
+    return () => { cancelled = true; };
+  }, [serviceabilityKey]);
+
+  const isCheckingServiceability = canCheckServiceability && serviceability.forKey !== serviceabilityKey;
+  const isServiceabilityChecked = canCheckServiceability && serviceability.forKey === serviceabilityKey;
+
+  const subtotal = getSubtotal();
   const isDineIn = orderType === "dine_in";
   const showSchedule = isDelivery || isDineIn;
-  const deliveryFee = getDeliveryFee();
+  // Use Flash's real distance-based cost once known; fall back to the restaurant's flat fee
+  // while it's still loading (or if Flash couldn't quote one) — same fallback the backend uses.
+  const staticDeliveryFee = getDeliveryFee();
+  const hasFlashDeliveryCost = isDelivery && isServiceabilityChecked && serviceability.serviceable && serviceability.deliveryCost != null;
+  const deliveryFee = hasFlashDeliveryCost ? serviceability.deliveryCost : staticDeliveryFee;
   const tax = getTaxAmount();
   const platformFee = 3;
   const couponDiscount = coupon?.type === "free_delivery"
@@ -90,6 +144,10 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (isDelivery && !selectedAddr && !currentLocation) {
       toast.error("Please add a delivery address first");
+      return;
+    }
+    if (isDelivery && isServiceabilityChecked && !serviceability.serviceable) {
+      toast.error("Delivery is not available at this address right now");
       return;
     }
     if (scheduleMode === "scheduled" && !scheduledFor) {
@@ -379,6 +437,36 @@ export default function CheckoutPage() {
             </Link>
           </div>
         )}
+
+        {/* Flash rider serviceability status */}
+        {isDelivery && selectedAddr && isCheckingServiceability && (
+          <div className="mx-4 mb-4 flex items-center gap-2 text-xs text-text-tertiary">
+            <Loader2 size={13} className="animate-spin" /> Checking delivery availability...
+          </div>
+        )}
+        {isDelivery && selectedAddr && isServiceabilityChecked && (
+          <div
+            className={`mx-4 mb-4 flex items-center gap-2 rounded-[var(--radius-lg)] px-3 py-2 text-xs font-medium ${
+              serviceability.serviceable
+                ? "bg-success-light text-success-dark"
+                : "bg-error-light text-error-dark"
+            }`}
+          >
+            {serviceability.serviceable ? (
+              <>
+                <CheckCircle2 size={14} className="shrink-0" />
+                {serviceability.deliveryCost != null
+                  ? `Rider available · ₹${Math.round(serviceability.deliveryCost)} delivery fee`
+                  : "Rider service is available for this address"}
+              </>
+            ) : (
+              <>
+                <AlertTriangle size={14} className="shrink-0" />
+                Delivery not available at this address right now
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Order Summary (collapsible) */}
@@ -468,7 +556,13 @@ export default function CheckoutPage() {
         <div className="space-y-2">
           {[
             { label: "Item total", val: `₹${subtotal}` },
-            { label: "Delivery fee", val: deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`, cls: deliveryFee === 0 ? "text-success font-semibold" : "" },
+            {
+              label: "Delivery fee",
+              val: isCheckingServiceability
+                ? "Calculating..."
+                : deliveryFee === 0 ? "FREE" : `₹${Math.round(deliveryFee)}`,
+              cls: !isCheckingServiceability && deliveryFee === 0 ? "text-success font-semibold" : "",
+            },
             { label: "Platform fee", val: `₹${platformFee}` },
             { label: "GST (5%)", val: `₹${Math.round(tax)}` },
             effectiveTip > 0 ? { label: "Delivery tip", val: `₹${effectiveTip}` } : null,

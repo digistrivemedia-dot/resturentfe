@@ -12,6 +12,9 @@ import {
   IndianRupee,
   AlertCircle,
   Loader2,
+  Bike,
+  ExternalLink,
+  Wallet,
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import useRestaurantDashboardStore from "@/stores/restaurantDashboardStore";
@@ -264,6 +267,59 @@ function PreparingCard({ order, onMarkReady }) {
   );
 }
 
+// ── Flash rider status ───────────────────────────────────────────────────────
+function FlashRiderInfo({ order }) {
+  if (order.orderType !== "delivery") return null;
+  const flash = order.deliveryTracking?.flash;
+  if (!flash) return null;
+
+  if (flash.dispatchFailedReason) {
+    const isWalletIssue = /wallet|balance/i.test(flash.dispatchFailedReason);
+    if (isWalletIssue) {
+      return (
+        <div className="mx-4 mb-2 flex items-center gap-1.5 text-xs font-medium text-warning-dark bg-warning-light px-2.5 py-1.5 rounded-[var(--radius-md)]">
+          <Wallet size={12} className="shrink-0" />
+          Flash wallet balance is low — recharge with uEngage to enable delivery
+        </div>
+      );
+    }
+    return (
+      <div className="mx-4 mb-2 flex items-center gap-1.5 text-xs font-medium text-error bg-error-light px-2.5 py-1.5 rounded-[var(--radius-md)]">
+        <AlertCircle size={12} className="shrink-0" />
+        No rider available — {flash.dispatchFailedReason}
+      </div>
+    );
+  }
+
+  if (flash.riderName) {
+    return (
+      <div className="mx-4 mb-2 flex items-center justify-between gap-2 bg-primary-50 px-2.5 py-1.5 rounded-[var(--radius-md)]">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-primary min-w-0">
+          <Bike size={12} className="shrink-0" />
+          <span className="truncate">{flash.riderName}{flash.riderContact ? ` · ${flash.riderContact}` : ""}</span>
+        </div>
+        {flash.trackingUrl && (
+          <a
+            href={flash.trackingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5 shrink-0"
+          >
+            Track <ExternalLink size={11} />
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-4 mb-2 flex items-center gap-1.5 text-xs font-medium text-text-tertiary bg-bg-secondary px-2.5 py-1.5 rounded-[var(--radius-md)]">
+      <Loader2 size={12} className="shrink-0 animate-spin" />
+      Finding a Flash rider...
+    </div>
+  );
+}
+
 // ── Picked-up card ────────────────────────────────────────────────────────
 function PickedUpCard({ order, onMarkDelivered }) {
   const mins = minsSince(getReadyAt(order));
@@ -295,6 +351,7 @@ function PickedUpCard({ order, onMarkDelivered }) {
           </div>
         ))}
       </div>
+      <FlashRiderInfo order={order} />
       <div className="px-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-text-primary flex items-center gap-0.5">
@@ -363,6 +420,8 @@ function ReadyCard({ order, onMarkPickedUp, onMarkDelivered }) {
           </div>
         ))}
       </div>
+
+      <FlashRiderInfo order={order} />
 
       <div className="px-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">

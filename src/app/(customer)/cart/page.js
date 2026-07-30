@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Trash2, Plus, Minus, Tag, ChevronRight,
   ShoppingBag, AlertCircle, Pencil, X, MessageSquare,
-  Bike, UtensilsCrossed, Package, Store, Receipt, CheckCircle2, Sparkles,
+  Bike, UtensilsCrossed, Package, Store,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import CouponModal from "@/components/customer/CouponModal";
@@ -25,19 +25,14 @@ export default function CartPage() {
   const [clearWarning, setClearWarning] = useState(false);
 
   const {
-    restaurant, items, coupon, tip, orderType,
+    restaurant, items, coupon, orderType,
     removeItem, updateQuantity, removeCoupon, setOrderType, clearCart,
-    getSubtotal, getDeliveryFee, getTaxAmount, getCouponDiscount, getTotal,
+    getSubtotal, getCouponDiscount, getTotal,
   } = useCartStore();
 
   const subtotal = getSubtotal();
-  const deliveryFee = getDeliveryFee();
-  const tax = getTaxAmount();
   const couponDiscount = getCouponDiscount();
-  const platformFee = 3;
   const total = getTotal();
-  const savings = couponDiscount;
-  const isFreeDelivery = deliveryFee === 0 && restaurant?.freeDeliveryAbove && subtotal >= restaurant.freeDeliveryAbove;
 
   if (!restaurant || items.length === 0) {
     return (
@@ -217,49 +212,6 @@ export default function CartPage() {
           )}
         </div>
 
-        {/* ── Bill Details ── */}
-        <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 mb-6">
-          <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
-            <Receipt size={15} className="text-text-tertiary" strokeWidth={1.8} /> Bill Details
-          </h3>
-
-          <div className="space-y-2.5">
-            <BillRow label="Item total" value={`₹${subtotal}`} />
-            <BillRow
-              label="Delivery fee"
-              value={deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`}
-              valueClass={deliveryFee === 0 ? "text-success font-semibold" : ""}
-            />
-            {isFreeDelivery && (
-              <p className="text-xs text-success -mt-1 flex items-center gap-1">
-                <CheckCircle2 size={11} strokeWidth={2.5} /> Free delivery on orders above ₹{restaurant.freeDeliveryAbove}
-              </p>
-            )}
-            <BillRow label="Platform fee" value={`₹${platformFee}`} className="text-xs" />
-            <BillRow label="GST & charges (5%)" value={`₹${Math.round(tax)}`} className="text-xs" />
-            {tip > 0 && <BillRow label="Delivery tip" value={`₹${tip}`} />}
-            {couponDiscount > 0 && (
-              <BillRow
-                label={`Coupon (${coupon.code})`}
-                value={`-₹${Math.round(couponDiscount)}`}
-                valueClass="text-success font-semibold"
-              />
-            )}
-          </div>
-
-          <div className="border-t border-dashed border-border-light mt-4 pt-4">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-bold text-text-primary">To Pay</span>
-              <span className="text-base font-extrabold text-text-primary">₹{Math.round(total)}</span>
-            </div>
-            {savings > 0 && (
-              <p className="text-xs text-success font-semibold mt-1 text-right flex items-center justify-end gap-1">
-                <Sparkles size={11} strokeWidth={2} /> You save ₹{Math.round(savings)} on this order
-              </p>
-            )}
-          </div>
-        </div>
-
         {/* ── Checkout CTA ── */}
         <div className="sticky bottom-[var(--bottom-nav-height)] md:bottom-4 left-0 right-0 bg-bg-primary/80 backdrop-blur-sm pb-2 pt-1 -mx-4 px-4">
           <Link
@@ -301,14 +253,5 @@ export default function CartPage() {
         </p>
       </Modal>
     </>
-  );
-}
-
-function BillRow({ label, value, valueClass = "", className = "" }) {
-  return (
-    <div className={`flex items-center justify-between ${className}`}>
-      <span className="text-sm text-text-secondary">{label}</span>
-      <span className={`text-sm font-medium text-text-primary ${valueClass}`}>{value}</span>
-    </div>
   );
 }

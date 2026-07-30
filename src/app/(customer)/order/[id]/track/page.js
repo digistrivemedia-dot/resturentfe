@@ -4,9 +4,9 @@ import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Phone, MessageCircle, MapPin, Clock,
+  ArrowLeft, Phone, MapPin, Clock,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
-  Navigation, Star, Shield, Loader2,
+  Navigation, Shield, Loader2, ExternalLink,
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
 import { connectSocket } from "@/lib/socket";
@@ -113,14 +113,9 @@ export default function TrackOrderPage({ params }) {
 
   const isDelivered = order.status === "delivered";
   const isLive = ["out_for_delivery", "picked_up"].includes(order.status);
-
-  const mockRider = {
-    name: "Rahul Sharma",
-    phone: "9876512345",
-    rating: 4.8,
-    totalDeliveries: 1240,
-    photo: null,
-  };
+  const flash = order.deliveryTracking?.flash;
+  const riderAssigned = !!flash?.riderName;
+  const dispatchFailed = !!flash?.dispatchFailedReason;
 
   return (
     <div className="fixed inset-0 bg-bg-secondary flex flex-col" style={{ zIndex: 40 }}>
@@ -273,30 +268,52 @@ export default function TrackOrderPage({ params }) {
           </div>
 
           {/* Rider info (shown when out for delivery) */}
-          {isLive && (
+          {isLive && riderAssigned && (
             <div className="flex items-center gap-3 bg-bg-secondary rounded-[var(--radius-xl)] px-4 py-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-lg font-bold shrink-0">
-                {mockRider.name[0]}
+                {flash.riderName[0]}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-text-primary">{mockRider.name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Star size={11} className="text-warning fill-warning" />
-                  <span className="text-xs text-text-secondary font-medium">{mockRider.rating}</span>
-                  <span className="text-text-tertiary text-xs">· {mockRider.totalDeliveries.toLocaleString()} deliveries</span>
-                </div>
+                <p className="text-sm font-bold text-text-primary">{flash.riderName}</p>
+                <p className="text-xs text-text-tertiary mt-0.5">Your delivery partner</p>
               </div>
               <div className="flex gap-2">
-                <a
-                  href={`tel:${mockRider.phone}`}
-                  className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors"
-                >
-                  <Phone size={16} className="text-primary" />
-                </a>
-                <button className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
-                  <MessageCircle size={16} className="text-primary" />
-                </button>
+                {flash.riderContact && (
+                  <a
+                    href={`tel:${flash.riderContact}`}
+                    className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors"
+                  >
+                    <Phone size={16} className="text-primary" />
+                  </a>
+                )}
+                {flash.trackingUrl && (
+                  <a
+                    href={flash.trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors"
+                    title="View live map"
+                  >
+                    <ExternalLink size={16} className="text-primary" />
+                  </a>
+                )}
               </div>
+            </div>
+          )}
+
+          {/* Waiting for rider assignment */}
+          {isLive && !riderAssigned && !dispatchFailed && (
+            <div className="flex items-center gap-3 bg-bg-secondary rounded-[var(--radius-xl)] px-4 py-3 mb-4">
+              <Loader2 size={18} className="text-primary animate-spin shrink-0" />
+              <p className="text-sm text-text-secondary">Finding a delivery partner for you...</p>
+            </div>
+          )}
+
+          {/* Dispatch failed */}
+          {dispatchFailed && !riderAssigned && (
+            <div className="flex items-center gap-3 bg-error-light rounded-[var(--radius-xl)] px-4 py-3 mb-4">
+              <AlertCircle size={18} className="text-error shrink-0" />
+              <p className="text-sm text-error-dark">No delivery partner available right now. The restaurant has been notified.</p>
             </div>
           )}
 

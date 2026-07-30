@@ -7,6 +7,7 @@ import {
   ArrowLeft, MapPin, CreditCard, Download, HelpCircle,
   ChevronRight, Star, CheckCircle2, Clock, RefreshCw,
   Package, Phone, MessageCircle, Share2, Navigation, UtensilsCrossed,
+  Bike, ExternalLink, AlertCircle,
 } from "lucide-react";
 import { Modal, CardSkeleton } from "@/components/ui";
 import useOrderStore from "@/stores/orderStore";
@@ -192,6 +193,40 @@ export default function OrderDetailPage({ params }) {
             </Link>
           )}
         </div>
+
+        {/* Flash rider info */}
+        {isDelivery && order.deliveryTracking?.flash && (
+          <>
+            {order.deliveryTracking.flash.riderName ? (
+              <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
+                  <Bike size={18} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-text-tertiary">Delivery Partner</p>
+                  <p className="text-sm font-semibold text-text-primary">{order.deliveryTracking.flash.riderName}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  {order.deliveryTracking.flash.riderContact && (
+                    <a href={`tel:${order.deliveryTracking.flash.riderContact}`} className="w-9 h-9 bg-primary-50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
+                      <Phone size={15} className="text-primary" />
+                    </a>
+                  )}
+                  {order.deliveryTracking.flash.trackingUrl && (
+                    <a href={order.deliveryTracking.flash.trackingUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 bg-primary-50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
+                      <ExternalLink size={15} className="text-primary" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : order.deliveryTracking.flash.dispatchFailedReason && isActive ? (
+              <div className="bg-error-light rounded-[var(--radius-xl)] px-4 py-3 flex items-center gap-2">
+                <AlertCircle size={16} className="text-error shrink-0" />
+                <p className="text-xs text-error-dark">No delivery partner available right now. The restaurant has been notified.</p>
+              </div>
+            ) : null}
+          </>
+        )}
 
         {/* Restaurant info */}
         <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 flex items-center gap-3">

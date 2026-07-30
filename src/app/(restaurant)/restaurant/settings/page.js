@@ -447,6 +447,19 @@ function LocationTab({ showToast }) {
                 </p>
               </div>
             </button>
+
+            {/* Optional manual entry — for when GPS isn't available/accurate */}
+            <p className="text-xs text-text-tertiary mt-3 mb-2">Or enter coordinates manually (optional)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Latitude</FieldLabel>
+                <TextInput value={addr.lat} onChange={setAddr_("lat")} placeholder="e.g. 12.927165" />
+              </div>
+              <div>
+                <FieldLabel>Longitude</FieldLabel>
+                <TextInput value={addr.lng} onChange={setAddr_("lng")} placeholder="e.g. 77.738027" />
+              </div>
+            </div>
           </div>
         </div>
       </SectionCard>
