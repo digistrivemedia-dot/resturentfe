@@ -6,18 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Trash2, Plus, Minus, Tag, ChevronRight,
   ShoppingBag, AlertCircle, Pencil, X, MessageSquare,
-  Bike, UtensilsCrossed, Package, Store,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
 import CouponModal from "@/components/customer/CouponModal";
 import useCartStore from "@/stores/cartStore";
-
-const ORDER_TYPES = [
-  { id: "delivery", label: "Delivery", desc: "Bring it to my address", icon: Bike },
-  { id: "dine_in", label: "Dine-in", desc: "Visit and enjoy at the restaurant", icon: UtensilsCrossed },
-  { id: "pickup", label: "Takeout", desc: "Pick up and take away", icon: Package },
-  { id: "self_service", label: "Self Service", desc: "I'm at the restaurant, collect myself", icon: Store },
-];
+import { ORDER_TYPES } from "@/constants";
 
 export default function CartPage() {
   const router = useRouter();
@@ -25,10 +18,12 @@ export default function CartPage() {
   const [clearWarning, setClearWarning] = useState(false);
 
   const {
-    restaurant, items, coupon, orderType,
+    restaurant, items, coupon, orderType, orderTypeLocked,
     removeItem, updateQuantity, removeCoupon, setOrderType, clearCart,
     getSubtotal, getCouponDiscount, getTotal,
   } = useCartStore();
+
+  const selectedOrderType = ORDER_TYPES.find((t) => t.id === orderType);
 
   const subtotal = getSubtotal();
   const couponDiscount = getCouponDiscount();
@@ -72,27 +67,45 @@ export default function CartPage() {
         </div>
 
         {/* ── Order type ── */}
-        <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden mb-5">
-          <div className="px-4 pt-4 pb-2">
-            <h2 className="text-sm font-bold text-text-primary">How would you like your order?</h2>
+        {orderTypeLocked ? (
+          <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-3.5 mb-5 flex items-center gap-3">
+            {selectedOrderType && (
+              <selectedOrderType.icon size={18} className="text-primary shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text-primary">{selectedOrderType?.label}</p>
+              <p className="text-xs text-text-tertiary">{selectedOrderType?.desc}</p>
+            </div>
+            <Link
+              href={`/quick-order/order-type?restaurant=${restaurant.slug}`}
+              className="text-xs font-semibold text-primary hover:underline shrink-0"
+            >
+              Change
+            </Link>
           </div>
-          <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-            {ORDER_TYPES.map(({ id, label, desc, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setOrderType(id)}
-                className={`text-left p-3 rounded-[var(--radius-lg)] border-2 transition-all ${
-                  orderType === id ? "border-primary bg-primary-50" : "border-border-light hover:border-border-default"
-                }`}
-              >
-                <Icon size={18} className={orderType === id ? "text-primary" : "text-text-secondary"} />
-                <p className="text-sm font-semibold text-text-primary mt-2">{label}</p>
-                <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">{desc}</p>
-              </button>
-            ))}
+        ) : (
+          <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden mb-5">
+            <div className="px-4 pt-4 pb-2">
+              <h2 className="text-sm font-bold text-text-primary">How would you like your order?</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+              {ORDER_TYPES.map(({ id, label, desc, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setOrderType(id)}
+                  className={`text-left p-3 rounded-[var(--radius-lg)] border-2 transition-all ${
+                    orderType === id ? "border-primary bg-primary-50" : "border-border-light hover:border-border-default"
+                  }`}
+                >
+                  <Icon size={18} className={orderType === id ? "text-primary" : "text-text-secondary"} />
+                  <p className="text-sm font-semibold text-text-primary mt-2">{label}</p>
+                  <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">{desc}</p>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Cart Items ── */}
         <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden mb-4">

@@ -1,6 +1,16 @@
+import { Bike, UtensilsCrossed, Package, Store } from "lucide-react";
+
 // App info
 export const APP_NAME = "Sri Isha Cafe";
 export const APP_TAGLINE = "Delicious food, delivered fast";
+
+// How the customer wants to receive their order
+export const ORDER_TYPES = [
+  { id: "delivery", label: "Delivery", desc: "Bring it to my address", icon: Bike },
+  { id: "dine_in", label: "Dine-in", desc: "Visit and enjoy at the restaurant", icon: UtensilsCrossed },
+  { id: "pickup", label: "Takeout", desc: "Pick up and take away", icon: Package },
+  { id: "self_service", label: "Self Service", desc: "I'm at the restaurant, collect myself", icon: Store },
+];
 
 // API
 export const API_BASE_URL =

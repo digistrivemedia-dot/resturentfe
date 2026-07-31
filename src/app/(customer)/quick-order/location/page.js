@@ -237,7 +237,7 @@ export default function QuickOrderLocationPage() {
             ) : (
               <div className="space-y-3">
                 {restaurants.map((r) => (
-                  <RestaurantCard key={r._id} restaurant={r} variant="horizontal" linkHref={`/quick-order/menu?restaurant=${r.slug}`} />
+                  <RestaurantCard key={r._id} restaurant={r} variant="horizontal" linkHref={`/quick-order/order-type?restaurant=${r.slug}`} />
                 ))}
               </div>
             )}

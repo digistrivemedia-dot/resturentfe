@@ -9,6 +9,9 @@ const useCartStore = create(
       coupon: null, // { code, discount, type, value }
       tip: 0,
       orderType: "delivery", // delivery | dine_in | pickup | self_service
+      // true once the order type was chosen up-front via the quick-order flow —
+      // cart hides its own order-type picker in that case (already decided)
+      orderTypeLocked: false,
 
       // Add item to cart
       addItem: (restaurant, item) => {
@@ -21,6 +24,7 @@ const useCartStore = create(
             items: [{ ...item, cartId: Date.now().toString() }],
             coupon: null,
             tip: 0,
+            orderTypeLocked: false,
           });
           return "switched"; // Signal that restaurant was switched
         }
@@ -36,10 +40,12 @@ const useCartStore = create(
       removeItem: (cartId) =>
         set((state) => {
           const newItems = state.items.filter((i) => i.cartId !== cartId);
+          const isEmpty = newItems.length === 0;
           return {
             items: newItems,
-            restaurant: newItems.length === 0 ? null : state.restaurant,
-            coupon: newItems.length === 0 ? null : state.coupon,
+            restaurant: isEmpty ? null : state.restaurant,
+            coupon: isEmpty ? null : state.coupon,
+            orderTypeLocked: isEmpty ? false : state.orderTypeLocked,
           };
         }),
 
@@ -48,9 +54,11 @@ const useCartStore = create(
         set((state) => {
           if (quantity <= 0) {
             const newItems = state.items.filter((i) => i.cartId !== cartId);
+            const isEmpty = newItems.length === 0;
             return {
               items: newItems,
-              restaurant: newItems.length === 0 ? null : state.restaurant,
+              restaurant: isEmpty ? null : state.restaurant,
+              orderTypeLocked: isEmpty ? false : state.orderTypeLocked,
             };
           }
           return {
@@ -86,9 +94,18 @@ const useCartStore = create(
           tip: orderType === "delivery" ? state.tip : 0,
         })),
 
+      // Set order type via the quick-order flow's dedicated selection page —
+      // locks it in so the cart page doesn't ask again
+      confirmQuickOrderType: (orderType) =>
+        set((state) => ({
+          orderType,
+          tip: orderType === "delivery" ? state.tip : 0,
+          orderTypeLocked: true,
+        })),
+
       // Clear entire cart
       clearCart: () =>
-        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery" }),
+        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery", orderTypeLocked: false }),
 
       // Computed values
       getItemCount: () => {

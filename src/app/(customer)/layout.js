@@ -6,6 +6,7 @@ import BottomNav from "@/components/customer/BottomNav";
 import LiveOrderBar from "@/components/customer/LiveOrderBar";
 import CartBar from "@/components/customer/CartBar";
 import ProtectedRoute from "@/components/ui/ProtectedRoute";
+import { isBottomNavHidden } from "@/lib/navVisibility";
 
 // Auth pages — no layout chrome
 const AUTH_PATHS = ["/login", "/verify-otp", "/complete-profile"];
@@ -24,6 +25,7 @@ export default function CustomerLayout({ children }) {
 
   const isBrowse = BROWSE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const showCartBar = !HIDE_CARTBAR_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const mainPaddingBottom = isBottomNavHidden(pathname) ? 0 : "var(--bottom-nav-height)";
 
   // Browsable pages: show header/nav, no auth gate
   if (isBrowse) {
@@ -32,7 +34,7 @@ export default function CustomerLayout({ children }) {
         <Header />
         <main
           className="flex-1"
-          style={{ paddingBottom: "var(--bottom-nav-height)" }}
+          style={{ paddingBottom: mainPaddingBottom }}
         >
           <div
             className="mx-auto px-4 md:px-6"
@@ -54,7 +56,7 @@ export default function CustomerLayout({ children }) {
       <Header />
       <main
         className="flex-1"
-        style={{ paddingBottom: "var(--bottom-nav-height)" }}
+        style={{ paddingBottom: mainPaddingBottom }}
       >
         <div
           className="mx-auto px-4 md:px-6"

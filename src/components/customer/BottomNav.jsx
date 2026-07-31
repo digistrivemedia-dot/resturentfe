@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Search, ClipboardList, User } from "lucide-react";
+import { isBottomNavHidden } from "@/lib/navVisibility";
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
@@ -14,14 +15,7 @@ const navItems = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  // Don't show on auth pages
-  const hideOn = ["/login", "/verify-otp", "/complete-profile", "/checkout", "/payment", "/quick-order/location"];
-  if (hideOn.some((path) => pathname.startsWith(path))) {
-    return null;
-  }
-
-  // Don't show on order tracking page
-  if (pathname.match(/\/order\/.*\/track/)) {
+  if (isBottomNavHidden(pathname)) {
     return null;
   }
 

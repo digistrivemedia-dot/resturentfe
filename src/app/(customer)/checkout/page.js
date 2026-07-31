@@ -585,7 +585,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* Place Order */}
-      <div className="sticky bottom-[var(--bottom-nav-height)] md:bottom-4 -mx-4 px-4 pb-2 pt-1 bg-bg-primary/80 backdrop-blur-sm">
+      <div className="sticky bottom-0 md:bottom-4 -mx-4 px-4 pb-2 pt-1 bg-bg-primary/80 backdrop-blur-sm">
         <button
           onClick={handlePlaceOrder}
           disabled={loading || isPlacing}

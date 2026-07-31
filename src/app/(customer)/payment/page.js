@@ -244,7 +244,7 @@ function PaymentContent() {
       </div>
 
       {/* Pay CTA */}
-      <div className="sticky bottom-[var(--bottom-nav-height)] md:bottom-4 -mx-4 px-4 pb-2 pt-1 bg-bg-primary/80 backdrop-blur-sm">
+      <div className="sticky bottom-0 md:bottom-4 -mx-4 px-4 pb-2 pt-1 bg-bg-primary/80 backdrop-blur-sm">
         <button
           onClick={handlePay}
           disabled={stage !== "idle"}
