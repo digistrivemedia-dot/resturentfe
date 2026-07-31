@@ -134,8 +134,10 @@ export default function CheckoutPage() {
   const restaurantAddress = restaurant?.address || {};
 
   const handlePlaceOrder = async () => {
-    if (isDelivery && !selectedAddr && !currentLocation) {
-      toast.error("Please add a delivery address first");
+    // GPS/pincode location alone (e.g. from the quick-order flow) isn't a real deliverable
+    // address — it has no house/flat number or landmark. A proper saved address is required.
+    if (isDelivery && !selectedAddr) {
+      toast.error("Please add your delivery address (house/flat no. and area) before placing the order");
       return;
     }
     if (isDelivery && isServiceabilityChecked && !serviceability.serviceable) {
@@ -161,12 +163,12 @@ export default function CheckoutPage() {
         orderType,
         ...(!isDelivery ? {} : {
           deliveryAddress: {
-            label: selectedAddr?.label || "Current Location",
-            fullAddress: selectedAddr?.fullAddress || currentLocation?.fullAddress || "",
-            landmark: selectedAddr?.landmark || "",
-            pincode: selectedAddr?.pincode || currentLocation?.pincode || "",
-            lat: selectedAddr?.lat || currentLocation?.lat,
-            lng: selectedAddr?.lng || currentLocation?.lng,
+            label: selectedAddr.label,
+            fullAddress: selectedAddr.fullAddress,
+            landmark: selectedAddr.landmark || "",
+            pincode: selectedAddr.pincode || "",
+            lat: selectedAddr.lat ?? currentLocation?.lat,
+            lng: selectedAddr.lng ?? currentLocation?.lng,
           },
         }),
         scheduledFor: scheduleMode === "scheduled" ? new Date(scheduledFor).toISOString() : null,

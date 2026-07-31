@@ -14,8 +14,9 @@ const AUTH_PATHS = ["/login", "/verify-otp", "/complete-profile"];
 // Browsable without login — show header/nav but no auth gate
 const BROWSE_PATHS = ["/home", "/search", "/restaurant", "/category", "/quick-order"];
 
-// Pages where the floating "view cart" bar shouldn't show (already on/past cart)
-const HIDE_CARTBAR_PATHS = ["/cart", "/checkout", "/payment", "/quick-order/location"];
+// Pages where the floating "view cart" bar shouldn't show (already on/past cart,
+// or the page has its own bottom-positioned action button it would overlap)
+const HIDE_CARTBAR_PATHS = ["/cart", "/checkout", "/payment", "/quick-order/location", "/address/new"];
 
 export default function CustomerLayout({ children }) {
   const pathname = usePathname();
