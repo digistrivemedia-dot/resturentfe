@@ -36,51 +36,68 @@ export default function QuickOrderLocationPage() {
 
   const savedAddresses = user?.addresses || [];
 
+  const resolvePosition = async (position) => {
+    const { latitude, longitude } = position.coords;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await res.json();
+      const a = data.address || {};
+      const pincode = getPincode(a);
+      const area = [
+        a.road || a.pedestrian || a.suburb,
+        a.city_district || a.neighbourhood,
+      ].filter(Boolean).join(", ");
+      const city = a.city || a.town || a.village || "";
+
+      const loc = {
+        lat: latitude,
+        lng: longitude,
+        area: area || data.display_name || "Current Location",
+        city,
+        pincode,
+        fullAddress: data.display_name || "",
+      };
+      setDetectedLocation(loc);
+      setSelected({ type: "current", data: loc });
+      setStatus("detected");
+    } catch {
+      const loc = { lat: latitude, lng: longitude, area: "Current Location", city: "", pincode: "", fullAddress: "" };
+      setDetectedLocation(loc);
+      setSelected({ type: "current", data: loc });
+      setStatus("detected");
+    }
+  };
+
   const detectLocation = () => {
     if (!navigator.geolocation) {
       setStatus("error");
       return;
     }
     setStatus("detecting");
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
-            { headers: { "Accept-Language": "en" } }
-          );
-          const data = await res.json();
-          const a = data.address || {};
-          const pincode = getPincode(a);
-          const area = [
-            a.road || a.pedestrian || a.suburb,
-            a.city_district || a.neighbourhood,
-          ].filter(Boolean).join(", ");
-          const city = a.city || a.town || a.village || "";
 
-          const loc = {
-            lat: latitude,
-            lng: longitude,
-            area: area || data.display_name || "Current Location",
-            city,
-            pincode,
-            fullAddress: data.display_name || "",
-          };
-          setDetectedLocation(loc);
-          setSelected({ type: "current", data: loc });
-          setStatus("detected");
-        } catch {
-          const loc = { lat: latitude, lng: longitude, area: "Current Location", city: "", pincode: "", fullAddress: "" };
-          setDetectedLocation(loc);
-          setSelected({ type: "current", data: loc });
-          setStatus("detected");
-        }
-      },
+    // First attempt: fast high-accuracy GPS fix. Real devices (weak signal, indoors,
+    // cold GPS chip) can easily exceed a short timeout here — that's not a permission
+    // problem, so instead of failing outright we fall back to a much faster
+    // network/cell-tower based fix, which is plenty precise for picking a delivery area.
+    navigator.geolocation.getCurrentPosition(
+      resolvePosition,
       (err) => {
-        setStatus(err.code === 1 ? "denied" : "error");
+        if (err.code === 1) {
+          setStatus("denied");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          resolvePosition,
+          (err2) => {
+            setStatus(err2.code === 1 ? "denied" : "error");
+          },
+          { timeout: 15000, enableHighAccuracy: false, maximumAge: 60000 }
+        );
       },
-      { timeout: 10000, enableHighAccuracy: true }
+      { timeout: 8000, enableHighAccuracy: true, maximumAge: 60000 }
     );
   };
 
@@ -214,7 +231,7 @@ export default function QuickOrderLocationPage() {
           {status === "error" && (
             <div className="flex items-start gap-2.5 bg-error-light border border-error/20 rounded-[var(--radius-lg)] px-4 py-3 mt-2">
               <AlertCircle size={16} className="text-error shrink-0 mt-0.5" />
-              <p className="text-sm text-text-secondary">Couldn&apos;t detect your location. Try again, or enter your pincode manually below.</p>
+              <p className="text-sm text-text-secondary">Couldn&apos;t detect your location. Make sure Location/GPS is turned on for your phone, try again, or enter your pincode manually below.</p>
             </div>
           )}
         </div>
