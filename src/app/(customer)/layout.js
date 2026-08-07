@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/customer/Header";
 import BottomNav from "@/components/customer/BottomNav";
@@ -7,6 +8,7 @@ import LiveOrderBar from "@/components/customer/LiveOrderBar";
 import CartBar from "@/components/customer/CartBar";
 import ProtectedRoute from "@/components/ui/ProtectedRoute";
 import { isBottomNavHidden } from "@/lib/navVisibility";
+import usePlatformFeeStore from "@/stores/platformFeeStore";
 
 // Auth pages — no layout chrome
 const AUTH_PATHS = ["/login", "/verify-otp", "/complete-profile"];
@@ -20,6 +22,11 @@ const HIDE_CARTBAR_PATHS = ["/cart", "/checkout", "/payment", "/quick-order/loca
 
 export default function CustomerLayout({ children }) {
   const pathname = usePathname();
+  const fetchPlatformFee = usePlatformFeeStore((s) => s.fetchPlatformFee);
+
+  useEffect(() => {
+    fetchPlatformFee();
+  }, [fetchPlatformFee]);
 
   const isAuth = AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
   if (isAuth) return <>{children}</>;

@@ -13,6 +13,7 @@ import useCartStore from "@/stores/cartStore";
 import useLocationStore from "@/stores/locationStore";
 import useAuthStore from "@/stores/authStore";
 import useOrderStore from "@/stores/orderStore";
+import usePlatformFeeStore from "@/stores/platformFeeStore";
 import { TIP_OPTIONS } from "@/constants";
 import api from "@/lib/api";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
@@ -59,6 +60,7 @@ export default function CheckoutPage() {
   const { user, fetchMe } = useAuthStore();
   const { placeOrder, isPlacing } = useOrderStore();
   const { savedAddresses, currentLocation } = useLocationStore();
+  const { enabled: platformFeeEnabled, amount: platformFeeAmount, fetchPlatformFee } = usePlatformFeeStore();
 
   // Use user addresses from API, fall back to location store
   const addresses = user?.addresses?.length > 0 ? user.addresses : savedAddresses || [];
@@ -74,6 +76,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     fetchMe();
   }, [fetchMe]);
+
+  useEffect(() => {
+    fetchPlatformFee();
+  }, [fetchPlatformFee]);
 
   const isDelivery = orderType === "delivery";
   const dropLat = selectedAddr?.lat || currentLocation?.lat;
@@ -116,7 +122,7 @@ export default function CheckoutPage() {
   const hasFlashDeliveryCost = isDelivery && isServiceabilityChecked && serviceability.serviceable && serviceability.deliveryCost != null;
   const deliveryFee = hasFlashDeliveryCost ? serviceability.deliveryCost : staticDeliveryFee;
   const tax = getTaxAmount();
-  const platformFee = 3;
+  const platformFee = platformFeeEnabled ? platformFeeAmount : 0;
   const rawCouponDiscount = coupon?.type === "free_delivery"
     ? deliveryFee
     : getCouponDiscount();
@@ -557,7 +563,7 @@ export default function CheckoutPage() {
                 : deliveryFee === 0 ? "FREE" : `₹${Math.round(deliveryFee)}`,
               cls: !isCheckingServiceability && deliveryFee === 0 ? "text-success font-semibold" : "",
             },
-            { label: "Platform fee", val: `₹${platformFee}` },
+            platformFee > 0 ? { label: "Platform fee", val: `₹${platformFee}` } : null,
             { label: "GST (5%)", val: `₹${Math.round(tax)}` },
             effectiveTip > 0 ? { label: "Delivery tip", val: `₹${effectiveTip}` } : null,
             membershipDiscount > 0 ? { label: "Membership discount (20%)", val: `-₹${Math.round(membershipDiscount)}`, cls: "text-success font-semibold" } : null,

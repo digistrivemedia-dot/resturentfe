@@ -416,6 +416,8 @@ function PaymentsTab({ showToast }) {
   const [payoutFreq, setPayoutFreq] = useState("weekly");
   const [payoutThreshold, setPayoutThreshold] = useState("500");
   const [commission, setCommission] = useState("18");
+  const [platformFeeEnabled, setPlatformFeeEnabled] = useState(true);
+  const [platformFeeAmount, setPlatformFeeAmount] = useState("3");
   const [membershipPrice, setMembershipPrice] = useState("299");
   const [membershipDiscountPercent, setMembershipDiscountPercent] = useState("20");
   const [membershipDurationDays, setMembershipDurationDays] = useState("30");
@@ -440,6 +442,8 @@ function PaymentsTab({ showToast }) {
       if (settings.payoutFreq) setPayoutFreq(settings.payoutFreq);
       if (settings.payoutThreshold) setPayoutThreshold(String(settings.payoutThreshold));
       if (settings.commission) setCommission(String(settings.commission));
+      if (settings.platformFeeEnabled?.value !== undefined) setPlatformFeeEnabled(!!settings.platformFeeEnabled.value);
+      if (settings.platformFeeAmount?.value !== undefined) setPlatformFeeAmount(String(settings.platformFeeAmount.value));
       if (settings.membershipPrice?.value !== undefined) setMembershipPrice(String(settings.membershipPrice.value));
       if (settings.membershipDiscountPercent?.value !== undefined) setMembershipDiscountPercent(String(settings.membershipDiscountPercent.value));
       if (settings.membershipDurationDays?.value !== undefined) setMembershipDurationDays(String(settings.membershipDurationDays.value));
@@ -457,6 +461,8 @@ function PaymentsTab({ showToast }) {
         payoutFreq,
         payoutThreshold: Number(payoutThreshold),
         commission: Number(commission),
+        platformFeeEnabled: { value: platformFeeEnabled, category: "payments" },
+        platformFeeAmount: { value: Number(platformFeeAmount), category: "payments" },
         membershipPrice: { value: Number(membershipPrice), category: "payments" },
         membershipDiscountPercent: { value: Number(membershipDiscountPercent), category: "payments" },
         membershipDurationDays: { value: Number(membershipDurationDays), category: "payments" },
@@ -555,6 +561,24 @@ function PaymentsTab({ showToast }) {
             </span>
           </div>
         </Field>
+      </SectionCard>
+
+      <SectionCard title="Platform Fee">
+        <ToggleRow
+          label="Charge Platform Fee"
+          hint="Flat fee added to every customer order at checkout, across web and mobile"
+          checked={platformFeeEnabled}
+          onChange={setPlatformFeeEnabled}
+        />
+        {platformFeeEnabled && (
+          <div className="mt-4 pl-4 border-l-2 border-[#FF5722]/30">
+            <Field label="Platform Fee Amount (₹)" hint="Flat amount charged to the customer per order">
+              <div className="w-40">
+                <TextInput value={platformFeeAmount} onChange={setPlatformFeeAmount} type="number" placeholder="3" />
+              </div>
+            </Field>
+          </div>
+        )}
       </SectionCard>
 
       <SectionCard title="Membership">

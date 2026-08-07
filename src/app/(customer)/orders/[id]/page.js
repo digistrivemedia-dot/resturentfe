@@ -280,7 +280,7 @@ export default function OrderDetailPage({ params }) {
               value={p.deliveryFee === 0 ? "FREE" : `₹${p.deliveryFee}`}
               valueClass={p.deliveryFee === 0 ? "text-success font-semibold" : ""}
             />
-            <BillRow label="Platform fee" value={`₹${p.platformFee}`} />
+            {p.platformFee > 0 && <BillRow label="Platform fee" value={`₹${p.platformFee}`} />}
             <BillRow label={`GST (${p.taxPercentage}%)`} value={`₹${p.taxAmount}`} />
             {p.packagingCharge > 0 && <BillRow label="Packaging" value={`₹${p.packagingCharge}`} />}
             {p.tip > 0 && <BillRow label="Delivery tip" value={`₹${p.tip}`} />}

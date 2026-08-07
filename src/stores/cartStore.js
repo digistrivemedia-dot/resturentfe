@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import usePlatformFeeStore from "./platformFeeStore";
 
 const useCartStore = create(
   persist(
@@ -163,7 +164,8 @@ const useCartStore = create(
         const tax = get().getTaxAmount();
         const couponDiscount = get().getCouponDiscount();
         const { tip } = get();
-        const platformFee = 3; // Fixed platform fee
+        const { enabled: platformFeeEnabled, amount: platformFeeAmount } = usePlatformFeeStore.getState();
+        const platformFee = platformFeeEnabled ? platformFeeAmount : 0;
         return Math.max(
           0,
           subtotal + deliveryFee + tax - couponDiscount + tip + platformFee
