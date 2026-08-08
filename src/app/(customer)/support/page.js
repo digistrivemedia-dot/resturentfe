@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, ChevronDown, ChevronUp, Mail, Phone,
-  MessageCircle, Send, CheckCircle2, Loader2,
-  HelpCircle, Package, CreditCard, MapPin, Star, AlertCircle,
+  HelpCircle, Package, CreditCard, MapPin, Star,
+  Clock, CheckCheck, Loader2, MessageCircle,
 } from "lucide-react";
+import useSupportTicketStore from "@/stores/supportTicketStore";
 
 const FAQ_SECTIONS = [
   {
@@ -30,7 +31,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: "What if items are missing from my order?",
-        a: "If any items are missing, go to the order in 'My Orders', tap 'Get Help', and report the issue. We'll investigate and offer a refund or re-delivery.",
+        a: "Open the order in 'My Orders' and tap 'Get Help' — you can report the exact item(s) affected and the restaurant will follow up directly.",
       },
     ],
   },
@@ -84,34 +85,47 @@ const FAQ_SECTIONS = [
   },
 ];
 
-const ACTIVE_TICKETS = [
-  {
-    _id: "ticket_001",
-    issue: "Missing item in order ORD-20260606-001",
-    status: "in_progress",
-    updatedAt: "2 hours ago",
-  },
-];
+const STATUS_META = {
+  open: { label: "Open", color: "text-warning", bg: "bg-warning-light", icon: Clock },
+  resolved: { label: "Resolved", color: "text-success", bg: "bg-success-light", icon: CheckCheck },
+};
+
+function TicketRow({ ticket }) {
+  const s = STATUS_META[ticket.status] || STATUS_META.open;
+  const Icon = s.icon;
+  return (
+    <Link
+      href={`/orders/${ticket.order?._id}/support?ticket=${ticket._id}`}
+      className="flex items-start gap-3 bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-3.5 hover:border-primary/40 transition-all"
+    >
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${s.bg}`}>
+        <Icon size={15} className={s.color} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-text-primary truncate">{ticket.categoryLabel}</p>
+        <p className="text-xs text-text-tertiary mt-0.5 truncate">{ticket.subCategoryLabel}</p>
+        <p className="text-xs text-text-tertiary mt-1">
+          Order #{ticket.order?.orderNumber} · {ticket.restaurant?.name}
+        </p>
+      </div>
+      <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${s.bg} ${s.color}`}>{s.label}</span>
+    </Link>
+  );
+}
 
 export default function SupportPage() {
   const router = useRouter();
-  const [openFaq, setOpenFaq] = useState(null); // "sectionIdx-faqIdx"
-  const [form, setForm] = useState({ subject: "", message: "" });
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
+  const { myTickets, isLoading, fetchMyTickets } = useSupportTicketStore();
+
+  useEffect(() => {
+    fetchMyTickets();
+  }, [fetchMyTickets]);
 
   const toggleFaq = (key) => setOpenFaq((prev) => (prev === key ? null : key));
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!form.subject.trim() || !form.message.trim()) return;
-    setSending(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setSending(false);
-    setSent(true);
-    setForm({ subject: "", message: "" });
-    setTimeout(() => setSent(false), 4000);
-  };
+  const liveIssues = myTickets.filter((t) => t.status === "open");
+  const pastIssues = myTickets.filter((t) => t.status === "resolved");
 
   return (
     <div className="py-4 max-w-lg mx-auto space-y-5">
@@ -152,25 +166,44 @@ export default function SupportPage() {
         </a>
       </div>
 
-      {/* Active tickets */}
-      {ACTIVE_TICKETS.length > 0 && (
-        <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
-          <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-            <AlertCircle size={15} className="text-warning" />
-            <p className="text-sm font-bold text-text-primary">Active Issues</p>
-          </div>
-          {ACTIVE_TICKETS.map((t) => (
-            <div key={t._id} className="px-4 pb-4">
-              <div className="bg-warning-light rounded-[var(--radius-lg)] px-3 py-3 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-primary">{t.issue}</p>
-                  <p className="text-xs text-text-tertiary mt-0.5">Updated {t.updatedAt}</p>
-                </div>
-                <span className="text-xs font-bold text-warning bg-white px-2 py-1 rounded-full">In Progress</span>
-              </div>
-            </div>
-          ))}
+      {/* Live + Past issues (real data) */}
+      {isLoading && myTickets.length === 0 ? (
+        <div className="flex items-center justify-center py-6">
+          <Loader2 size={20} className="text-primary animate-spin" />
         </div>
+      ) : (
+        <>
+          {liveIssues.length > 0 && (
+            <div className="space-y-2.5">
+              <h2 className="text-base font-bold text-text-primary px-1">Live Issues</h2>
+              {liveIssues.map((t) => <TicketRow key={t._id} ticket={t} />)}
+            </div>
+          )}
+
+          {pastIssues.length > 0 && (
+            <div className="space-y-2.5">
+              <h2 className="text-base font-bold text-text-primary px-1">Past Issues</h2>
+              {pastIssues.map((t) => <TicketRow key={t._id} ticket={t} />)}
+            </div>
+          )}
+
+          {myTickets.length === 0 && (
+            <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-6 text-center">
+              <MessageCircle size={26} className="text-text-tertiary mx-auto mb-2" />
+              <p className="text-sm font-semibold text-text-primary">No issues reported yet</p>
+              <p className="text-xs text-text-tertiary mt-1">
+                Open an order and tap &quot;Get Help&quot; to report a problem with it.
+              </p>
+            </div>
+          )}
+
+          <Link
+            href="/orders"
+            className="flex items-center justify-center gap-2 h-11 border-2 border-primary text-primary text-sm font-bold rounded-[var(--radius-xl)] hover:bg-primary-50 transition-colors"
+          >
+            <HelpCircle size={15} /> Report an issue with an order
+          </Link>
+        </>
       )}
 
       {/* FAQs */}
@@ -221,60 +254,6 @@ export default function SupportPage() {
             </div>
           );
         })}
-      </div>
-
-      {/* Contact form */}
-      <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-5">
-        <div className="flex items-center gap-2 mb-4">
-          <MessageCircle size={16} className="text-primary" />
-          <h2 className="text-sm font-bold text-text-primary">Send us a message</h2>
-        </div>
-
-        {sent ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center gap-3">
-            <div className="w-14 h-14 bg-success-light rounded-full flex items-center justify-center">
-              <CheckCircle2 size={28} className="text-success" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-text-primary">Message sent!</p>
-              <p className="text-xs text-text-secondary mt-1">We'll reply within 24 hours.</p>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSend} className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-text-primary mb-1.5">Subject</label>
-              <select
-                value={form.subject}
-                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
-                className="w-full h-11 px-4 text-sm border border-border-light rounded-[var(--radius-lg)] bg-bg-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors appearance-none"
-              >
-                <option value="">Select a topic</option>
-                <option value="order">Order issue</option>
-                <option value="payment">Payment / Refund</option>
-                <option value="account">Account</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-primary mb-1.5">Message</label>
-              <textarea
-                value={form.message}
-                onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-                placeholder="Describe your issue in detail…"
-                rows={4}
-                className="w-full px-4 py-3 text-sm border border-border-light rounded-[var(--radius-lg)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={sending || !form.subject || !form.message.trim()}
-              className="w-full h-11 bg-primary text-white font-bold text-sm rounded-[var(--radius-xl)] flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors disabled:opacity-50"
-            >
-              {sending ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <><Send size={15} /> Send Message</>}
-            </button>
-          </form>
-        )}
       </div>
 
       <div className="h-2" />

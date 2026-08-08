@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Phone, MapPin, Clock,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
-  Navigation, Shield, Loader2, ExternalLink,
+  Navigation, Shield, Loader2, ExternalLink, HelpCircle,
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
 import { connectSocket } from "@/lib/socket";
@@ -262,9 +262,14 @@ export default function TrackOrderPage({ params }) {
                 {STATUS_STEPS[currentStepIdx]?.desc}
               </p>
             </div>
-            <Link href={`/orders/${order._id}`} className="text-xs text-primary font-semibold hover:underline flex items-center gap-0.5">
-              Details <ChevronDown size={12} className="-rotate-90" />
-            </Link>
+            <div className="flex items-center gap-3 shrink-0">
+              <Link href={`/orders/${order._id}/support`} className="text-xs text-text-secondary font-semibold hover:text-primary flex items-center gap-1">
+                <HelpCircle size={13} /> Help
+              </Link>
+              <Link href={`/orders/${order._id}`} className="text-xs text-primary font-semibold hover:underline flex items-center gap-0.5">
+                Details <ChevronDown size={12} className="-rotate-90" />
+              </Link>
+            </div>
           </div>
 
           {/* Rider info (shown when out for delivery) */}

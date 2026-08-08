@@ -377,23 +377,33 @@ export default function OrderDetailPage({ params }) {
           >
             <RefreshCw size={15} /> Reorder
           </Link>
-          {isDelivered && !order.rating && (
+          {isDelivered && !order.rating ? (
             <button
               onClick={() => setRateOpen(true)}
               className="flex items-center justify-center gap-2 h-11 bg-warning text-white text-sm font-bold rounded-[var(--radius-xl)] hover:bg-warning/90 transition-colors"
             >
               <Star size={15} /> Rate Order
             </button>
-          )}
-          {(!isDelivered || order.rating) && (
+          ) : (
             <Link
-              href="/support"
+              href={`/orders/${order._id}/support`}
               className="flex items-center justify-center gap-2 h-11 border border-border-light text-text-secondary text-sm font-medium rounded-[var(--radius-xl)] hover:bg-bg-hover transition-colors"
             >
               <HelpCircle size={15} /> Get Help
             </Link>
           )}
         </div>
+
+        {/* Get Help is always available, even before rating — shown as its own row
+            when the grid above is occupied by the Rate Order button */}
+        {isDelivered && !order.rating && (
+          <Link
+            href={`/orders/${order._id}/support`}
+            className="flex items-center justify-center gap-2 h-11 border border-border-light text-text-secondary text-sm font-medium rounded-[var(--radius-xl)] hover:bg-bg-hover transition-colors"
+          >
+            <HelpCircle size={15} /> Get Help
+          </Link>
+        )}
 
         <div className="h-2" />
       </div>

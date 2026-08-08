@@ -6,11 +6,14 @@ import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Puzzle,
   FolderOpen, Ticket, Star, BarChart3, Store, Settings,
   HelpCircle, CreditCard, ChevronLeft, Menu, ChevronDown, X,
+  MessageCircleWarning,
 } from "lucide-react";
 import { APP_NAME } from "@/constants";
 import useUiStore from "@/stores/uiStore";
 import useRestaurantDashboardStore from "@/stores/restaurantDashboardStore";
-import { useState } from "react";
+import useRestaurantSupportStore from "@/stores/restaurantSupportStore";
+import { connectSocket } from "@/lib/socket";
+import { useState, useEffect } from "react";
 
 function NavItem({ item, collapsed, pathname, openGroup, setOpenGroup }) {
   if (item.children) {
@@ -102,6 +105,7 @@ const menuItems = [
       { href: "/restaurant/analytics/items",  label: "Item Performance" },
     ],
   },
+  { href: "/restaurant/customer-issues", label: "Customer Issues", icon: MessageCircleWarning }, // badge injected below
   { href: "/restaurant/profile",  label: "Profile",   icon: Store },
   { href: "/restaurant/payments", label: "Payments",  icon: CreditCard },
   { href: "/restaurant/settings", label: "Settings",  icon: Settings },
@@ -120,9 +124,33 @@ export default function Sidebar() {
     ? liveOrders.filter((o) => o.status === "placed").length
     : (stats?.pendingOrders ?? 0);
 
-  const navItems = menuItems.map((item) =>
-    item.href === "/restaurant/orders" ? { ...item, badge: pendingCount } : item
-  );
+  // Open customer-issues badge — fetched here (sidebar mounts for the whole
+  // restaurant section) so it's accurate without needing to visit the page first.
+  const { tickets, fetchTickets, upsertTicket } = useRestaurantSupportStore();
+  const openIssuesCount = tickets.filter((t) => t.status === "open").length;
+
+  useEffect(() => {
+    // Fetch the full (unfiltered) list — the Customer Issues page reads/writes
+    // this same store slice, and if either side fetched a status-filtered subset
+    // it would clobber the other's view of the data. Filter client-side instead.
+    fetchTickets("all");
+    const socket = connectSocket();
+    const onNew = ({ ticket }) => upsertTicket(ticket);
+    const onUpdated = ({ ticket }) => upsertTicket(ticket);
+    socket.on("new_support_ticket", onNew);
+    socket.on("support_ticket_updated", onUpdated);
+    return () => {
+      socket.off("new_support_ticket", onNew);
+      socket.off("support_ticket_updated", onUpdated);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navItems = menuItems.map((item) => {
+    if (item.href === "/restaurant/orders") return { ...item, badge: pendingCount };
+    if (item.href === "/restaurant/customer-issues") return { ...item, badge: openIssuesCount };
+    return item;
+  });
 
   return (
     <>
