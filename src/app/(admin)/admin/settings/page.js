@@ -279,6 +279,12 @@ function PlatformTab({ showToast }) {
     currency: "INR",
     language: "en",
   });
+  const [orderTypesEnabled, setOrderTypesEnabled] = useState({
+    delivery: true,
+    dine_in: true,
+    pickup: true,
+    self_service: true,
+  });
   const [loading, setLoading] = useState(false);
 
   // Fetch platform settings on mount and merge into form
@@ -308,15 +314,36 @@ function PlatformTab({ showToast }) {
         currency: settings.currency ?? prev.currency,
         language: settings.language ?? prev.language,
       }));
+      if (settings.orderTypesEnabled?.value) {
+        setOrderTypesEnabled((prev) => ({ ...prev, ...settings.orderTypesEnabled.value }));
+      }
     }
   }, [settings]);
 
   const set = (key) => (val) => setForm((p) => ({ ...p, [key]: val }));
+  const toggleOrderType = (key) =>
+    setOrderTypesEnabled((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      const stillHasOneEnabled = Object.values(next).some(Boolean);
+      if (!stillHasOneEnabled) {
+        showToast("At least one order type must stay enabled — customers need a way to order", "error");
+        return prev;
+      }
+      return next;
+    });
 
   async function save() {
+    if (!Object.values(orderTypesEnabled).some(Boolean)) {
+      showToast("At least one order type must stay enabled — customers need a way to order", "error");
+      return;
+    }
     setLoading(true);
     try {
-      await updateSettings({ category: "platform", ...form });
+      await updateSettings({
+        category: "platform",
+        ...form,
+        orderTypesEnabled: { value: orderTypesEnabled, category: "platform" },
+      });
       showToast("Platform settings saved");
     } catch (err) {
       console.error("Failed to save settings", err);
@@ -395,6 +422,36 @@ function PlatformTab({ showToast }) {
             />
           </Field>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Order Types">
+        <p className="text-sm text-text-secondary -mt-3 mb-1">
+          Turn order types off platform-wide to hide them from customers at checkout.
+        </p>
+        <ToggleRow
+          label="Delivery"
+          hint="Order gets delivered to the customer's address"
+          checked={orderTypesEnabled.delivery}
+          onChange={() => toggleOrderType("delivery")}
+        />
+        <ToggleRow
+          label="Dine-in"
+          hint="Customer visits and eats at the restaurant"
+          checked={orderTypesEnabled.dine_in}
+          onChange={() => toggleOrderType("dine_in")}
+        />
+        <ToggleRow
+          label="Takeout / Pickup"
+          hint="Customer picks up and takes the order away"
+          checked={orderTypesEnabled.pickup}
+          onChange={() => toggleOrderType("pickup")}
+        />
+        <ToggleRow
+          label="Self Service"
+          hint="Customer is at the restaurant and collects the order themselves"
+          checked={orderTypesEnabled.self_service}
+          onChange={() => toggleOrderType("self_service")}
+        />
       </SectionCard>
 
       <div className="flex justify-end">

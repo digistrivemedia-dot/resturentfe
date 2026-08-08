@@ -7,6 +7,7 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import useRestaurantStore from "@/stores/restaurantStore";
 import useCartStore from "@/stores/cartStore";
 import useLocationStore from "@/stores/locationStore";
+import useOrderTypeSettingsStore from "@/stores/orderTypeSettingsStore";
 import { ORDER_TYPES } from "@/constants";
 
 function QuickOrderTypeContent() {
@@ -16,6 +17,12 @@ function QuickOrderTypeContent() {
   const { currentLocation } = useLocationStore();
   const { selectedRestaurant: restaurant, isLoading, fetchRestaurantBySlug, clearSelectedRestaurant } = useRestaurantStore();
   const { confirmQuickOrderType } = useCartStore();
+  const { enabledMap: orderTypesEnabled, fetchOrderTypeSettings } = useOrderTypeSettingsStore();
+  const availableOrderTypes = ORDER_TYPES.filter((t) => orderTypesEnabled[t.id] !== false);
+
+  useEffect(() => {
+    fetchOrderTypeSettings();
+  }, [fetchOrderTypeSettings]);
 
   // No location or no restaurant picked yet — send back to pick one first
   useEffect(() => {
@@ -60,7 +67,7 @@ function QuickOrderTypeContent() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {ORDER_TYPES.map(({ id, label, desc, icon: Icon }) => (
+            {availableOrderTypes.map(({ id, label, desc, icon: Icon }) => (
               <button
                 key={id}
                 type="button"

@@ -14,6 +14,7 @@ import useLocationStore from "@/stores/locationStore";
 import useAuthStore from "@/stores/authStore";
 import useOrderStore from "@/stores/orderStore";
 import usePlatformFeeStore from "@/stores/platformFeeStore";
+import useOrderTypeSettingsStore from "@/stores/orderTypeSettingsStore";
 import { TIP_OPTIONS } from "@/constants";
 import api from "@/lib/api";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
@@ -61,6 +62,7 @@ export default function CheckoutPage() {
   const { placeOrder, isPlacing } = useOrderStore();
   const { savedAddresses, currentLocation } = useLocationStore();
   const { enabled: platformFeeEnabled, amount: platformFeeAmount, fetchPlatformFee } = usePlatformFeeStore();
+  const { enabledMap: orderTypesEnabled, fetchOrderTypeSettings } = useOrderTypeSettingsStore();
 
   // Use user addresses from API, fall back to location store
   const addresses = user?.addresses?.length > 0 ? user.addresses : savedAddresses || [];
@@ -79,7 +81,18 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     fetchPlatformFee();
-  }, [fetchPlatformFee]);
+    fetchOrderTypeSettings();
+  }, [fetchPlatformFee, fetchOrderTypeSettings]);
+
+  // Order type may have been disabled by the superadmin since it was picked on the
+  // cart page (e.g. stale persisted cart state) — bounce back to re-select rather
+  // than let checkout proceed (and show delivery-only UI) for a dead order type
+  useEffect(() => {
+    if (orderType && orderTypesEnabled[orderType] === false) {
+      toast.error("This order type is no longer available. Please choose another.");
+      router.replace("/cart");
+    }
+  }, [orderType, orderTypesEnabled, router]);
 
   const isDelivery = orderType === "delivery";
   const dropLat = selectedAddr?.lat || currentLocation?.lat;
@@ -271,14 +284,14 @@ export default function CheckoutPage() {
         <h1 className="text-lg font-bold text-text-primary">Checkout</h1>
       </div>
 
-      {/* Delivery time banner — delivery only */}
-      {isDelivery && (
+      {/* Delivery time banner — delivery only, and only while delivery is actually enabled */}
+      {isDelivery && orderTypesEnabled.delivery !== false && (
         <div className="flex items-center gap-3 bg-success-light rounded-[var(--radius-xl)] px-4 py-3">
           <div className="w-8 h-8 bg-success rounded-full flex items-center justify-center shrink-0">
             <Bike size={15} className="text-white" strokeWidth={2} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-success-dark">Delivery in {restaurant?.avgDeliveryTime || 35} mins</p>
+            <p className="text-sm font-semibold text-success-dark">Delivery in {restaurant?.deliverySettings?.avgDeliveryTime || 30} mins</p>
             <p className="text-xs text-success-dark/70">Shipment from {restaurant.name}</p>
           </div>
         </div>

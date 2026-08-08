@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
 import { Modal } from "@/components/ui";
 import CouponModal from "@/components/customer/CouponModal";
 import useCartStore from "@/stores/cartStore";
+import useOrderTypeSettingsStore from "@/stores/orderTypeSettingsStore";
 import { ORDER_TYPES } from "@/constants";
 
 export default function CartPage() {
@@ -22,8 +23,19 @@ export default function CartPage() {
     removeItem, updateQuantity, removeCoupon, setOrderType, clearCart,
     getSubtotal, getCouponDiscount, getTotal,
   } = useCartStore();
+  const { enabledMap: orderTypesEnabled } = useOrderTypeSettingsStore();
 
+  const availableOrderTypes = ORDER_TYPES.filter((t) => orderTypesEnabled[t.id] !== false);
   const selectedOrderType = ORDER_TYPES.find((t) => t.id === orderType);
+
+  // If the currently selected order type gets disabled platform-wide, fall back to
+  // the first still-available one — even if it was "locked" via the quick-order flow,
+  // since showing a dead option as selected (locked or not) is worse than switching it
+  useEffect(() => {
+    if (orderTypesEnabled[orderType] === false && availableOrderTypes.length > 0) {
+      setOrderType(availableOrderTypes[0].id);
+    }
+  }, [orderTypesEnabled, orderType]);
 
   const subtotal = getSubtotal();
   const couponDiscount = getCouponDiscount();
@@ -89,7 +101,7 @@ export default function CartPage() {
               <h2 className="text-sm font-bold text-text-primary">How would you like your order?</h2>
             </div>
             <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-              {ORDER_TYPES.map(({ id, label, desc, icon: Icon }) => (
+              {availableOrderTypes.map(({ id, label, desc, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
