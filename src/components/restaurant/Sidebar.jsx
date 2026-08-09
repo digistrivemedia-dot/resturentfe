@@ -100,9 +100,11 @@ const menuItems = [
     label: "Analytics",
     icon: BarChart3,
     children: [
-      { href: "/restaurant/analytics/sales",  label: "Sales" },
-      { href: "/restaurant/analytics/orders", label: "Orders" },
-      { href: "/restaurant/analytics/items",  label: "Item Performance" },
+      { href: "/restaurant/analytics",           label: "Overview" },
+      { href: "/restaurant/analytics/sales",     label: "Sales" },
+      { href: "/restaurant/analytics/orders",    label: "Orders" },
+      { href: "/restaurant/analytics/items",     label: "Item Performance" },
+      { href: "/restaurant/analytics/customers", label: "Customers" },
     ],
   },
   { href: "/restaurant/customer-issues", label: "Customer Issues", icon: MessageCircleWarning }, // badge injected below
