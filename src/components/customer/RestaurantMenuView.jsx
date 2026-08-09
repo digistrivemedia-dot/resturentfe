@@ -11,6 +11,14 @@ import { Toggle, CardSkeleton } from "@/components/ui";
 import useRestaurantStore from "@/stores/restaurantStore";
 import useAuthStore from "@/stores/authStore";
 
+function formatTime12h(hhmm) {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 // Full restaurant-menu experience (hero, category sidebar, search, veg filter).
 // Used by /restaurant/[slug] — `backHref` controls where the back button / not-found link points.
 export default function RestaurantMenuView({ slug, backHref = "/home" }) {
@@ -59,10 +67,18 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
     }
   }, [categories]);
 
-  // Build a category → items map from API menu data
+  // Build a category → items map from API menu data. Items in a currently
+  // unavailable category (disabled or outside its schedule) are overridden to
+  // isAvailable:false here — MenuItemCard already renders that state (grayed
+  // out, no Add button), so no changes needed downstream.
   const categoryMap = new Map();
+  const categoryAvailability = new Map();
   menuData.forEach((group) => {
-    categoryMap.set(group.category, group.items);
+    const items = group.isAvailableNow === false
+      ? group.items.map((item) => ({ ...item, isAvailable: false }))
+      : group.items;
+    categoryMap.set(group.category, items);
+    categoryAvailability.set(group.category, group);
   });
 
   // All items flat (for search count)
@@ -457,6 +473,11 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
               {categories.map((cat) => {
                 const filtered = getFilteredItems(categoryMap.get(cat) || []);
                 if (filtered.length === 0 && vegOnly) return null;
+                const availability = categoryAvailability.get(cat);
+                const isCategoryUnavailable = availability?.isAvailableNow === false;
+                const scheduleSummary = availability?.schedules?.length > 0
+                  ? availability.schedules.map((w) => `${formatTime12h(w.startTime)}–${formatTime12h(w.endTime)}`).join(", ")
+                  : null;
                 return (
                   <section
                     key={cat}
@@ -467,9 +488,18 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
                     {/* Category header */}
                     <div className="py-3">
                       <h2 className="text-base font-bold text-text-primary">{cat}</h2>
-                      <p className="text-xs text-text-tertiary mt-0.5">
-                        {filtered.length} item{filtered.length !== 1 ? "s" : ""}
-                      </p>
+                      {isCategoryUnavailable ? (
+                        <p className="text-xs text-warning font-medium mt-0.5 flex items-center gap-1">
+                          <Clock size={11} />
+                          {availability?.isEnabled === false
+                            ? "Currently unavailable"
+                            : `Available ${scheduleSummary}`}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-text-tertiary mt-0.5">
+                          {filtered.length} item{filtered.length !== 1 ? "s" : ""}
+                        </p>
+                      )}
                     </div>
 
                     {/* Items */}

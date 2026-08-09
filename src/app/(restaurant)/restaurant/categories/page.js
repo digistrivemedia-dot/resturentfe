@@ -13,10 +13,19 @@ import {
   AlertTriangle,
   Camera,
   Loader2,
+  Clock,
 } from "lucide-react";
-import { Modal } from "@/components/ui";
+import { Modal, Toggle } from "@/components/ui";
 import useMenuManagementStore from "@/stores/menuManagementStore";
 import useImageUpload from "@/hooks/useImageUpload";
+
+function formatTime12h(hhmm) {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CategoriesPage() {
@@ -28,6 +37,7 @@ export default function CategoriesPage() {
     addCategory,
     updateCategory,
     updateCategoryImage,
+    updateCategoryAvailability,
     deleteCategory,
   } = useMenuManagementStore();
 
@@ -47,6 +57,15 @@ export default function CategoriesPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
+  // schedule modal — draft windows are edited locally, only sent on Save
+  const [scheduleTarget, setScheduleTarget] = useState(null);
+  const [scheduleDraft, setScheduleDraft] = useState([]);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
+
+  // per-category toggle in flight (disables that row's switch while saving)
+  const [togglingName, setTogglingName] = useState(null);
 
   // page-level error (fetch)
   const [pageError, setPageError] = useState("");
@@ -151,6 +170,50 @@ export default function CategoriesPage() {
     }
   }
 
+  // ── Manual enable/disable toggle — master switch, always wins over schedule ──
+  async function handleToggleEnabled(cat) {
+    setTogglingName(cat.name);
+    try {
+      await updateCategoryAvailability(cat.name, { isEnabled: !cat.isEnabled });
+    } catch (err) {
+      setPageError(err?.response?.data?.message || err.message || "Failed to update category.");
+    } finally {
+      setTogglingName(null);
+    }
+  }
+
+  // ── Schedule modal ────────────────────────────────────────────────────────────
+  function openSchedule(cat) {
+    setScheduleTarget(cat);
+    setScheduleDraft(cat.schedules?.length > 0 ? cat.schedules.map((w) => ({ ...w })) : []);
+    setScheduleError("");
+  }
+
+  function addWindow() {
+    setScheduleDraft((prev) => [...prev, { startTime: "09:00", endTime: "17:00" }]);
+  }
+
+  function removeWindow(idx) {
+    setScheduleDraft((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updateWindow(idx, field, value) {
+    setScheduleDraft((prev) => prev.map((w, i) => (i === idx ? { ...w, [field]: value } : w)));
+  }
+
+  async function saveSchedule() {
+    setScheduleSaving(true);
+    setScheduleError("");
+    try {
+      await updateCategoryAvailability(scheduleTarget.name, { schedules: scheduleDraft });
+      setScheduleTarget(null);
+    } catch (err) {
+      setScheduleError(err?.response?.data?.message || err.message || "Failed to save schedule.");
+    } finally {
+      setScheduleSaving(false);
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -246,6 +309,9 @@ export default function CategoriesPage() {
               onEditKeyDown={(e) => handleEditKeyDown(e, cat.name)}
               onDelete={() => openDelete(cat)}
               onImageUploaded={(url) => updateCategoryImage(cat.name, url)}
+              onToggleEnabled={() => handleToggleEnabled(cat)}
+              toggling={togglingName === cat.name}
+              onOpenSchedule={() => openSchedule(cat)}
             />
           ))}
         </div>
@@ -395,6 +461,87 @@ export default function CategoriesPage() {
           </div>
         )}
       </Modal>
+
+      {/* Schedule modal — manual toggle lives inline on the row; this is just windows */}
+      <Modal
+        isOpen={!!scheduleTarget}
+        onClose={() => { setScheduleTarget(null); setScheduleError(""); }}
+        title={scheduleTarget ? `Availability — ${scheduleTarget.name}` : "Availability"}
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => { setScheduleTarget(null); setScheduleError(""); }}
+              className="h-9 px-4 text-sm font-medium text-text-secondary bg-bg-secondary border border-border-light rounded-[var(--radius-md)] hover:bg-bg-hover transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={saveSchedule}
+              disabled={scheduleSaving}
+              className="h-9 px-4 text-sm font-medium text-white bg-primary rounded-[var(--radius-md)] hover:bg-primary-dark transition-colors cursor-pointer disabled:opacity-60"
+            >
+              {scheduleSaving ? "Saving…" : "Save"}
+            </button>
+          </>
+        }
+      >
+        {scheduleTarget && (
+          <div className="flex flex-col gap-4">
+            <p className="text-xs text-text-secondary">
+              Leave empty to keep this category available all day (subject to the on/off switch). Add one or more daily time windows to auto-enable it only during those hours — a window can cross midnight (e.g. 10 PM–2 AM).
+            </p>
+
+            {scheduleDraft.length === 0 ? (
+              <div className="text-center py-6 bg-bg-secondary rounded-[var(--radius-md)] border border-border-light">
+                <Clock size={20} className="text-text-tertiary mx-auto mb-1.5" />
+                <p className="text-xs text-text-tertiary">No time restriction — always available</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {scheduleDraft.map((w, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2.5 bg-bg-secondary rounded-[var(--radius-md)] border border-border-light">
+                    <input
+                      type="time"
+                      value={w.startTime}
+                      onChange={(e) => updateWindow(idx, "startTime", e.target.value)}
+                      className="flex-1 h-8 px-2 rounded-[var(--radius-sm)] border border-border-default bg-bg-primary text-sm text-text-primary focus:outline-none focus:border-primary"
+                    />
+                    <span className="text-xs text-text-tertiary shrink-0">to</span>
+                    <input
+                      type="time"
+                      value={w.endTime}
+                      onChange={(e) => updateWindow(idx, "endTime", e.target.value)}
+                      className="flex-1 h-8 px-2 rounded-[var(--radius-sm)] border border-border-default bg-bg-primary text-sm text-text-primary focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      onClick={() => removeWindow(idx)}
+                      className="p-1.5 rounded-[var(--radius-sm)] text-text-tertiary hover:text-error hover:bg-error-light transition-colors cursor-pointer shrink-0"
+                      title="Remove window"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={addWindow}
+              className="flex items-center justify-center gap-1.5 h-9 rounded-[var(--radius-md)] border border-dashed border-border-default text-xs font-medium text-text-secondary hover:border-primary hover:text-primary transition-colors cursor-pointer"
+            >
+              <Plus size={14} /> Add time window
+            </button>
+
+            {scheduleError && (
+              <p className="text-xs text-error flex items-center gap-1">
+                <AlertTriangle size={12} />
+                {scheduleError}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -413,6 +560,9 @@ function CategoryRow({
   onEditKeyDown,
   onDelete,
   onImageUploaded,
+  onToggleEnabled,
+  toggling,
+  onOpenSchedule,
 }) {
   const fileRef = useRef(null);
   const { upload, isUploading } = useImageUpload({ type: "category" });
@@ -425,14 +575,34 @@ function CategoryRow({
     e.target.value = "";
   };
 
+  const scheduleSummary = cat.schedules?.length > 0
+    ? cat.schedules.map((w) => `${formatTime12h(w.startTime)}–${formatTime12h(w.endTime)}`).join(", ")
+    : null;
+
+  let statusLabel, statusClass;
+  if (!cat.isEnabled) {
+    statusLabel = "Disabled";
+    statusClass = "bg-bg-secondary text-text-tertiary border-border-light";
+  } else if (!scheduleSummary) {
+    statusLabel = "Always available";
+    statusClass = "bg-success-light text-success border-success/30";
+  } else if (cat.isAvailableNow) {
+    statusLabel = `Available now · ${scheduleSummary}`;
+    statusClass = "bg-success-light text-success border-success/30";
+  } else {
+    statusLabel = `Unavailable now · opens ${scheduleSummary}`;
+    statusClass = "bg-warning-light text-warning border-warning/30";
+  }
+
   return (
     <div
       className={`
-        group flex items-center gap-3 px-4 py-3.5 bg-bg-primary
+        group flex flex-col gap-2.5 px-4 py-3.5 bg-bg-primary
         rounded-[var(--radius-xl)] border transition-all
         ${isEditing ? "border-primary ring-2 ring-primary/15 shadow-[var(--shadow-sm)]" : "border-border-light hover:border-border-default hover:shadow-[var(--shadow-sm)]"}
       `}
     >
+    <div className="flex items-center gap-3">
       {/* Drag handle */}
       <GripVertical
         size={16}
@@ -546,6 +716,21 @@ function CategoryRow({
           </button>
         </div>
       )}
+    </div>
+
+      {/* Availability controls */}
+      <div className="flex items-center gap-2.5 pl-[52px]">
+        <Toggle checked={cat.isEnabled} onChange={onToggleEnabled} disabled={toggling} size="sm" />
+        <span className={`px-2 py-0.5 rounded-[var(--radius-full)] text-[11px] font-medium border truncate ${statusClass}`}>
+          {statusLabel}
+        </span>
+        <button
+          onClick={onOpenSchedule}
+          className="ml-auto flex items-center gap-1 px-2 py-1 rounded-[var(--radius-md)] text-[11px] font-medium text-text-secondary hover:text-primary hover:bg-primary-50 transition-colors cursor-pointer shrink-0"
+        >
+          <Clock size={12} /> {cat.schedules?.length > 0 ? "Edit hours" : "Set hours"}
+        </button>
+      </div>
     </div>
   );
 }

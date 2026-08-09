@@ -184,6 +184,19 @@ const useMenuManagementStore = create((set, get) => ({
     }
   },
 
+  // { isEnabled?: boolean, schedules?: [{startTime, endTime}] }
+  updateCategoryAvailability: async (name, payload) => {
+    set({ isSaving: true, error: null });
+    try {
+      await api.put(`/restaurant/categories/${encodeURIComponent(name)}/availability`, payload);
+      await get().fetchCategories();
+      set({ isSaving: false });
+    } catch (err) {
+      set({ isSaving: false, error: err.message });
+      throw err;
+    }
+  },
+
   // ─── Addon Groups ───────────────────────────────────────────────────
 
   fetchAddons: async () => {
