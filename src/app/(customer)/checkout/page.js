@@ -17,6 +17,7 @@ import usePlatformFeeStore from "@/stores/platformFeeStore";
 import useOrderTypeSettingsStore from "@/stores/orderTypeSettingsStore";
 import { TIP_OPTIONS } from "@/constants";
 import api from "@/lib/api";
+import { playOrderPlacedSound } from "@/lib/sound";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -224,6 +225,7 @@ export default function CheckoutPage() {
                 razorpay_signature: response.razorpay_signature,
               });
               clearCart();
+              playOrderPlacedSound();
               router.push(`/order/confirmed?orderNumber=${verifiedOrder.orderNumber}&orderId=${verifiedOrder._id}`);
             } catch (err) {
               toast.error("Payment verification failed. Please contact support.");
@@ -257,6 +259,7 @@ export default function CheckoutPage() {
 
       // COD — redirect immediately
       clearCart();
+      playOrderPlacedSound();
       router.push(`/order/confirmed?orderNumber=${result.order.orderNumber}&orderId=${result.order._id}`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to place order");

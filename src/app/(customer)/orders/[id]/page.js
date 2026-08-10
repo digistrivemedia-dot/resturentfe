@@ -6,11 +6,12 @@ import Link from "next/link";
 import {
   ArrowLeft, MapPin, CreditCard, Download, HelpCircle,
   ChevronRight, Star, CheckCircle2, Clock, RefreshCw,
-  Package, Phone, MessageCircle, Share2, Navigation, UtensilsCrossed,
+  Phone, Share2, Navigation, UtensilsCrossed,
   Bike, ExternalLink, AlertCircle,
 } from "lucide-react";
-import { Modal, CardSkeleton } from "@/components/ui";
+import { CardSkeleton } from "@/components/ui";
 import useOrderStore from "@/stores/orderStore";
+import RateOrderModal from "@/components/customer/RateOrderModal";
 
 const STATUS_META = {
   pending_payment:  { label: "Payment Pending",     color: "text-warning",   bg: "bg-warning-light" },
@@ -82,21 +83,12 @@ function BillRow({ label, value, bold, valueClass = "", subtext }) {
   );
 }
 
-const QUICK_TAGS = ["Great taste", "Fast delivery", "Good packaging", "Generous portions", "Hot & fresh", "Value for money"];
-
 export default function OrderDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const [rateOpen, setRateOpen] = useState(false);
-  const [foodRating, setFoodRating] = useState(0);
-  const [deliveryRating, setDeliveryRating] = useState(0);
-  const [hoveredFood, setHoveredFood] = useState(0);
-  const [hoveredDelivery, setHoveredDelivery] = useState(0);
-  const [tags, setTags] = useState([]);
-  const [review, setReview] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
-  const { currentOrder: order, isLoading, fetchOrderById, rateOrder: rateOrderApi } = useOrderStore();
+  const { currentOrder: order, isLoading, fetchOrderById } = useOrderStore();
 
   useEffect(() => {
     fetchOrderById(id);
@@ -127,18 +119,6 @@ export default function OrderDetailPage({ params }) {
   const restaurantAddressText = getAddressText(restaurantAddress);
   const directionsUrl = getDirectionsUrl(restaurantAddress);
   const isActive = !["delivered", "cancelled"].includes(order.status);
-
-  const toggleTag = (t) => setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
-
-  const handleSubmitRating = async () => {
-    try {
-      await rateOrderApi(order._id, { foodRating, deliveryRating, review });
-      setSubmitted(true);
-      setTimeout(() => setRateOpen(false), 800);
-    } catch {
-      setSubmitted(false);
-    }
-  };
 
   return (
     <>
@@ -342,26 +322,30 @@ export default function OrderDetailPage({ params }) {
         </div>
 
         {/* Rating (if rated) */}
-        {order.rating && (
+        {order.rating?.itemRatings?.length > 0 && (
           <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
             <h3 className="text-sm font-bold text-text-primary mb-3">Your Rating</h3>
-            <div className="flex gap-8">
-              <div className="text-center">
-                <p className="text-xs text-text-tertiary mb-1.5">Food</p>
-                <div className="flex gap-0.5">
-                  {[1,2,3,4,5].map((s) => (
-                    <Star key={s} size={16} className={s <= order.rating.foodRating ? "text-warning fill-warning" : "text-border-default"} />
-                  ))}
+            <div className="space-y-2">
+              {order.rating.itemRatings.map((ir, idx) => (
+                <div key={idx} className="flex items-center justify-between">
+                  <p className="text-sm text-text-secondary">{ir.name}</p>
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} size={14} className={s <= ir.rating ? "text-warning fill-warning" : "text-border-default"} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-text-tertiary mb-1.5">Delivery</p>
-                <div className="flex gap-0.5">
-                  {[1,2,3,4,5].map((s) => (
-                    <Star key={s} size={16} className={s <= order.rating.deliveryRating ? "text-warning fill-warning" : "text-border-default"} />
-                  ))}
+              ))}
+              {order.rating.deliveryRating > 0 && (
+                <div className="flex items-center justify-between pt-2 border-t border-dashed border-border-light">
+                  <p className="text-sm text-text-secondary">Delivery</p>
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} size={14} className={s <= order.rating.deliveryRating ? "text-warning fill-warning" : "text-border-default"} />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {order.rating.review && (
               <p className="text-sm text-text-secondary mt-3 italic">"{order.rating.review}"</p>
@@ -377,7 +361,7 @@ export default function OrderDetailPage({ params }) {
           >
             <RefreshCw size={15} /> Reorder
           </Link>
-          {isDelivered && !order.rating ? (
+          {isDelivered && !order.rating?.itemRatings?.length ? (
             <button
               onClick={() => setRateOpen(true)}
               className="flex items-center justify-center gap-2 h-11 bg-warning text-white text-sm font-bold rounded-[var(--radius-xl)] hover:bg-warning/90 transition-colors"
@@ -396,7 +380,7 @@ export default function OrderDetailPage({ params }) {
 
         {/* Get Help is always available, even before rating — shown as its own row
             when the grid above is occupied by the Rate Order button */}
-        {isDelivered && !order.rating && (
+        {isDelivered && !order.rating?.itemRatings?.length && (
           <Link
             href={`/orders/${order._id}/support`}
             className="flex items-center justify-center gap-2 h-11 border border-border-light text-text-secondary text-sm font-medium rounded-[var(--radius-xl)] hover:bg-bg-hover transition-colors"
@@ -408,76 +392,7 @@ export default function OrderDetailPage({ params }) {
         <div className="h-2" />
       </div>
 
-      {/* Rate Modal */}
-      <Modal isOpen={rateOpen} onClose={() => setRateOpen(false)} title="Rate Your Order">
-        <div className="space-y-5">
-          {/* Food rating */}
-          <div>
-            <p className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2"><span>🍔</span> How was the food?</p>
-            <div className="flex gap-2 justify-center">
-              {[1,2,3,4,5].map((s) => (
-                <button key={s} onClick={() => setFoodRating(s)} onMouseEnter={() => setHoveredFood(s)} onMouseLeave={() => setHoveredFood(0)} className="transition-transform hover:scale-110">
-                  <Star size={36} className={`transition-colors ${s <= (hoveredFood || foodRating) ? "text-warning fill-warning" : "text-border-default"}`} />
-                </button>
-              ))}
-            </div>
-            {foodRating > 0 && (
-              <p className="text-center text-xs text-text-tertiary mt-2">
-                {["","Poor","Below Average","Average","Good","Excellent"][foodRating]}
-              </p>
-            )}
-          </div>
-
-          {/* Delivery rating */}
-          <div>
-            <p className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2"><span>🛵</span> Rate the delivery?</p>
-            <div className="flex gap-2 justify-center">
-              {[1,2,3,4,5].map((s) => (
-                <button key={s} onClick={() => setDeliveryRating(s)} onMouseEnter={() => setHoveredDelivery(s)} onMouseLeave={() => setHoveredDelivery(0)} className="transition-transform hover:scale-110">
-                  <Star size={36} className={`transition-colors ${s <= (hoveredDelivery || deliveryRating) ? "text-warning fill-warning" : "text-border-default"}`} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick tags */}
-          <div>
-            <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-2.5">Quick Tags</p>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_TAGS.map((t) => (
-                <button key={t} onClick={() => toggleTag(t)}
-                  className={`h-8 px-3 text-xs font-semibold rounded-full border-2 transition-all ${tags.includes(t) ? "border-primary bg-primary-50 text-primary" : "border-border-light text-text-secondary hover:border-border-default"}`}
-                >
-                  {tags.includes(t) ? "✓ " : ""}{t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Review */}
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">
-              Write a review <span className="text-text-tertiary text-xs font-normal">(optional)</span>
-            </label>
-            <textarea
-              value={review}
-              onChange={(e) => setReview(e.target.value)}
-              placeholder="Tell others about your experience…"
-              rows={3}
-              className="w-full px-4 py-3 text-sm border border-border-light rounded-[var(--radius-lg)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
-            />
-          </div>
-
-          <button
-            onClick={handleSubmitRating}
-            disabled={foodRating === 0 || submitted}
-            className="w-full h-12 bg-primary text-white font-bold rounded-[var(--radius-xl)] flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors disabled:opacity-50"
-          >
-            {submitted ? <><CheckCircle2 size={18} /> Submitted!</> : "Submit Review"}
-          </button>
-          {foodRating === 0 && <p className="text-xs text-text-tertiary text-center -mt-3">Please rate the food to continue</p>}
-        </div>
-      </Modal>
+      <RateOrderModal order={order} isOpen={rateOpen} onClose={() => setRateOpen(false)} />
     </>
   );
 }

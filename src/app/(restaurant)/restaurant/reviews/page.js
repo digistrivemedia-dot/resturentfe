@@ -13,6 +13,8 @@ import {
   ThumbsUp,
   Filter,
   ArrowUpDown,
+  AlertTriangle,
+  UtensilsCrossed,
 } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
 import useRestaurantReviewStore from "@/stores/restaurantReviewStore";
@@ -186,11 +188,20 @@ function ReviewCard({ review, onToggleHighlight, onSendReply, onEditReply }) {
           )}
         </div>
 
+        {/* Per-dish ratings */}
+        {review.itemRatings?.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {review.itemRatings.map((ir, idx) => (
+              <div key={idx} className="flex items-center justify-between gap-2 text-xs bg-bg-secondary rounded-[var(--radius-md)] px-2.5 py-1.5">
+                <span className="text-text-primary font-medium truncate">{ir.name}</span>
+                <StarRow rating={ir.rating} size="sm" />
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Sub-ratings + tags */}
         <div className="mt-3 flex flex-wrap gap-2">
-          {review.foodRating != null && (
-            <SubRatingChip label="Food" value={review.foodRating} />
-          )}
           {review.deliveryRating != null && (
             <SubRatingChip label="Delivery" value={review.deliveryRating} />
           )}
@@ -301,11 +312,12 @@ function ReviewCard({ review, onToggleHighlight, onSendReply, onEditReply }) {
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ReviewsPage() {
-  const { reviews, pagination, isLoading, fetchReviews, replyToReview } = useRestaurantReviewStore();
+  const { reviews, pagination, isLoading, fetchReviews, replyToReview, itemRatings, fetchItemRatings } = useRestaurantReviewStore();
   const [starFilter, setStarFilter] = useState("all");
   const [repliedFilter, setRepliedFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [page, setPage] = useState(1);
+  const [showAllDishes, setShowAllDishes] = useState(false);
   // Local highlight state (not backed by API)
   const [highlights, setHighlights] = useState({});
 
@@ -316,6 +328,10 @@ export default function ReviewsPage() {
       // error stored in store
     }
   }, [starFilter, page]);
+
+  useEffect(() => {
+    fetchItemRatings();
+  }, []);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -451,6 +467,53 @@ export default function ReviewsPage() {
                 </div>
               </div>
             </div>
+
+            {/* ── Per-dish rating breakdown ───────────────────────────────────── */}
+            {itemRatings.length > 0 && (
+              <div className="bg-bg-primary rounded-[var(--radius-xl)] border border-border-light shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                    <UtensilsCrossed className="w-4 h-4" style={{ color: "#FF5722" }} />
+                    Dish Ratings
+                  </h2>
+                  <p className="text-xs text-text-secondary">Worst rated first</p>
+                </div>
+                <div className="space-y-2">
+                  {(showAllDishes ? itemRatings : itemRatings.slice(0, 5)).map((item) => (
+                    <div
+                      key={item.menuItem}
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-[var(--radius-md)] border ${
+                        item.lowRatingCount > 0 ? "bg-red-50 border-red-200" : "bg-bg-secondary border-border-light"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {item.lowRatingCount > 0 && <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
+                        <span className="text-sm font-medium text-text-primary truncate">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {item.lowRatingCount > 0 && (
+                          <span className="text-xs font-semibold text-red-600">{item.lowRatingCount} low</span>
+                        )}
+                        <span className="text-xs text-text-secondary">{item.totalRatings} rating{item.totalRatings !== 1 ? "s" : ""}</span>
+                        <div className="flex items-center gap-1">
+                          <StarRow rating={Math.round(item.avgRating)} size="sm" />
+                          <span className="text-sm font-bold text-text-primary w-8 text-right">{item.avgRating.toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {itemRatings.length > 5 && (
+                  <button
+                    onClick={() => setShowAllDishes((v) => !v)}
+                    className="mt-3 text-xs font-semibold hover:opacity-80 transition-opacity"
+                    style={{ color: "#FF5722" }}
+                  >
+                    {showAllDishes ? "Show less" : `Show all ${itemRatings.length} dishes`}
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* ── Filter bar ───────────────────────────────────────────────────── */}
             <div className="bg-bg-primary rounded-[var(--radius-lg)] border border-border-light shadow-sm p-4">

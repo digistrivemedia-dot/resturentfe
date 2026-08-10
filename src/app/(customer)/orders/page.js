@@ -7,6 +7,7 @@ import {
   MapPin, RefreshCw, Star, Search, SlidersHorizontal,
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
+import RateOrderModal from "@/components/customer/RateOrderModal";
 
 const STATUS_META = {
   pending_payment:  { label: "Payment Pending",     color: "text-warning",    bg: "bg-warning-light", dot: "bg-warning" },
@@ -148,7 +149,10 @@ function OrderProgressBar({ status, atRestaurant = false }) {
 
 function DeliveredOrderCard({ order, onRate }) {
   const itemNames = order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ");
-  const isRated = !!order.rating;
+  const isRated = order.rating?.itemRatings?.length > 0;
+  const avgRating = isRated
+    ? Math.round(order.rating.itemRatings.reduce((sum, r) => sum + r.rating, 0) / order.rating.itemRatings.length)
+    : 0;
 
   return (
     <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
@@ -169,7 +173,7 @@ function DeliveredOrderCard({ order, onRate }) {
         {isRated && (
           <div className="flex items-center gap-1 mt-1">
             {[1,2,3,4,5].map((s) => (
-              <Star key={s} size={11} className={s <= order.rating.foodRating ? "text-warning fill-warning" : "text-border-default"} />
+              <Star key={s} size={11} className={s <= avgRating ? "text-warning fill-warning" : "text-border-default"} />
             ))}
             <span className="text-xs text-text-tertiary ml-1">You rated this</span>
           </div>
@@ -206,7 +210,7 @@ export default function OrdersPage() {
   const [tab, setTab] = useState("live");
   const [search, setSearch] = useState("");
   const [rateOrderData, setRateOrderData] = useState(null);
-  const { orders, isLoading, fetchMyOrders, rateOrder } = useOrderStore();
+  const { orders, isLoading, fetchMyOrders } = useOrderStore();
 
   useEffect(() => {
     // The backend defaults to 10 orders per page — fetch a much larger batch here
@@ -304,10 +308,7 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Rate Order Modal */}
-      {rateOrderData && (
-        <RateOrderModal order={rateOrderData} onClose={() => setRateOrderData(null)} rateOrder={rateOrder} />
-      )}
+      <RateOrderModal order={rateOrderData} isOpen={!!rateOrderData} onClose={() => setRateOrderData(null)} />
     </>
   );
 }
@@ -327,147 +328,3 @@ function EmptyOrders({ icon: Icon, title, desc }) {
   );
 }
 
-const QUICK_TAGS = [
-  "Great taste", "Fast delivery", "Good packaging",
-  "Generous portions", "Hot & fresh", "Value for money",
-];
-
-function RateOrderModal({ order, onClose, rateOrder }) {
-  const [foodRating, setFoodRating] = useState(0);
-  const [deliveryRating, setDeliveryRating] = useState(0);
-  const [hoveredFood, setHoveredFood] = useState(0);
-  const [hoveredDelivery, setHoveredDelivery] = useState(0);
-  const [tags, setTags] = useState([]);
-  const [review, setReview] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const toggleTag = (t) => setTags((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]);
-
-  const handleSubmit = async () => {
-    try {
-      await rateOrder(order._id, { foodRating, deliveryRating, review });
-      setSubmitted(true);
-      setTimeout(() => onClose(), 800);
-    } catch {
-      setSubmitted(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-[var(--radius-2xl)] sm:rounded-[var(--radius-2xl)] px-5 py-6 space-y-5 max-h-[92vh] overflow-y-auto">
-
-        {/* Handle */}
-        <div className="w-10 h-1 bg-border-default rounded-full mx-auto sm:hidden" />
-
-        <div className="text-center">
-          <h2 className="text-lg font-extrabold text-text-primary">Rate Your Order</h2>
-          <p className="text-sm text-text-secondary mt-0.5">{order.restaurant.name}</p>
-        </div>
-
-        {/* Food rating */}
-        <div>
-          <p className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-            <span>🍔</span> How was the food?
-          </p>
-          <div className="flex gap-2 justify-center">
-            {[1,2,3,4,5].map((s) => (
-              <button
-                key={s}
-                onClick={() => setFoodRating(s)}
-                onMouseEnter={() => setHoveredFood(s)}
-                onMouseLeave={() => setHoveredFood(0)}
-                className="transition-transform hover:scale-110"
-              >
-                <Star
-                  size={36}
-                  className={`transition-colors ${s <= (hoveredFood || foodRating) ? "text-warning fill-warning" : "text-border-default"}`}
-                />
-              </button>
-            ))}
-          </div>
-          {foodRating > 0 && (
-            <p className="text-center text-xs text-text-tertiary mt-2">
-              {["", "Poor", "Below Average", "Average", "Good", "Excellent"][foodRating]}
-            </p>
-          )}
-        </div>
-
-        {/* Delivery rating */}
-        <div>
-          <p className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-            <span>🛵</span> Rate the delivery experience
-          </p>
-          <div className="flex gap-2 justify-center">
-            {[1,2,3,4,5].map((s) => (
-              <button
-                key={s}
-                onClick={() => setDeliveryRating(s)}
-                onMouseEnter={() => setHoveredDelivery(s)}
-                onMouseLeave={() => setHoveredDelivery(0)}
-                className="transition-transform hover:scale-110"
-              >
-                <Star
-                  size={36}
-                  className={`transition-colors ${s <= (hoveredDelivery || deliveryRating) ? "text-warning fill-warning" : "text-border-default"}`}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick tags */}
-        <div>
-          <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-2.5">Quick Tags</p>
-          <div className="flex flex-wrap gap-2">
-            {QUICK_TAGS.map((t) => (
-              <button
-                key={t}
-                onClick={() => toggleTag(t)}
-                className={`h-8 px-3 text-xs font-semibold rounded-full border-2 transition-all ${
-                  tags.includes(t)
-                    ? "border-primary bg-primary-50 text-primary"
-                    : "border-border-light text-text-secondary hover:border-border-default"
-                }`}
-              >
-                {tags.includes(t) ? "✓ " : ""}{t}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Review text */}
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">
-            Write a review <span className="text-text-tertiary text-xs font-normal">(optional)</span>
-          </label>
-          <textarea
-            value={review}
-            onChange={(e) => setReview(e.target.value)}
-            placeholder="Tell others about your experience…"
-            rows={3}
-            className="w-full px-4 py-3 text-sm border border-border-light rounded-[var(--radius-lg)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
-          />
-          <p className="text-xs text-text-tertiary text-right mt-1">{review.length}/300</p>
-        </div>
-
-        {/* Submit */}
-        <button
-          onClick={handleSubmit}
-          disabled={foodRating === 0 || submitted}
-          className="w-full h-12 bg-primary text-white font-bold rounded-[var(--radius-xl)] flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors disabled:opacity-50"
-        >
-          {submitted ? (
-            <><CheckCircle2 size={18} /> Thank you!</>
-          ) : (
-            "Submit Review"
-          )}
-        </button>
-        {foodRating === 0 && (
-          <p className="text-xs text-text-tertiary text-center -mt-3">Please rate the food to continue</p>
-        )}
-      </div>
-    </div>
-  );
-}

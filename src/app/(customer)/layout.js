@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Header from "@/components/customer/Header";
 import BottomNav from "@/components/customer/BottomNav";
 import LiveOrderBar from "@/components/customer/LiveOrderBar";
+import RateOrderPrompt from "@/components/customer/RateOrderPrompt";
 import CartBar from "@/components/customer/CartBar";
 import ProtectedRoute from "@/components/ui/ProtectedRoute";
 import { isBottomNavHidden } from "@/lib/navVisibility";
@@ -55,6 +56,7 @@ export default function CustomerLayout({ children }) {
           </div>
         </main>
         <LiveOrderBar />
+        <RateOrderPrompt />
         {showCartBar && <CartBar />}
         <BottomNav />
       </>

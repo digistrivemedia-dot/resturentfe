@@ -5,9 +5,24 @@ const useRestaurantReviewStore = create((set, get) => ({
   // State
   reviews: [],
   pagination: { page: 1, limit: 10, total: 0, pages: 0 },
+  itemRatings: [],
   isLoading: false,
+  isLoadingItemRatings: false,
   isSaving: false,
   error: null,
+
+  // Fetch per-dish rating breakdown, worst first
+  fetchItemRatings: async () => {
+    set({ isLoadingItemRatings: true });
+    try {
+      const res = await api.get("/restaurant/reviews/item-ratings");
+      set({ itemRatings: res.data.itemRatings, isLoadingItemRatings: false });
+      return res.data.itemRatings;
+    } catch (err) {
+      set({ isLoadingItemRatings: false, error: err.message });
+      throw err;
+    }
+  },
 
   // Fetch reviews with optional filters
   fetchReviews: async (params = {}) => {
