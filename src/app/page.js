@@ -11,11 +11,9 @@ import {
   BadgePercent,
   ShieldCheck,
   ChevronRight,
-  Star,
-  Clock,
-  Phone,
-  Mail,
 } from "lucide-react";
+import SiteHeader from "@/components/shared/SiteHeader";
+import SiteFooter from "@/components/shared/SiteFooter";
 
 const STATS = [
   { value: "500+", label: "Partner Restaurants" },
@@ -69,50 +67,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white" style={{ fontFamily: "var(--font-family)" }}>
 
-      {/* ── NAVBAR ── */}
-      <header
-        className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-border-light"
-        style={{ zIndex: "var(--z-header)" }}
-      >
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 md:px-10 h-16">
-
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center">
-              <Image
-                src="/logo.png"
-                alt="Sri Isha Cafe logo"
-                width={40}
-                height={40}
-                className="w-full h-full object-cover"
-                priority
-              />
-            </div>
-            <span className="text-base font-bold text-text-primary tracking-tight hidden sm:inline">
-              Sri Isha <span className="text-primary">Cafe</span>
-            </span>
-          </div>
-
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
-            <Link href="/home" className="hover:text-text-primary transition-colors">Browse</Link>
-            <Link href="/restaurant/login" className="hover:text-text-primary transition-colors">For Restaurants</Link>
-          </nav>
-
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center h-9 px-5 text-sm font-semibold text-text-primary border border-border-default rounded-lg hover:border-primary hover:text-primary transition-colors"
-            >
-              Login
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center h-9 px-5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* ── HERO ── */}
       <section className="relative bg-white overflow-hidden">
@@ -319,79 +274,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="bg-[#111111] text-white">
-        <div className="max-w-6xl mx-auto px-6 md:px-10 pt-14 pb-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
-
-            {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
-                  <Image
-                    src="/logo.png"
-                    alt="Sri Isha Cafe logo"
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <span className="font-bold text-white">
-                  Sri Isha <span className="text-primary">Cafe</span>
-                </span>
-              </div>
-              <p className="text-sm text-white/45 leading-relaxed max-w-xs">
-                Connecting hungry customers with the best local restaurants. Fast, fresh, and reliable.
-              </p>
-              <div className="flex flex-col gap-2 mt-5">
-                <a href="mailto:support@sriishacafe.com" className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
-                  <Mail size={13} /> support@sriishacafe.com
-                </a>
-                <a href="tel:+918000000000" className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors">
-                  <Phone size={13} /> +91 80000 00000
-                </a>
-              </div>
-            </div>
-
-            {[
-              {
-                title: "Company",
-                links: ["About Us", "Careers", "Blog", "Press"],
-              },
-              {
-                title: "Customers",
-                links: ["How It Works", "FAQs", "Track Order", "Contact Support"],
-              },
-              {
-                title: "Restaurants",
-                links: ["Partner With Us", "Restaurant Login", "Partner Support", "Terms for Partners"],
-              },
-            ].map((col) => (
-              <div key={col.title}>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-widest mb-4">{col.title}</h4>
-                <ul className="space-y-3">
-                  {col.links.map((l) => (
-                    <li key={l}>
-                      <Link href="#" className="text-sm text-white/40 hover:text-white transition-colors">
-                        {l}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-white/8 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/25">
-            <span>© 2026 Sri Isha Cafe. All rights reserved.</span>
-            <div className="flex items-center gap-4">
-              <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy Policy</Link>
-              <Link href="/terms" className="hover:text-white/50 transition-colors">Terms of Service</Link>
-              <Link href="/privacy#cookies" className="hover:text-white/50 transition-colors">Cookie Policy</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
