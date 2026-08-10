@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { MapPin } from "lucide-react";
 import BannerCarousel from "@/components/customer/BannerCarousel";
 import RestaurantCard from "@/components/customer/RestaurantCard";
@@ -9,14 +10,17 @@ import { CardSkeleton } from "@/components/ui";
 import api from "@/lib/api";
 import useLocationStore from "@/stores/locationStore";
 
-export default function HomePage() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const initialCategory = searchParams.get("category") || "all";
+
   const { currentLocation, setCurrentLocation } = useLocationStore();
 
   const [locationStatus, setLocationStatus] = useState("idle"); // idle | requesting | granted | denied
   const [categories, setCategories] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [items, setItems] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [isLoading, setIsLoading] = useState(false);
 
   // Track whether we've done the initial location setup
@@ -270,5 +274,13 @@ export default function HomePage() {
       {/* Bottom padding for mobile nav */}
       <div className="h-4" />
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
   );
 }
