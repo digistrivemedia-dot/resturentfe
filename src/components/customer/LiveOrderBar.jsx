@@ -18,7 +18,7 @@ const STATUS_CONFIG = {
 
 const HIDE_PATHS = [
   "/login", "/verify-otp", "/complete-profile",
-  "/checkout", "/payment", "/quick-order/location",
+  "/payment", "/quick-order/location",
 ];
 
 function OrderCard({ order, onClick, compact = false }) {
@@ -102,23 +102,33 @@ export default function LiveOrderBar() {
   };
 
   const isMultiple = activeOrders.length > 1;
+  const primaryOrder = activeOrders[0];
+  const primaryCfg = STATUS_CONFIG[primaryOrder.status] || STATUS_CONFIG.placed;
+  const PrimaryIcon = primaryCfg.icon;
 
   return (
     <>
-      {/* Mobile — stacked above bottom nav */}
-      <div
-        className="md:hidden fixed left-0 right-0 z-40 px-3 flex flex-col gap-1.5 pb-1"
-        style={{ bottom: "var(--bottom-nav-height)" }}
+      {/* Mobile — floating round bubble anchored below the header, not the
+          footer. Bottom-fixed bars (checkout CTA, view-cart bar) vary in
+          height per page, so anchoring from the top is the only way to
+          guarantee this never overlaps them. */}
+      <button
+        onClick={() => handleTrack(primaryOrder)}
+        className="md:hidden fixed z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-[var(--shadow-xl)] active:opacity-90"
+        style={{ top: "calc(var(--header-height) + 12px)", right: "14px" }}
+        aria-label={`Track order ${primaryOrder.orderNumber}`}
       >
-        {activeOrders.map((order, idx) => (
-          <OrderCard
-            key={order._id}
-            order={order}
-            onClick={handleTrack}
-            compact={isMultiple && idx > 0}
-          />
-        ))}
-      </div>
+        <span className={`absolute inset-0 rounded-full ${primaryCfg.color}`} />
+        {primaryCfg.pulse && (
+          <span className={`absolute inset-0 rounded-full ${primaryCfg.color} opacity-50 animate-ping`} />
+        )}
+        <PrimaryIcon size={22} className="text-white relative z-10" />
+        {isMultiple && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-text-primary text-white text-[10px] font-bold flex items-center justify-center z-10 ring-2 ring-white">
+            {activeOrders.length}
+          </span>
+        )}
+      </button>
 
       {/* Desktop — stacked cards at bottom right */}
       <div className="hidden md:flex flex-col gap-2 fixed bottom-5 right-5 z-40">
