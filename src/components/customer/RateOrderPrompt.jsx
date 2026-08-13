@@ -13,7 +13,7 @@ function needsRating(order) {
 }
 
 export default function RateOrderPrompt() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const [order, setOrder] = useState(null);
   const [open, setOpen] = useState(false);
 
@@ -39,11 +39,14 @@ export default function RateOrderPrompt() {
 
   // Real-time trigger: order flips to delivered while the app is open.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     const socket = connectSocket();
     if (!socket) return;
 
     const handler = ({ order: updated }) => {
+      // Defense in depth — never act on a payload without confirming it's
+      // actually this account's order (see LiveOrderBar for why).
+      if (String(updated.customer) !== String(user._id)) return;
       if (needsRating(updated)) {
         if (typeof window !== "undefined") sessionStorage.setItem(SESSION_KEY, "1");
         setOrder(updated);
@@ -52,7 +55,7 @@ export default function RateOrderPrompt() {
     };
     socket.on("order_status_updated", handler);
     return () => socket.off("order_status_updated", handler);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   return <RateOrderModal order={order} isOpen={open} onClose={() => setOpen(false)} />;
 }

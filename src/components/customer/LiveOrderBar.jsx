@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronRight, CheckCircle2, UtensilsCrossed, Bike, Package } from "lucide-react";
+import { ChevronRight, CheckCircle2, UtensilsCrossed, Bike, Package, CreditCard } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
 import useAuthStore from "@/stores/authStore";
 import { connectSocket } from "@/lib/socket";
 
 const STATUS_CONFIG = {
+  pending_payment:  { label: "Completing payment…", icon: CreditCard,      color: "bg-warning",  pulse: true  },
   placed:           { label: "Order placed",        icon: Package,         color: "bg-warning",  pulse: true  },
   confirmed:        { label: "Restaurant accepted",  icon: CheckCircle2,    color: "bg-primary",  pulse: true  },
   preparing:        { label: "Preparing your food",  icon: UtensilsCrossed, color: "bg-primary",  pulse: true  },
@@ -54,7 +55,7 @@ function OrderCard({ order, onClick, compact = false }) {
 export default function LiveOrderBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const { activeOrders, fetchActiveOrders } = useOrderStore();
 
   useEffect(() => {
@@ -65,11 +66,17 @@ export default function LiveOrderBar() {
   }, [isAuthenticated, pathname]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     const socket = connectSocket();
     if (!socket) return;
 
     const handler = ({ order }) => {
+      // Defense in depth: a socket can only be in one identity's rooms at a
+      // time, so this *shouldn't* fire for another user's order — but never
+      // trust a push payload's ownership blindly. A stray event here must
+      // not pollute this account's live-order list.
+      if (String(order.customer) !== String(user._id)) return;
+
       if (order.status === "delivered" || order.status === "cancelled") {
         useOrderStore.setState((s) => ({
           activeOrders: s.activeOrders.filter((o) => o._id !== order._id),
@@ -87,7 +94,7 @@ export default function LiveOrderBar() {
 
     socket.on("order_status_updated", handler);
     return () => socket.off("order_status_updated", handler);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   const shouldHide =
     HIDE_PATHS.some((p) => pathname.startsWith(p)) ||

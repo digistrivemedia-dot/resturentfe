@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import api from "@/lib/api";
 import { setToken, clearToken } from "@/lib/tokenManager";
+import { disconnectSocket } from "@/lib/socket";
 
 const useAuthStore = create((set, get) => ({
   isInitialized: false, // true once AuthInitializer has read the cookie
@@ -22,6 +23,7 @@ const useAuthStore = create((set, get) => ({
 
   logout: () => {
     clearToken();
+    disconnectSocket();
     set({ user: null, isAuthenticated: false, error: null });
   },
 
@@ -162,6 +164,7 @@ const useAuthStore = create((set, get) => ({
       // Ignore — clear local state regardless
     }
     clearToken();
+    disconnectSocket();
     set({ user: null, isAuthenticated: false, error: null });
   },
 }));
