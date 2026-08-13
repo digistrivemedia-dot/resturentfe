@@ -1,6 +1,23 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import usePlatformFeeStore from "./platformFeeStore";
+import useAuthStore from "./authStore";
+import api from "@/lib/api";
+
+// Debounced mirror of the cart to the server for logged-in customers — lets
+// a cart survive across devices, and gives the backend real data for
+// abandoned-cart automations (e.g. WhatsApp reminders via n8n). Guests never
+// sync (no account = nothing to message anyway); this is purely additive —
+// the local store stays the source of truth for the UI either way.
+let syncTimer = null;
+function scheduleSync(get) {
+  if (!useAuthStore.getState().isAuthenticated) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    const { restaurant, items, coupon, tip, orderType, orderTypeLocked } = get();
+    api.put("/customer/cart", { restaurant, items, coupon, tip, orderType, orderTypeLocked }).catch(() => {});
+  }, 800);
+}
 
 const useCartStore = create(
   persist(
@@ -27,6 +44,7 @@ const useCartStore = create(
             tip: 0,
             orderTypeLocked: false,
           });
+          scheduleSync(get);
           return "switched"; // Signal that restaurant was switched
         }
 
@@ -34,11 +52,12 @@ const useCartStore = create(
           restaurant: restaurant,
           items: [...items, { ...item, cartId: Date.now().toString() }],
         });
+        scheduleSync(get);
         return "added";
       },
 
       // Remove item by cartId
-      removeItem: (cartId) =>
+      removeItem: (cartId) => {
         set((state) => {
           const newItems = state.items.filter((i) => i.cartId !== cartId);
           const isEmpty = newItems.length === 0;
@@ -48,10 +67,12 @@ const useCartStore = create(
             coupon: isEmpty ? null : state.coupon,
             orderTypeLocked: isEmpty ? false : state.orderTypeLocked,
           };
-        }),
+        });
+        scheduleSync(get);
+      },
 
       // Update quantity
-      updateQuantity: (cartId, quantity) =>
+      updateQuantity: (cartId, quantity) => {
         set((state) => {
           if (quantity <= 0) {
             const newItems = state.items.filter((i) => i.cartId !== cartId);
@@ -67,46 +88,88 @@ const useCartStore = create(
               i.cartId === cartId ? { ...i, quantity } : i
             ),
           };
-        }),
+        });
+        scheduleSync(get);
+      },
 
       // Update addons for an item
-      updateAddons: (cartId, addons) =>
+      updateAddons: (cartId, addons) => {
         set((state) => ({
           items: state.items.map((i) =>
             i.cartId === cartId ? { ...i, addons } : i
           ),
-        })),
+        }));
+        scheduleSync(get);
+      },
 
       // Apply coupon
-      applyCoupon: (coupon) =>
-        set({ coupon }),
+      applyCoupon: (coupon) => {
+        set({ coupon });
+        scheduleSync(get);
+      },
 
-      removeCoupon: () =>
-        set({ coupon: null }),
+      removeCoupon: () => {
+        set({ coupon: null });
+        scheduleSync(get);
+      },
 
       // Set tip
-      setTip: (tip) =>
-        set({ tip }),
+      setTip: (tip) => {
+        set({ tip });
+        scheduleSync(get);
+      },
 
       // Set order type (delivery, dine_in, pickup, self_service)
-      setOrderType: (orderType) =>
+      setOrderType: (orderType) => {
         set((state) => ({
           orderType,
           tip: orderType === "delivery" ? state.tip : 0,
-        })),
+        }));
+        scheduleSync(get);
+      },
 
       // Set order type via the quick-order flow's dedicated selection page —
       // locks it in so the cart page doesn't ask again
-      confirmQuickOrderType: (orderType) =>
+      confirmQuickOrderType: (orderType) => {
         set((state) => ({
           orderType,
           tip: orderType === "delivery" ? state.tip : 0,
           orderTypeLocked: true,
-        })),
+        }));
+        scheduleSync(get);
+      },
 
-      // Clear entire cart
-      clearCart: () =>
-        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery", orderTypeLocked: false }),
+      // Clear entire cart (also clears the server-side mirror — this is an
+      // explicit "no active cart" action, e.g. after checkout)
+      clearCart: () => {
+        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery", orderTypeLocked: false });
+        clearTimeout(syncTimer);
+        if (useAuthStore.getState().isAuthenticated) {
+          api.delete("/customer/cart").catch(() => {});
+        }
+      },
+
+      // Local-only reset — used on logout. Unlike clearCart(), this does NOT
+      // touch the server-side cart: the point of logging out is switching who's
+      // using this device, not deleting the previous account's cart data.
+      resetLocalCart: () => {
+        clearTimeout(syncTimer);
+        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery", orderTypeLocked: false });
+      },
+
+      // Adopt a cart fetched from the server (e.g. on login, to recover a
+      // cart started on another device).
+      hydrateFromServer: (cart) => {
+        if (!cart) return;
+        set({
+          restaurant: cart.restaurant || null,
+          items: cart.items || [],
+          coupon: cart.coupon || null,
+          tip: cart.tip || 0,
+          orderType: cart.orderType || "delivery",
+          orderTypeLocked: !!cart.orderTypeLocked,
+        });
+      },
 
       // Computed values
       getItemCount: () => {

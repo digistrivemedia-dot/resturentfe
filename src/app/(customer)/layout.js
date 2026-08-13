@@ -7,6 +7,7 @@ import BottomNav from "@/components/customer/BottomNav";
 import LiveOrderBar from "@/components/customer/LiveOrderBar";
 import RateOrderPrompt from "@/components/customer/RateOrderPrompt";
 import CartBar from "@/components/customer/CartBar";
+import CartSync from "@/components/customer/CartSync";
 import ProtectedRoute from "@/components/ui/ProtectedRoute";
 import { isBottomNavHidden } from "@/lib/navVisibility";
 import usePlatformFeeStore from "@/stores/platformFeeStore";
@@ -33,7 +34,7 @@ export default function CustomerLayout({ children }) {
   }, [fetchPlatformFee, fetchOrderTypeSettings]);
 
   const isAuth = AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
-  if (isAuth) return <>{children}</>;
+  if (isAuth) return <><CartSync />{children}</>;
 
   const isBrowse = BROWSE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const showCartBar = !HIDE_CARTBAR_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -59,6 +60,7 @@ export default function CustomerLayout({ children }) {
         <RateOrderPrompt />
         {showCartBar && <CartBar />}
         <BottomNav />
+        <CartSync />
       </>
     );
   }
@@ -81,6 +83,7 @@ export default function CustomerLayout({ children }) {
       <LiveOrderBar />
       {showCartBar && <CartBar />}
       <BottomNav />
+      <CartSync />
     </ProtectedRoute>
   );
 }
