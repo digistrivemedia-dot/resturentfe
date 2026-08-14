@@ -20,6 +20,7 @@ import { formatPrice, formatDate } from "@/lib/utils";
 import useAdminCustomerStore from "@/stores/adminCustomerStore";
 
 function getInitials(name) {
+  if (!name || !name.trim()) return "?";
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
