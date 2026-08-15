@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import {
   Search,
   Download,
@@ -14,9 +15,10 @@ import {
   Eye,
   Ban,
   CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import { Modal, Badge } from "@/components/ui";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice, formatDate, timeAgo } from "@/lib/utils";
 import useAdminCustomerStore from "@/stores/adminCustomerStore";
 
 function getInitials(name) {
@@ -32,12 +34,14 @@ export default function CustomersPage() {
     isSaving,
     fetchCustomers,
     blockCustomer,
+    sendMembershipPopup,
   } = useAdminCustomerStore();
 
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage]               = useState(1);
   const [modal, setModal]             = useState(null); // { customer, action }
+  const [sendingPopupId, setSendingPopupId] = useState(null);
 
   // Fetch whenever filters/page change
   useEffect(() => {
@@ -70,6 +74,19 @@ export default function CustomersPage() {
       await blockCustomer(modal.customer._id);
       setModal(null);
     } catch (_) {}
+  }
+
+  async function handleSendPopup(customer) {
+    if (sendingPopupId) return;
+    setSendingPopupId(customer._id);
+    try {
+      await sendMembershipPopup(customer._id);
+      toast.success(`Membership popup sent to ${customer.name || customer.email}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send popup");
+    } finally {
+      setSendingPopupId(null);
+    }
   }
 
   function handleExportCSV() {
@@ -175,6 +192,7 @@ export default function CustomersPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wide">Customer</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wide">Phone</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wide">Orders</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wide">Joined</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wide">Actions</th>
               </tr>
@@ -182,13 +200,13 @@ export default function CustomersPage() {
             <tbody className="divide-y divide-border-light">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-text-tertiary">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-text-tertiary">
                     Loading customers...
                   </td>
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-text-tertiary">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-text-tertiary">
                     No customers found matching your filters.
                   </td>
                 </tr>
@@ -211,10 +229,14 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-4 py-3 text-text-secondary">{customer.phone}</td>
                     <td className="px-4 py-3">
-                      <Badge variant={customer.status === "active" ? "success" : "error"} dot>
-                        {customer.status === "active" ? "Active" : "Blocked"}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={customer.status === "active" ? "success" : "error"} dot>
+                          {customer.status === "active" ? "Active" : "Blocked"}
+                        </Badge>
+                        {customer.isMember && <Badge variant="primary">Member</Badge>}
+                      </div>
                     </td>
+                    <td className="px-4 py-3 text-text-secondary font-medium">{customer.totalOrders ?? 0}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">
                       {formatDate(customer.createdAt)}
                     </td>
@@ -237,6 +259,15 @@ export default function CustomersPage() {
                         >
                           {customer.status === "active" ? <Ban size={12} /> : <CheckCircle size={12} />}
                           {customer.status === "active" ? "Block" : "Unblock"}
+                        </button>
+                        <button
+                          onClick={() => handleSendPopup(customer)}
+                          disabled={sendingPopupId === customer._id}
+                          title={customer.membershipPopupRequestedAt ? `Last sent ${timeAgo(customer.membershipPopupRequestedAt)}` : "Send membership popup"}
+                          className="inline-flex items-center gap-1 h-7 px-2.5 text-xs font-semibold rounded-[var(--radius-md)] bg-warning-light text-warning hover:bg-warning hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <Sparkles size={12} />
+                          {sendingPopupId === customer._id ? "Sending..." : "Send Popup"}
                         </button>
                       </div>
                     </td>
@@ -271,15 +302,22 @@ export default function CustomersPage() {
                     <p className="text-xs text-text-tertiary truncate">{customer.email}</p>
                   </div>
                 </div>
-                <Badge variant={customer.status === "active" ? "success" : "error"} dot>
-                  {customer.status === "active" ? "Active" : "Blocked"}
-                </Badge>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge variant={customer.status === "active" ? "success" : "error"} dot>
+                    {customer.status === "active" ? "Active" : "Blocked"}
+                  </Badge>
+                  {customer.isMember && <Badge variant="primary">Member</Badge>}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <p className="text-text-tertiary">Phone</p>
                   <p className="text-text-primary font-medium mt-0.5">{customer.phone}</p>
+                </div>
+                <div>
+                  <p className="text-text-tertiary">Orders</p>
+                  <p className="text-text-primary font-medium mt-0.5">{customer.totalOrders ?? 0}</p>
                 </div>
                 <div>
                   <p className="text-text-tertiary">Joined</p>
@@ -307,6 +345,18 @@ export default function CustomersPage() {
                   {customer.status === "active" ? "Block" : "Unblock"}
                 </button>
               </div>
+              <button
+                onClick={() => handleSendPopup(customer)}
+                disabled={sendingPopupId === customer._id}
+                className="w-full inline-flex items-center justify-center gap-1.5 h-8 text-xs font-semibold rounded-[var(--radius-md)] bg-warning-light text-warning hover:bg-warning hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <Sparkles size={13} />
+                {sendingPopupId === customer._id
+                  ? "Sending..."
+                  : customer.membershipPopupRequestedAt
+                    ? `Send Popup (last sent ${timeAgo(customer.membershipPopupRequestedAt)})`
+                    : "Send Membership Popup"}
+              </button>
             </div>
           ))
         )}

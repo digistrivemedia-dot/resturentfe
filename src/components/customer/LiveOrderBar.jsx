@@ -55,7 +55,7 @@ function OrderCard({ order, onClick, compact = false }) {
 export default function LiveOrderBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, isInitialized, user } = useAuthStore();
   const { activeOrders, fetchActiveOrders } = useOrderStore();
 
   useEffect(() => {
@@ -65,8 +65,14 @@ export default function LiveOrderBar() {
     return () => clearInterval(interval);
   }, [isAuthenticated, pathname]);
 
+  // Wait for isInitialized, not just isAuthenticated: isAuthenticated flips true
+  // immediately from AuthInitializer's cached cookie, before its async token
+  // refresh finishes. Connecting the socket that early sends no access token,
+  // so the server admits the connection without joining it to any room — this
+  // listener would then silently never fire. The 30s poll above still catches
+  // status changes eventually, but this keeps updates instant as intended.
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !isInitialized || !user) return;
     const socket = connectSocket();
     if (!socket) return;
 
@@ -94,7 +100,7 @@ export default function LiveOrderBar() {
 
     socket.on("order_status_updated", handler);
     return () => socket.off("order_status_updated", handler);
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, isInitialized, user]);
 
   const shouldHide =
     HIDE_PATHS.some((p) => pathname.startsWith(p)) ||

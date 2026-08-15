@@ -125,10 +125,13 @@ export default function CustomerDetailPage({ params }) {
   const avgOrder      = totalOrders > 0 ? Math.round(totalSpent / totalOrders) : 0;
   const addressList   = customer?.addresses ?? [];
 
+  const isMember = !!(customer?.membership?.expiresAt && new Date(customer.membership.expiresAt) > new Date());
+
   const statGridItems = [
     { label: "Total Orders",    value: totalOrders,               sub: "lifetime" },
     { label: "Total Spent",     value: formatPrice(totalSpent),   sub: "lifetime", big: true },
     { label: "Avg Order Value", value: formatPrice(avgOrder),     sub: "per order" },
+    { label: "Membership",      value: isMember ? "Active" : "None", sub: isMember ? `until ${formatDate(customer.membership.expiresAt)}` : "not subscribed" },
   ];
 
   return (

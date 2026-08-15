@@ -16,14 +16,14 @@ const useOrderStore = create((set, get) => ({
     set({ isPlacing: true, error: null });
     try {
       const res = await api.post("/orders", orderData);
-      const { order, razorpay } = res.data;
+      const { order, razorpay, triggerMembershipPopup } = res.data;
       set((s) => ({
         currentOrder: order,
         isPlacing: false,
         // Don't add to active orders yet if payment is pending
         activeOrders: razorpay ? s.activeOrders : [order, ...s.activeOrders],
       }));
-      return { order, razorpay };
+      return { order, razorpay, triggerMembershipPopup };
     } catch (err) {
       set({ isPlacing: false, error: err.response?.data?.message || err.message });
       throw err;
@@ -34,12 +34,12 @@ const useOrderStore = create((set, get) => ({
   verifyPayment: async (paymentData) => {
     try {
       const res = await api.post("/orders/verify-payment", paymentData);
-      const { order } = res.data;
+      const { order, triggerMembershipPopup } = res.data;
       set((s) => ({
         currentOrder: order,
         activeOrders: [order, ...s.activeOrders],
       }));
-      return order;
+      return { ...order, triggerMembershipPopup };
     } catch (err) {
       throw err;
     }

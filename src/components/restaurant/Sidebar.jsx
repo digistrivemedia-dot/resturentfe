@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Puzzle,
   FolderOpen, Ticket, Star, BarChart3, Store, Settings,
   HelpCircle, CreditCard, ChevronLeft, Menu, ChevronDown, X,
-  MessageCircleWarning,
+  MessageCircleWarning, Users,
 } from "lucide-react";
 import { APP_NAME } from "@/constants";
 import useUiStore from "@/stores/uiStore";
@@ -96,6 +96,7 @@ const menuItems = [
   { href: "/restaurant/categories", label: "Categories",     icon: FolderOpen },
   { href: "/restaurant/coupons",    label: "Coupons & Offers", icon: Ticket },
   { href: "/restaurant/reviews",    label: "Reviews",        icon: Star },
+  { href: "/restaurant/customers",  label: "Customers",      icon: Users },
   {
     label: "Analytics",
     icon: BarChart3,

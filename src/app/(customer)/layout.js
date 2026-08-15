@@ -8,6 +8,7 @@ import LiveOrderBar from "@/components/customer/LiveOrderBar";
 import RateOrderPrompt from "@/components/customer/RateOrderPrompt";
 import CartBar from "@/components/customer/CartBar";
 import CartSync from "@/components/customer/CartSync";
+import MembershipPopupListener from "@/components/customer/MembershipPopupListener";
 import ProtectedRoute from "@/components/ui/ProtectedRoute";
 import { isBottomNavHidden } from "@/lib/navVisibility";
 import usePlatformFeeStore from "@/stores/platformFeeStore";
@@ -61,6 +62,7 @@ export default function CustomerLayout({ children }) {
         {showCartBar && <CartBar />}
         <BottomNav />
         <CartSync />
+        <MembershipPopupListener />
       </>
     );
   }
@@ -84,6 +86,7 @@ export default function CustomerLayout({ children }) {
       {showCartBar && <CartBar />}
       <BottomNav />
       <CartSync />
+      <MembershipPopupListener />
     </ProtectedRoute>
   );
 }

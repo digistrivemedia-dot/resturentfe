@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
 import { connectSocket } from "@/lib/socket";
+import MembershipModal from "@/components/customer/MembershipModal";
 
 const STATUS_STEPS = [
   { key: "placed",           label: "Order Placed" },
@@ -76,6 +77,7 @@ function OrderConfirmedContent() {
   const [animStage, setAnimStage] = useState(0);
   const [countdown, setCountdown] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(null);
+  const [showMembershipModal, setShowMembershipModal] = useState(searchParams.get("showMembershipPopup") === "1");
 
   // Fetch real order data
   useEffect(() => {
@@ -385,6 +387,8 @@ function OrderConfirmedContent() {
           Contact Support
         </Link>
       </p>
+
+      <MembershipModal isOpen={showMembershipModal} onClose={() => setShowMembershipModal(false)} />
     </div>
   );
 }

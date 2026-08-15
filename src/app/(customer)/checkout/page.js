@@ -144,12 +144,23 @@ export default function CheckoutPage() {
   // recomputed authoritatively server-side; this is just a preview using the standard rate.
   const isMember = !!(user?.membership?.expiresAt && new Date(user.membership.expiresAt) > new Date());
   const rawMembershipDiscount = isMember ? Math.round(subtotal * 0.20 * 100) / 100 : 0;
-  // Membership and coupon discounts don't stack — whichever is worth more applies
-  const useMembershipDiscount = rawMembershipDiscount > rawCouponDiscount;
-  const couponDiscount = useMembershipDiscount ? 0 : rawCouponDiscount;
-  const membershipDiscount = useMembershipDiscount ? rawMembershipDiscount : 0;
+  // New-customer promo — 50% off subtotal (uncapped) for each of the customer's first 4
+  // orders ever. Preview only; the server is authoritative on eligibility and amount.
+  const isFirstFourOrder = (user?.newCustomerOrdersUsed || 0) < 4;
+  const rawNewCustomerDiscount = isFirstFourOrder ? Math.round(subtotal * 0.5 * 100) / 100 : 0;
+  // New-customer, membership, and coupon discounts don't stack — whichever is worth
+  // most applies (same precedence as the backend).
+  const bestDiscount = Math.max(rawCouponDiscount, rawMembershipDiscount, rawNewCustomerDiscount);
+  let couponDiscount = 0, membershipDiscount = 0, newCustomerDiscount = 0;
+  if (rawNewCustomerDiscount > 0 && rawNewCustomerDiscount === bestDiscount) {
+    newCustomerDiscount = rawNewCustomerDiscount;
+  } else if (rawMembershipDiscount > 0 && rawMembershipDiscount === bestDiscount) {
+    membershipDiscount = rawMembershipDiscount;
+  } else {
+    couponDiscount = rawCouponDiscount;
+  }
   const effectiveTip = isDelivery ? tip || 0 : 0;
-  const total = Math.max(0, subtotal + deliveryFee + tax - couponDiscount - membershipDiscount + effectiveTip + platformFee);
+  const total = Math.max(0, subtotal + deliveryFee + tax - couponDiscount - membershipDiscount - newCustomerDiscount + effectiveTip + platformFee);
   const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
   const restaurantAddress = restaurant?.address || {};
 
@@ -226,7 +237,8 @@ export default function CheckoutPage() {
               });
               clearCart();
               playOrderPlacedSound();
-              router.push(`/order/confirmed?orderNumber=${verifiedOrder.orderNumber}&orderId=${verifiedOrder._id}`);
+              const popupParam = verifiedOrder.triggerMembershipPopup ? "&showMembershipPopup=1" : "";
+              router.push(`/order/confirmed?orderNumber=${verifiedOrder.orderNumber}&orderId=${verifiedOrder._id}${popupParam}`);
             } catch (err) {
               toast.error("Payment verification failed. Please contact support.");
               setLoading(false);
@@ -260,7 +272,8 @@ export default function CheckoutPage() {
       // COD — redirect immediately
       clearCart();
       playOrderPlacedSound();
-      router.push(`/order/confirmed?orderNumber=${result.order.orderNumber}&orderId=${result.order._id}`);
+      const popupParam = result.triggerMembershipPopup ? "&showMembershipPopup=1" : "";
+      router.push(`/order/confirmed?orderNumber=${result.order.orderNumber}&orderId=${result.order._id}${popupParam}`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to place order");
     }
@@ -582,6 +595,7 @@ export default function CheckoutPage() {
             platformFee > 0 ? { label: "Platform fee", val: `₹${platformFee}` } : null,
             { label: "GST (5%)", val: `₹${Math.round(tax)}` },
             effectiveTip > 0 ? { label: "Delivery tip", val: `₹${effectiveTip}` } : null,
+            newCustomerDiscount > 0 ? { label: "New customer discount (50%)", val: `-₹${Math.round(newCustomerDiscount)}`, cls: "text-success font-semibold" } : null,
             membershipDiscount > 0 ? { label: "Membership discount (20%)", val: `-₹${Math.round(membershipDiscount)}`, cls: "text-success font-semibold" } : null,
             couponDiscount > 0 ? { label: `Coupon (${coupon?.code})`, val: `-₹${Math.round(couponDiscount)}`, cls: "text-success font-semibold" } : null,
           ].filter(Boolean).map(({ label, val, cls = "" }) => (
@@ -595,9 +609,9 @@ export default function CheckoutPage() {
           <span className="font-bold text-text-primary">Total</span>
           <span className="text-lg font-extrabold text-text-primary">₹{Math.round(total)}</span>
         </div>
-        {(couponDiscount > 0 || membershipDiscount > 0) && (
+        {(couponDiscount > 0 || membershipDiscount > 0 || newCustomerDiscount > 0) && (
           <p className="text-xs text-success font-semibold mt-1 text-right">
-            🎉 Saving ₹{Math.round(couponDiscount + membershipDiscount)} on this order
+            🎉 Saving ₹{Math.round(couponDiscount + membershipDiscount + newCustomerDiscount)} on this order
           </p>
         )}
       </div>

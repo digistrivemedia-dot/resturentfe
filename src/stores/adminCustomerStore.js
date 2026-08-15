@@ -54,9 +54,10 @@ const useAdminCustomerStore = create((set) => ({
     set({ isSaving: true, error: null });
     try {
       const res = await api.put(`/admin/customers/${id}/block`);
+      const { status } = res.data.customer;
       set((state) => ({
-        customers: state.customers.map((c) => (c._id === id ? res.data.customer : c)),
-        currentCustomer: state.currentCustomer?._id === id ? res.data.customer : state.currentCustomer,
+        customers: state.customers.map((c) => (c._id === id ? { ...c, status } : c)),
+        currentCustomer: state.currentCustomer?._id === id ? { ...state.currentCustomer, status } : state.currentCustomer,
         isSaving: false,
       }));
       return res.data.customer;
@@ -64,6 +65,21 @@ const useAdminCustomerStore = create((set) => ({
       set({ isSaving: false, error: err.message });
       throw err;
     }
+  },
+
+  // Merge only the field that actually changed — res.data.customer is the raw
+  // User document and lacks the totalOrders/isMember stats that getCustomers()
+  // computes separately, so replacing the whole row would wipe them from the UI.
+  sendMembershipPopup: async (id) => {
+    const res = await api.post(`/admin/customers/${id}/send-membership-popup`);
+    const { membershipPopupRequestedAt } = res.data.customer;
+    set((state) => ({
+      customers: state.customers.map((c) => (c._id === id ? { ...c, membershipPopupRequestedAt } : c)),
+      currentCustomer: state.currentCustomer?._id === id
+        ? { ...state.currentCustomer, membershipPopupRequestedAt }
+        : state.currentCustomer,
+    }));
+    return res.data.customer;
   },
 
   clearCurrentCustomer: () => set({ currentCustomer: null }),

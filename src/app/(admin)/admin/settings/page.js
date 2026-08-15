@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useCallback, useEffect } from "react";
 import {
   User,
@@ -25,6 +26,7 @@ import {
 import { Toggle } from "@/components/ui";
 import useAuthStore from "@/stores/authStore";
 import useAdminSettingsStore from "@/stores/adminSettingsStore";
+import useAdminDashboardStore from "@/stores/adminDashboardStore";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -466,6 +468,11 @@ function PlatformTab({ showToast }) {
 function PaymentsTab({ showToast }) {
   const { settings, isLoading: settingsLoading, fetchSettings, updateSettings } =
     useAdminSettingsStore();
+  const { stats: dashboardStats, fetchDashboardStats } = useAdminDashboardStore();
+
+  useEffect(() => {
+    fetchDashboardStats().catch(() => {});
+  }, [fetchDashboardStats]);
 
   const [gateway, setGateway] = useState("razorpay");
   const [acceptCOD, setAcceptCOD] = useState(true);
@@ -642,6 +649,22 @@ function PaymentsTab({ showToast }) {
         <p className="text-sm text-text-secondary -mt-3 mb-4">
           Customers pay to get a flat discount on every order for a fixed period.
         </p>
+
+        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+          <div className="rounded-[var(--radius-lg)] border border-border-light bg-bg-secondary px-4 py-3">
+            <p className="text-xs text-text-tertiary">Customers who&apos;ve ever purchased membership</p>
+            <p className="text-2xl font-bold text-text-primary mt-1">
+              {dashboardStats?.totalMembersEverPurchased ?? "—"}
+            </p>
+          </div>
+          <div className="rounded-[var(--radius-lg)] border border-border-light bg-bg-secondary px-4 py-3">
+            <p className="text-xs text-text-tertiary">Currently active members</p>
+            <p className="text-2xl font-bold text-text-primary mt-1">
+              {dashboardStats?.activeMembers ?? "—"}
+            </p>
+          </div>
+        </div>
+
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label="Price (₹)" hint="Charged per purchase/renewal">
             <TextInput value={membershipPrice} onChange={setMembershipPrice} type="number" placeholder="299" />
@@ -653,6 +676,11 @@ function PaymentsTab({ showToast }) {
             <TextInput value={membershipDurationDays} onChange={setMembershipDurationDays} type="number" placeholder="30" />
           </Field>
         </div>
+
+        <p className="text-xs text-text-tertiary mt-4">
+          To actually offer membership to a customer, use the &quot;Send Popup&quot; action on the{" "}
+          <Link href="/admin/customers" className="text-primary hover:underline">Customers</Link> page.
+        </p>
       </SectionCard>
 
       <div className="flex justify-end">
