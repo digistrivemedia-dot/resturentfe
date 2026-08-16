@@ -2,14 +2,26 @@
 
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowLeft, Phone, MapPin, Clock,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
-  Navigation, Shield, Loader2, ExternalLink, HelpCircle,
+  Shield, Loader2, ExternalLink, HelpCircle,
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
 import { connectSocket } from "@/lib/socket";
+
+// Leaflet touches `window` at import time, so it can only run client-side —
+// ssr: false keeps Next from trying to render it on the server.
+const TrackingMap = dynamic(() => import("@/components/customer/TrackingMap"), {
+  ssr: false,
+  loading: () => <div className="absolute inset-0 bg-bg-secondary animate-pulse" />,
+});
+
+// Location older than this is treated as stale (Flash task likely gone stale
+// or webhook stopped) rather than shown as if it were current.
+const LOCATION_STALE_MS = 10 * 60 * 1000;
 
 const STATUS_STEPS = [
   { key: "placed",           label: "Order Placed",         desc: "We received your order" },
@@ -31,75 +43,90 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
-// Fake rider position that "moves" over time
-function useRiderPosition(order) {
-  const [position, setPosition] = useState({ lat: 19.1150, lng: 72.8410 });
-  useEffect(() => {
-    if (!["out_for_delivery", "picked_up"].includes(order?.status)) return;
-    const iv = setInterval(() => {
-      setPosition((p) => ({
-        lat: p.lat + (Math.random() - 0.5) * 0.0005,
-        lng: p.lng + (Math.random() - 0.5) * 0.0005,
-      }));
-    }, 3000);
-    return () => clearInterval(iv);
-  }, [order]);
-  return position;
-}
-
 export default function TrackOrderPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const { currentOrder: order, isLoading, fetchOrderById } = useOrderStore();
   const [sheetExpanded, setSheetExpanded] = useState(false);
-  const [countdown, setCountdown] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(null);
+  const [routeInfo, setRouteInfo] = useState(null); // { durationSec, distanceMeters } from the real driving route
+
+  // A single ticking clock, re-rendered every second. Countdown/elapsed time
+  // are DERIVED from it below (not their own stateful counters) — this avoids
+  // an entire class of "the interval silently stopped updating" bugs, since
+  // there's nothing to get out of sync: every render recomputes both values
+  // fresh from `now` and the order's real timestamps.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     fetchOrderById(id);
   }, [id, fetchOrderById]);
 
-  // Socket: real-time order status updates
+  // Socket: real-time order status + rider location updates
   useEffect(() => {
     const socket = connectSocket();
     if (!socket) return;
-    const handler = ({ order: updated }) => {
+
+    const statusHandler = ({ order: updated }) => {
       if (updated._id === id || updated._id?.toString() === id) {
         useOrderStore.setState({ currentOrder: updated });
       }
     };
-    socket.on("order_status_updated", handler);
-    return () => socket.off("order_status_updated", handler);
+    const locationHandler = ({ orderId, location }) => {
+      if (orderId === id || orderId?.toString() === id) {
+        useOrderStore.setState((s) => s.currentOrder ? {
+          currentOrder: {
+            ...s.currentOrder,
+            deliveryTracking: { ...s.currentOrder.deliveryTracking, currentLocation: location },
+          },
+        } : {});
+      }
+    };
+
+    socket.on("order_status_updated", statusHandler);
+    socket.on("order_location_updated", locationHandler);
+    return () => {
+      socket.off("order_status_updated", statusHandler);
+      socket.off("order_location_updated", locationHandler);
+    };
   }, [id]);
 
-  // Calculate countdown from real order data
-  useEffect(() => {
-    if (!order) return;
-    if (order.status === "delivered") {
-      const placed = new Date(order.createdAt).getTime();
-      const delivered = order.deliveryTracking?.deliveredAt
-        ? new Date(order.deliveryTracking.deliveredAt).getTime()
-        : Date.now();
-      setElapsedTime(Math.round((delivered - placed) / 60000));
-      setCountdown(0);
-      return;
-    }
-    const estimatedMins = order.estimatedDeliveryTime || 35;
-    const placedAt = new Date(order.createdAt).getTime();
-    const deadline = placedAt + estimatedMins * 60 * 1000;
-    const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
-    setCountdown(remaining);
-  }, [order?.status, order?.createdAt, order?.estimatedDeliveryTime]);
+  // Countdown/elapsed time — derived fresh from `now` on every tick. Prefers
+  // the real driving-route duration (from the map's OSRM lookup) once it's
+  // loaded, falls back to the order's stored estimate until then.
+  const isDeliveredNow = order?.status === "delivered";
+  let countdown = null;
+  let elapsedTime = null;
+  if (order && isDeliveredNow) {
+    const placed = new Date(order.createdAt).getTime();
+    const delivered = order.deliveryTracking?.deliveredAt
+      ? new Date(order.deliveryTracking.deliveredAt).getTime()
+      : now;
+    elapsedTime = Math.round((delivered - placed) / 60000);
+    countdown = 0;
+  } else if (order) {
+    const estimatedMins = routeInfo?.durationSec
+      ? Math.ceil(routeInfo.durationSec / 60)
+      : order.estimatedDeliveryTime || 35;
+    const deadline = new Date(order.createdAt).getTime() + estimatedMins * 60 * 1000;
+    countdown = Math.max(0, Math.floor((deadline - now) / 1000));
+  }
 
-  // Countdown tick
-  useEffect(() => {
-    if (!countdown) return;
-    const iv = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
-    return () => clearInterval(iv);
-  }, [!countdown]);
-
-  const riderPos = useRiderPosition(order);
   const currentStepIdx = order ? getStepIndex(order.status) : 0;
+
+  // Date.now() belongs in an effect, not render — a render must be pure.
+  const rawLocation = order?.deliveryTracking?.currentLocation;
+  const [riderLocation, setRiderLocation] = useState(null);
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      const isFresh = rawLocation?.lat && rawLocation?.updatedAt &&
+        Date.now() - new Date(rawLocation.updatedAt).getTime() < LOCATION_STALE_MS;
+      setRiderLocation(isFresh ? { lat: rawLocation.lat, lng: rawLocation.lng } : null);
+    });
+  }, [rawLocation?.lat, rawLocation?.lng, rawLocation?.updatedAt]);
 
   const mins = countdown ? Math.floor(countdown / 60) : 0;
   const secs = countdown ? countdown % 60 : 0;
@@ -122,80 +149,13 @@ export default function TrackOrderPage({ params }) {
 
       {/* Map area */}
       <div className="flex-1 relative overflow-hidden">
-        {/* Gradient map placeholder */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-green-50 to-blue-50">
-          {/* Grid lines to simulate map */}
-          <svg className="absolute inset-0 w-full h-full opacity-30" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#94a3b8" strokeWidth="0.5"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-
-          {/* Simulated roads */}
-          <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <line x1="0" y1="40%" x2="100%" y2="45%" stroke="#e2e8f0" strokeWidth="6" />
-            <line x1="0" y1="65%" x2="100%" y2="60%" stroke="#e2e8f0" strokeWidth="4" />
-            <line x1="30%" y1="0" x2="35%" y2="100%" stroke="#e2e8f0" strokeWidth="8" />
-            <line x1="65%" y1="0" x2="60%" y2="100%" stroke="#e2e8f0" strokeWidth="5" />
-            <line x1="0" y1="20%" x2="100%" y2="22%" stroke="#f1f5f9" strokeWidth="3" />
-          </svg>
-
-          {/* Restaurant marker */}
-          <div className="absolute top-[38%] left-[30%] -translate-x-1/2 -translate-y-full">
-            <div className="flex flex-col items-center">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center shadow-lg border-2 border-white">
-                <span className="text-lg">🍽️</span>
-              </div>
-              <div className="bg-white text-xs font-semibold text-text-primary px-2 py-0.5 rounded-full shadow mt-1 whitespace-nowrap">
-                {order.restaurant.name}
-              </div>
-              <div className="w-0.5 h-2 bg-primary mt-0.5" />
-            </div>
-          </div>
-
-          {/* Destination marker */}
-          <div className="absolute top-[62%] left-[65%] -translate-x-1/2 -translate-y-full">
-            <div className="flex flex-col items-center">
-              <div className="w-10 h-10 bg-success rounded-full flex items-center justify-center shadow-lg border-2 border-white">
-                <MapPin size={20} className="text-white" />
-              </div>
-              <div className="bg-white text-xs font-semibold text-text-primary px-2 py-0.5 rounded-full shadow mt-1">
-                Your location
-              </div>
-              <div className="w-0.5 h-2 bg-success mt-0.5" />
-            </div>
-          </div>
-
-          {/* Route line */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <polyline
-              points="30%,38% 45%,40% 55%,45% 60%,50% 65%,62%"
-              fill="none"
-              stroke="#FF5722"
-              strokeWidth="3"
-              strokeDasharray="8,5"
-              strokeLinecap="round"
-            />
-          </svg>
-
-          {/* Rider marker (animated) */}
-          {isLive && (
-            <div
-              className="absolute transition-all duration-3000"
-              style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%)" }}
-            >
-              <div className="relative">
-                <div className="absolute -inset-3 bg-primary/20 rounded-full animate-ping" />
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-xl border-2 border-primary z-10 relative">
-                  <span className="text-xl">🛵</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <TrackingMap
+          restaurant={{ lat: order.restaurant.address?.lat, lng: order.restaurant.address?.lng }}
+          restaurantName={order.restaurant.name}
+          destination={{ lat: order.deliveryAddress.lat, lng: order.deliveryAddress.lng }}
+          riderLocation={isLive ? riderLocation : null}
+          onRouteInfo={setRouteInfo}
+        />
 
         {/* Back button */}
         <div className="absolute top-4 left-4 z-10">

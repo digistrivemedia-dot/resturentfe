@@ -221,17 +221,31 @@ const useCartStore = create(
         return coupon.value;
       },
 
+      // Best-of preview across coupon/membership/new-customer discounts — same
+      // precedence checkout uses server-side, so the number shown here on
+      // "Proceed to Checkout" doesn't jump to something smaller one screen later.
+      getBestDiscount: () => {
+        const subtotal = get().getSubtotal();
+        const rawCouponDiscount = get().getCouponDiscount();
+        const user = useAuthStore.getState().user;
+        const isMember = !!(user?.membership?.expiresAt && new Date(user.membership.expiresAt) > new Date());
+        const rawMembershipDiscount = isMember ? Math.round(subtotal * 0.20 * 100) / 100 : 0;
+        const isFirstFourOrder = (user?.newCustomerOrdersUsed || 0) < 4;
+        const rawNewCustomerDiscount = isFirstFourOrder ? Math.round(subtotal * 0.5 * 100) / 100 : 0;
+        return Math.max(rawCouponDiscount, rawMembershipDiscount, rawNewCustomerDiscount);
+      },
+
       getTotal: () => {
         const subtotal = get().getSubtotal();
         const deliveryFee = get().getDeliveryFee();
         const tax = get().getTaxAmount();
-        const couponDiscount = get().getCouponDiscount();
+        const bestDiscount = get().getBestDiscount();
         const { tip } = get();
         const { enabled: platformFeeEnabled, amount: platformFeeAmount } = usePlatformFeeStore.getState();
         const platformFee = platformFeeEnabled ? platformFeeAmount : 0;
         return Math.max(
           0,
-          subtotal + deliveryFee + tax - couponDiscount + tip + platformFee
+          subtotal + deliveryFee + tax - bestDiscount + tip + platformFee
         );
       },
     }),

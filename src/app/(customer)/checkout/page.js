@@ -31,8 +31,10 @@ const PAYMENT_METHODS = [
   },
   {
     id: "cod",
-    label: "Cash on Delivery",
-    desc: "Pay when your order arrives",
+    // Only ever offered for pickup/dine-in — delivery requires online payment
+    // so Flash (our delivery partner) can actually dispatch a rider.
+    label: "Pay at Restaurant",
+    desc: "Pay when you visit",
     icon: Banknote,
     tag: null,
   },
@@ -96,6 +98,13 @@ export default function CheckoutPage() {
   }, [orderType, orderTypesEnabled, router]);
 
   const isDelivery = orderType === "delivery";
+  // Cash isn't offered for delivery — Flash (our delivery partner) can't dispatch
+  // a rider for unpaid orders, so those would silently fall back to no tracking
+  // and manual delivery. Pickup/dine-in still allow cash ("Pay at Restaurant"),
+  // since those never involve Flash at all.
+  const availablePaymentMethods = isDelivery
+    ? PAYMENT_METHODS.filter((m) => m.id !== "cod")
+    : PAYMENT_METHODS;
   const dropLat = selectedAddr?.lat || currentLocation?.lat;
   const dropLng = selectedAddr?.lng || currentLocation?.lng;
   const canCheckServiceability = isDelivery && !!restaurant?._id && !!dropLat && !!dropLng;
@@ -160,7 +169,14 @@ export default function CheckoutPage() {
     couponDiscount = rawCouponDiscount;
   }
   const effectiveTip = isDelivery ? tip || 0 : 0;
-  const total = Math.max(0, subtotal + deliveryFee + tax - couponDiscount - membershipDiscount - newCustomerDiscount + effectiveTip + platformFee);
+  const totalDiscount = couponDiscount + membershipDiscount + newCustomerDiscount;
+  // "Total" is every charge added up before any discount — the undiscounted
+  // amount. "Payable" is what the customer actually pays after discounts.
+  // Keeping these as two distinct, clearly-labeled numbers (instead of one
+  // "Total" line with a discount buried above it) is what actually needs to
+  // add up for the customer at a glance.
+  const preDiscountTotal = subtotal + deliveryFee + tax + platformFee + effectiveTip;
+  const total = Math.max(0, preDiscountTotal - totalDiscount);
   const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
   const restaurantAddress = restaurant?.address || {};
 
@@ -544,7 +560,7 @@ export default function CheckoutPage() {
           </h2>
         </div>
         <div className="px-4 pb-4 space-y-2">
-          {PAYMENT_METHODS.map(({ id, label, desc, icon: Icon, tag, tagColor }) => (
+          {availablePaymentMethods.map(({ id, label, desc, icon: Icon, tag, tagColor }) => (
             <label
               key={id}
               className={`flex items-center gap-3 p-3 rounded-[var(--radius-lg)] border-2 cursor-pointer transition-all ${
@@ -560,10 +576,10 @@ export default function CheckoutPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">{!isDelivery && id === "cod" ? "Pay at Restaurant" : label}</span>
+                  <span className="text-sm font-semibold text-text-primary">{label}</span>
                   {tag && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tagColor}`}>{tag}</span>}
                 </div>
-                <span className="text-xs text-text-secondary">{!isDelivery && id === "cod" ? "Pay when you visit" : desc}</span>
+                <span className="text-xs text-text-secondary">{desc}</span>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
                 paymentMethod === id ? "border-primary" : "border-border-default"
@@ -595,9 +611,6 @@ export default function CheckoutPage() {
             platformFee > 0 ? { label: "Platform fee", val: `₹${platformFee}` } : null,
             { label: "GST (5%)", val: `₹${Math.round(tax)}` },
             effectiveTip > 0 ? { label: "Delivery tip", val: `₹${effectiveTip}` } : null,
-            newCustomerDiscount > 0 ? { label: "New customer discount (50%)", val: `-₹${Math.round(newCustomerDiscount)}`, cls: "text-success font-semibold" } : null,
-            membershipDiscount > 0 ? { label: "Membership discount (20%)", val: `-₹${Math.round(membershipDiscount)}`, cls: "text-success font-semibold" } : null,
-            couponDiscount > 0 ? { label: `Coupon (${coupon?.code})`, val: `-₹${Math.round(couponDiscount)}`, cls: "text-success font-semibold" } : null,
           ].filter(Boolean).map(({ label, val, cls = "" }) => (
             <div key={label} className="flex items-center justify-between text-sm">
               <span className="text-text-secondary">{label}</span>
@@ -605,13 +618,36 @@ export default function CheckoutPage() {
             </div>
           ))}
         </div>
+
+        {/* Total — every charge above, added up, before any discount */}
         <div className="border-t border-dashed border-border-light mt-3 pt-3 flex items-center justify-between">
-          <span className="font-bold text-text-primary">Total</span>
+          <span className="font-semibold text-text-primary">Total</span>
+          <span className="font-semibold text-text-primary">₹{Math.round(preDiscountTotal)}</span>
+        </div>
+
+        {totalDiscount > 0 && (
+          <div className="space-y-2 mt-2">
+            {[
+              newCustomerDiscount > 0 ? { label: "New customer discount (50% off items)", val: `-₹${Math.round(newCustomerDiscount)}` } : null,
+              membershipDiscount > 0 ? { label: "Membership discount (20% off items)", val: `-₹${Math.round(membershipDiscount)}` } : null,
+              couponDiscount > 0 ? { label: `Coupon (${coupon?.code})`, val: `-₹${Math.round(couponDiscount)}` } : null,
+            ].filter(Boolean).map(({ label, val }) => (
+              <div key={label} className="flex items-center justify-between text-sm">
+                <span className="text-success font-medium">{label}</span>
+                <span className="text-success font-semibold">{val}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Payable — what the customer actually pays, after discounts */}
+        <div className="border-t border-border-light mt-3 pt-3 flex items-center justify-between">
+          <span className="font-bold text-text-primary">Payable</span>
           <span className="text-lg font-extrabold text-text-primary">₹{Math.round(total)}</span>
         </div>
-        {(couponDiscount > 0 || membershipDiscount > 0 || newCustomerDiscount > 0) && (
+        {totalDiscount > 0 && (
           <p className="text-xs text-success font-semibold mt-1 text-right">
-            🎉 Saving ₹{Math.round(couponDiscount + membershipDiscount + newCustomerDiscount)} on this order
+            🎉 Saving ₹{Math.round(totalDiscount)} on this order
           </p>
         )}
       </div>
@@ -631,7 +667,7 @@ export default function CheckoutPage() {
         >
           <div className="text-left">
             <div className="text-xs text-white/80">
-              {paymentMethod === "cod" ? (!isDelivery ? "Pay at Restaurant" : "Cash on Delivery") : "Pay Online"}
+              {paymentMethod === "cod" ? "Pay at Restaurant" : "Pay Online"}
             </div>
             <div className="text-base font-extrabold">Place Order</div>
           </div>

@@ -264,6 +264,20 @@ export default function OrderDetailPage({ params }) {
             <BillRow label={`GST (${p.taxPercentage}%)`} value={`₹${p.taxAmount}`} />
             {p.packagingCharge > 0 && <BillRow label="Packaging" value={`₹${p.packagingCharge}`} />}
             {p.tip > 0 && <BillRow label="Delivery tip" value={`₹${p.tip}`} />}
+            {p.newCustomerDiscount > 0 && (
+              <BillRow
+                label="New customer discount (50% off items)"
+                value={`-₹${p.newCustomerDiscount}`}
+                valueClass="text-success font-semibold"
+              />
+            )}
+            {p.membershipDiscount > 0 && (
+              <BillRow
+                label="Membership discount (20% off items)"
+                value={`-₹${p.membershipDiscount}`}
+                valueClass="text-success font-semibold"
+              />
+            )}
             {p.couponDiscount > 0 && (
               <BillRow
                 label={`Coupon (${p.couponCode})`}
@@ -273,9 +287,9 @@ export default function OrderDetailPage({ params }) {
             )}
             <BillRow label="Total Paid" value={`₹${p.total}`} bold />
           </div>
-          {p.couponDiscount > 0 && (
+          {(p.couponDiscount > 0 || p.membershipDiscount > 0 || p.newCustomerDiscount > 0) && (
             <p className="text-xs text-success font-semibold mt-2 text-right">
-              🎉 You saved ₹{p.couponDiscount} on this order
+              🎉 You saved ₹{p.couponDiscount + p.membershipDiscount + p.newCustomerDiscount} on this order
             </p>
           )}
         </div>
@@ -348,7 +362,7 @@ export default function OrderDetailPage({ params }) {
               )}
             </div>
             {order.rating.review && (
-              <p className="text-sm text-text-secondary mt-3 italic">"{order.rating.review}"</p>
+              <p className="text-sm text-text-secondary mt-3 italic">&quot;{order.rating.review}&quot;</p>
             )}
           </div>
         )}
