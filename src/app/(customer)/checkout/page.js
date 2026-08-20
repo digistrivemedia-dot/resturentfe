@@ -264,6 +264,12 @@ export default function CheckoutPage() {
             ondismiss: function () {
               toast.error("Payment cancelled");
               setLoading(false);
+              // Without this, the order sits in pending_payment forever —
+              // LiveOrderBar keeps showing "Completing payment…" for it
+              // indefinitely, and tapping through lands on a page with no
+              // way to tell the customer it never actually went through.
+              const { cancelOrder } = useOrderStore.getState();
+              cancelOrder(result.order._id, "Payment cancelled by customer").catch(() => {});
             },
           },
           prefill: {
@@ -280,6 +286,8 @@ export default function CheckoutPage() {
         rzp.on("payment.failed", function (response) {
           toast.error(response.error.description || "Payment failed");
           setLoading(false);
+          const { cancelOrder } = useOrderStore.getState();
+          cancelOrder(result.order._id, "Payment failed").catch(() => {});
         });
         rzp.open();
         return;
