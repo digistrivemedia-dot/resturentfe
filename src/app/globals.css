@@ -328,6 +328,15 @@ body {
   animation: slideUp var(--transition-slow) ease-out;
 }
 
+/* Bottom sheet — slides up from fully off-screen, for the mobile-web sheet Modal variant */
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-sheet-up {
+  animation: sheetUp var(--transition-slow) ease-out;
+}
+
 /* Slide in from right */
 @keyframes slideInRight {
   from { transform: translateX(100%); }

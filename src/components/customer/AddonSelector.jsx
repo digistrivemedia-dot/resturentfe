@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Minus, Plus, ShoppingBag, ChevronDown, Flame } from "lucide-react";
+import { X, Minus, Plus, ShoppingBag, ChevronDown, Flame, Clock } from "lucide-react";
 import { VegBadge } from "@/components/ui";
 import useCartStore from "@/stores/cartStore";
 import { formatPrice } from "@/lib/utils";
@@ -117,55 +117,121 @@ export default function AddonSelector({ item, restaurant, onClose, existingCartI
     return selected.length >= (group.minSelection || 1);
   }) ?? true;
 
+  const hasNutrition = item.nutritionalInfo && Object.values(item.nutritionalInfo).some((v) => v > 0);
+
   return (
     <div className="flex flex-col" style={{ maxHeight: "85vh" }}>
 
-      {/* ── Header ── */}
-      <div className="flex items-start gap-4 pb-4 border-b border-border-light shrink-0">
-        {/* Food emoji / image */}
-        <div className="w-20 h-20 rounded-[var(--radius-lg)] bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center text-4xl shrink-0 overflow-hidden">
-          🍽️
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <VegBadge isVeg={item.isVeg} />
-            {item.tags?.includes("bestseller") && (
-              <span className="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
-                ★ BESTSELLER
-              </span>
-            )}
+      {/* ── Hero image — bleeds to the panel's top edge/corners on both
+          breakpoints; rounded-t here matches the panel's own top rounding
+          since the panel itself has no overflow-hidden to clip it for us ── */}
+      <div
+        className="relative w-full h-48 sm:h-56 shrink-0 -mx-6 -mt-4 mb-0 rounded-t-[var(--radius-lg)] overflow-hidden"
+        style={{ width: "calc(100% + 3rem)" }}
+      >
+        {item.image ? (
+          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center text-6xl">
+            🍽️
           </div>
-          <h2 className="text-lg font-bold text-text-primary leading-snug">{item.name}</h2>
-          <p className="text-sm text-text-secondary mt-0.5 line-clamp-2">{item.description}</p>
-
-          {/* Spice level */}
-          {item.spiceLevel && item.spiceLevel !== "mild" && (
-            <div className="flex items-center gap-1.5 mt-2">
-              <div className="flex gap-0.5">
-                {["mild", "medium", "hot", "extra_hot"]
-                  .slice(0, ["mild", "medium", "hot", "extra_hot"].indexOf(item.spiceLevel) + 1)
-                  .map((_, i) => (
-                    <Flame key={i} size={12} className="text-primary" fill="currentColor" />
-                  ))}
-              </div>
-              <span className="text-xs text-text-secondary">{SPICE_COLORS[item.spiceLevel]?.label}</span>
-            </div>
-          )}
-
-          {/* Price */}
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-base font-bold text-text-primary">₹{basePrice}</span>
-            {originalPrice && (
-              <span className="text-sm text-text-tertiary line-through">₹{originalPrice}</span>
-            )}
-          </div>
-        </div>
+        )}
         <button
           onClick={onClose}
-          className="p-1.5 rounded-full text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors shrink-0"
+          className="absolute top-3 right-3 p-1.5 rounded-full bg-white/90 text-text-primary hover:bg-white transition-colors shadow-[var(--shadow-md)]"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
+      </div>
+
+      {/* ── Header ── */}
+      <div className="pt-4 pb-4 border-b border-border-light shrink-0">
+        <div className="flex items-center gap-2 mb-1">
+          <VegBadge isVeg={item.isVeg} />
+          {item.tags?.includes("bestseller") && (
+            <span className="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
+              ★ BESTSELLER
+            </span>
+          )}
+        </div>
+        <h2 className="text-lg font-bold text-text-primary leading-snug">{item.name}</h2>
+        {item.description && (
+          <p className="text-sm text-text-secondary mt-1 leading-relaxed">{item.description}</p>
+        )}
+
+        {/* Spice level + prep time */}
+        {((item.spiceLevel && item.spiceLevel !== "mild") || item.preparationTime) && (
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-1.5 mt-2.5">
+            {item.spiceLevel && item.spiceLevel !== "mild" && (
+              <div className="flex items-center gap-1.5">
+                <div className="flex gap-0.5">
+                  {["mild", "medium", "hot", "extra_hot"]
+                    .slice(0, ["mild", "medium", "hot", "extra_hot"].indexOf(item.spiceLevel) + 1)
+                    .map((_, i) => (
+                      <Flame key={i} size={12} className="text-primary" fill="currentColor" />
+                    ))}
+                </div>
+                <span className="text-xs text-text-secondary">{SPICE_COLORS[item.spiceLevel]?.label}</span>
+              </div>
+            )}
+            {item.preparationTime && (
+              <div className="flex items-center gap-1.5 text-text-secondary">
+                <Clock size={13} />
+                <span className="text-xs">{item.preparationTime} mins</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Allergens */}
+        {item.allergens?.length > 0 && (
+          <div className="flex items-center flex-wrap gap-1.5 mt-2.5">
+            <span className="text-xs text-text-tertiary">Contains:</span>
+            {item.allergens.map((a) => (
+              <span key={a} className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-2 py-0.5 rounded-full capitalize">
+                {a}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Nutritional info */}
+        {hasNutrition && (
+          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border-light">
+            {item.nutritionalInfo.calories > 0 && (
+              <div>
+                <p className="text-sm font-bold text-text-primary">{item.nutritionalInfo.calories}</p>
+                <p className="text-[10px] text-text-tertiary">Calories</p>
+              </div>
+            )}
+            {item.nutritionalInfo.protein > 0 && (
+              <div>
+                <p className="text-sm font-bold text-text-primary">{item.nutritionalInfo.protein}g</p>
+                <p className="text-[10px] text-text-tertiary">Protein</p>
+              </div>
+            )}
+            {item.nutritionalInfo.carbs > 0 && (
+              <div>
+                <p className="text-sm font-bold text-text-primary">{item.nutritionalInfo.carbs}g</p>
+                <p className="text-[10px] text-text-tertiary">Carbs</p>
+              </div>
+            )}
+            {item.nutritionalInfo.fat > 0 && (
+              <div>
+                <p className="text-sm font-bold text-text-primary">{item.nutritionalInfo.fat}g</p>
+                <p className="text-[10px] text-text-tertiary">Fat</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Price */}
+        <div className="flex items-center gap-2 mt-3">
+          <span className="text-base font-bold text-text-primary">₹{basePrice}</span>
+          {originalPrice && (
+            <span className="text-sm text-text-tertiary line-through">₹{originalPrice}</span>
+          )}
+        </div>
       </div>
 
       {/* ── Scrollable body ── */}

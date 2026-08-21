@@ -75,8 +75,11 @@ export default function HomeFoodCard({ item }) {
   return (
     <>
       <div className={`bg-bg-primary rounded-[var(--radius-xl)] border border-border-light overflow-hidden shadow-sm flex flex-col ${!isOpen ? "grayscale opacity-70" : ""}`}>
-        {/* Image */}
-        <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-orange-50 to-red-50 overflow-hidden flex items-center justify-center">
+        {/* Image — tapping opens the item detail view, same as Swiggy/Zomato/Zepto */}
+        <div
+          className="relative w-full aspect-[4/3] bg-gradient-to-br from-orange-50 to-red-50 overflow-hidden flex items-center justify-center cursor-pointer"
+          onClick={() => setAddonOpen(true)}
+        >
           {item.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -99,11 +102,16 @@ export default function HomeFoodCard({ item }) {
 
         {/* Info */}
         <div className="p-3 flex flex-col gap-1.5 flex-1">
-          <div className="flex items-center gap-1.5">
-            <VegBadge isVeg={item.isVeg} />
+          <div
+            className="flex flex-col gap-1.5 cursor-pointer"
+            onClick={() => setAddonOpen(true)}
+          >
+            <div className="flex items-center gap-1.5">
+              <VegBadge isVeg={item.isVeg} />
+            </div>
+            <p className="text-sm font-bold text-text-primary leading-snug line-clamp-1">{item.name}</p>
+            <p className="text-xs text-text-tertiary truncate">{restaurant?.name}</p>
           </div>
-          <p className="text-sm font-bold text-text-primary leading-snug line-clamp-1">{item.name}</p>
-          <p className="text-xs text-text-tertiary truncate">{restaurant?.name}</p>
 
           {/* Coupon tag */}
           {couponText && (
@@ -156,7 +164,7 @@ export default function HomeFoodCard({ item }) {
 
       {/* Addon Selector Modal */}
       {addonOpen && (
-        <Modal isOpen={addonOpen} onClose={() => setAddonOpen(false)} size="sm" showClose={false} className="!p-0">
+        <Modal isOpen={addonOpen} onClose={() => setAddonOpen(false)} size="md" variant="sheet" showClose={false} className="!p-0">
           <AddonSelector item={item} restaurant={restaurant} onClose={() => setAddonOpen(false)} />
         </Modal>
       )}

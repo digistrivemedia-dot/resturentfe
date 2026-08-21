@@ -6,7 +6,10 @@ import useCartStore from "@/stores/cartStore";
 
 export default function CartBar() {
   const itemCount = useCartStore((s) => s.getItemCount());
-  const total = useCartStore((s) => s.getTotal());
+  // Plain sum of item prices — same number the cart page shows next to each
+  // item. Delivery fee/tax/discount only get applied on the cart & checkout
+  // pages, so this bar and the cart page never show two different totals.
+  const subtotal = useCartStore((s) => s.getSubtotal());
   const restaurant = useCartStore((s) => s.restaurant);
 
   if (itemCount === 0) return null;
@@ -29,7 +32,7 @@ export default function CartBar() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold">₹{Math.round(total)}</span>
+          <span className="text-sm font-bold">₹{Math.round(subtotal)}</span>
           <ArrowRight size={16} />
         </div>
       </Link>

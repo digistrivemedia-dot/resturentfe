@@ -74,8 +74,11 @@ export default function MenuItemCard({ item, restaurant }) {
     <>
       <div className={`flex gap-3 py-4 border-b border-border-light last:border-0 ${!item.isAvailable ? "opacity-50" : ""}`}>
 
-        {/* Left: Info */}
-        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        {/* Left: Info — tapping opens the item detail view, same as Swiggy/Zomato/Zepto */}
+        <div
+          className="flex-1 min-w-0 flex flex-col gap-1.5 cursor-pointer"
+          onClick={() => setAddonOpen(true)}
+        >
           {/* Veg badge + tags */}
           <div className="flex items-center gap-2 flex-wrap">
             <VegBadge isVeg={item.isVeg} />
@@ -102,21 +105,20 @@ export default function MenuItemCard({ item, restaurant }) {
             <p className="text-xs text-text-tertiary leading-relaxed line-clamp-2">{item.description}</p>
           )}
 
-          {/* Customisable label */}
           {hasCustomisation && (
-            <button
-              onClick={() => setAddonOpen(true)}
-              className="inline-flex items-center gap-0.5 text-xs text-primary font-medium w-fit hover:underline"
-            >
+            <span className="inline-flex items-center gap-0.5 text-xs text-primary font-medium w-fit">
               <ChevronDown size={12} /> Customisable
-            </button>
+            </span>
           )}
         </div>
 
         {/* Right: Image + Add button */}
         <div className="flex flex-col items-center gap-2 shrink-0">
-          {/* Image */}
-          <div className="relative w-24 h-24 rounded-[var(--radius-lg)] overflow-hidden bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center">
+          {/* Image — also opens the detail view */}
+          <div
+            className="relative w-24 h-24 rounded-[var(--radius-lg)] overflow-hidden bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center cursor-pointer"
+            onClick={() => setAddonOpen(true)}
+          >
             {item.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -178,7 +180,8 @@ export default function MenuItemCard({ item, restaurant }) {
       <Modal
         isOpen={addonOpen}
         onClose={() => setAddonOpen(false)}
-        size="sm"
+        size="md"
+        variant="sheet"
         showClose={false}
         className="!p-0"
       >
