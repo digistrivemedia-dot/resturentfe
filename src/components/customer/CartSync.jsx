@@ -1,41 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import useAuthStore from "@/stores/authStore";
 import useCartStore from "@/stores/cartStore";
 import api from "@/lib/api";
 
-// Bridges auth transitions to the cart store without cartStore <-> authStore
-// importing each other directly (cartStore already imports authStore to
-// check auth state before syncing — this component owns the other direction).
+// The cart has no local persistence anymore — the database is the only
+// store, so this has to run on every mount (not just on a login transition)
+// to actually load the cart at all, in addition to reacting to login/logout.
 export default function CartSync() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const wasAuthenticated = useRef(isAuthenticated);
 
   useEffect(() => {
-    if (isAuthenticated === wasAuthenticated.current) return;
-    wasAuthenticated.current = isAuthenticated;
-
     if (isAuthenticated) {
-      // Logged in — recover a cart started on another device, unless this
-      // device already has one in progress (that wins; push it to the server).
       api
         .get("/customer/cart")
         .then((res) => {
-          const serverCart = res.data.cart;
-          const { restaurant, items, coupon, tip, orderType, orderTypeLocked, hydrateFromServer } = useCartStore.getState();
-          if (items.length === 0 && serverCart?.items?.length > 0) {
-            hydrateFromServer(serverCart);
-          } else if (items.length > 0) {
-            // Local cart takes precedence — mirror it to the server.
-            api.put("/customer/cart", { restaurant, items, coupon, tip, orderType, orderTypeLocked }).catch(() => {});
-          }
+          useCartStore.getState().hydrateFromServer(res.data.cart);
         })
-        .catch(() => {});
+        .catch(() => {
+          useCartStore.getState().resetLocalCart();
+        });
     } else {
-      // Logged out — this device's cart is no longer "whoever was using it a
-      // moment ago". Clear locally only; the server-side record for that
-      // account stays intact.
+      // No one logged in — there is no cart to have.
       useCartStore.getState().resetLocalCart();
     }
   }, [isAuthenticated]);

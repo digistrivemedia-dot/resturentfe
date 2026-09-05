@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Minus, Tag } from "lucide-react";
 import { VegBadge, Modal } from "@/components/ui";
 import AddonSelector from "./AddonSelector";
@@ -16,6 +17,7 @@ function couponLabel(coupon) {
 }
 
 export default function HomeFoodCard({ item }) {
+  const router = useRouter();
   const [addonOpen, setAddonOpen] = useState(false);
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
 
@@ -39,7 +41,7 @@ export default function HomeFoodCard({ item }) {
       setAddonOpen(true);
       return;
     }
-    addItem(
+    const result = addItem(
       {
         _id: restaurant._id,
         name: restaurant.name,
@@ -60,6 +62,9 @@ export default function HomeFoodCard({ item }) {
         quantity: 1,
       }
     );
+    if (result === "login_required") {
+      router.push("/login");
+    }
   };
 
   const handleDecrement = () => {

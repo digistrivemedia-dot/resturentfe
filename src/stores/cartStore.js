@@ -1,17 +1,13 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import usePlatformFeeStore from "./platformFeeStore";
 import useAuthStore from "./authStore";
 import api from "@/lib/api";
 
-// Debounced mirror of the cart to the server for logged-in customers — lets
-// a cart survive across devices, and gives the backend real data for
-// abandoned-cart automations (e.g. WhatsApp reminders via n8n). Guests never
-// sync (no account = nothing to message anyway); this is purely additive —
-// the local store stays the source of truth for the UI either way.
+// Debounced mirror of the cart to the server — this IS the cart now (no local
+// persistence). Every mutation only ever happens for a logged-in customer
+// (addItem refuses otherwise), so this always has someone to sync for.
 let syncTimer = null;
 function scheduleSync(get) {
-  if (!useAuthStore.getState().isAuthenticated) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => {
     const { restaurant, items, coupon, tip, orderType, orderTypeLocked } = get();
@@ -20,7 +16,6 @@ function scheduleSync(get) {
 }
 
 const useCartStore = create(
-  persist(
     (set, get) => ({
       restaurant: null, // { _id, name, slug, deliveryFee, minOrderAmount }
       items: [],
@@ -30,9 +25,17 @@ const useCartStore = create(
       // true once the order type was chosen up-front via the quick-order flow —
       // cart hides its own order-type picker in that case (already decided)
       orderTypeLocked: false,
+      // False until the initial server fetch resolves (see CartSync) — lets the
+      // cart page tell "still checking the server" apart from "genuinely empty".
+      isHydrated: false,
 
-      // Add item to cart
+      // Add item to cart. Cart is login-only — this is the single real entry
+      // point for ever putting something in the cart, so it's the one place
+      // that needs to enforce that, rather than every "Add" button doing it.
+      // Returns "login_required" so the caller can redirect.
       addItem: (restaurant, item) => {
+        if (!useAuthStore.getState().isAuthenticated) return "login_required";
+
         const { restaurant: currentRestaurant, items } = get();
 
         // If different restaurant, clear cart first
@@ -149,18 +152,18 @@ const useCartStore = create(
         }
       },
 
-      // Local-only reset — used on logout. Unlike clearCart(), this does NOT
-      // touch the server-side cart: the point of logging out is switching who's
-      // using this device, not deleting the previous account's cart data.
+      // Local-only reset — used on logout, or when there's simply no one
+      // logged in to have a cart for.
       resetLocalCart: () => {
         clearTimeout(syncTimer);
-        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery", orderTypeLocked: false });
+        set({ restaurant: null, items: [], coupon: null, tip: 0, orderType: "delivery", orderTypeLocked: false, isHydrated: true });
       },
 
-      // Adopt a cart fetched from the server (e.g. on login, to recover a
-      // cart started on another device).
+      // Adopt the cart fetched from the server on login/mount — this is now
+      // the only way the cart is ever populated after a page load, since
+      // there's no local persistence to restore from.
       hydrateFromServer: (cart) => {
-        if (!cart) return;
+        if (!cart) { set({ isHydrated: true }); return; }
         set({
           restaurant: cart.restaurant || null,
           items: cart.items || [],
@@ -168,6 +171,7 @@ const useCartStore = create(
           tip: cart.tip || 0,
           orderType: cart.orderType || "delivery",
           orderTypeLocked: !!cart.orderTypeLocked,
+          isHydrated: true,
         });
       },
 
@@ -248,11 +252,7 @@ const useCartStore = create(
           subtotal + deliveryFee + tax - bestDiscount + tip + platformFee
         );
       },
-    }),
-    {
-      name: "cart-storage",
-    }
-  )
+    })
 );
 
 export default useCartStore;

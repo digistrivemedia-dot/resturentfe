@@ -10,7 +10,6 @@ import {
   CircleDollarSign,
   Clock3,
   IndianRupee,
-  MessageSquareWarning,
   ShoppingBag,
   Store,
   TrendingUp,
@@ -206,14 +205,6 @@ export default function AdminDashboardPage() {
       icon: UserCheck,
       color: "text-info",
       bg: "bg-info-light",
-    },
-    {
-      title: "Unresolved customer complaints",
-      value: 6,
-      href: "/admin/reviews",
-      icon: MessageSquareWarning,
-      color: "text-error",
-      bg: "bg-error-light",
     },
   ];
 

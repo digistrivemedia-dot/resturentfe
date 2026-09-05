@@ -62,12 +62,14 @@ export default function FavoritesPage() {
       addons: [],
       quantity: 1,
     });
-    if (result === "switched") {
+    if (result === "login_required") {
+      router.push("/login");
+    } else if (result === "switched") {
       showMsg("warning", `Switched to ${dish.restaurant.name} — cart updated!`);
     } else {
       showMsg("success", `${dish.name} added to cart!`);
     }
-  }, [addItem]);
+  }, [addItem, router]);
 
   const showMsg = (type, text) => {
     setReorderMsg({ type, text });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { X, Minus, Plus, ShoppingBag, ChevronDown, Flame, Clock } from "lucide-react";
 import { VegBadge } from "@/components/ui";
 import useCartStore from "@/stores/cartStore";
@@ -14,6 +15,7 @@ const SPICE_COLORS = {
 };
 
 export default function AddonSelector({ item, restaurant, onClose, existingCartId }) {
+  const router = useRouter();
   const { addItem, updateAddons, updateQuantity, items } = useCartStore();
 
   // Initial state from existing cart item if editing
@@ -103,6 +105,11 @@ export default function AddonSelector({ item, restaurant, onClose, existingCartI
         },
         cartItem
       );
+      if (result === "login_required") {
+        onClose?.();
+        router.push("/login");
+        return;
+      }
       if (result === "switched") setSwitchWarning(true);
     }
     onClose?.();

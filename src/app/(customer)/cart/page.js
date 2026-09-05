@@ -10,6 +10,7 @@ import {
 import { Modal } from "@/components/ui";
 import CouponModal from "@/components/customer/CouponModal";
 import useCartStore from "@/stores/cartStore";
+import useAuthStore from "@/stores/authStore";
 import useOrderTypeSettingsStore from "@/stores/orderTypeSettingsStore";
 import { ORDER_TYPES } from "@/constants";
 
@@ -17,6 +18,7 @@ export default function CartPage() {
   const router = useRouter();
   const [couponOpen, setCouponOpen] = useState(false);
   const [clearWarning, setClearWarning] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const {
     restaurant, items, coupon, orderType, orderTypeLocked,
@@ -47,13 +49,27 @@ export default function CartPage() {
         <div className="w-28 h-28 bg-bg-secondary rounded-full flex items-center justify-center mb-6">
           <ShoppingBag size={48} className="text-text-tertiary" />
         </div>
-        <h2 className="text-xl font-bold text-text-primary mb-2">Your cart is empty</h2>
-        <p className="text-text-secondary text-sm mb-6 max-w-xs">
-          Looks like you haven&apos;t added anything yet. Start exploring restaurants near you!
-        </p>
-        <Link href="/home" className="h-11 px-8 bg-primary text-white font-semibold rounded-[var(--radius-full)] flex items-center gap-2 hover:bg-primary-dark transition-colors">
-          <ShoppingBag size={16} /> Browse Restaurants
-        </Link>
+        {isAuthenticated ? (
+          <>
+            <h2 className="text-xl font-bold text-text-primary mb-2">Your cart is empty</h2>
+            <p className="text-text-secondary text-sm mb-6 max-w-xs">
+              Looks like you haven&apos;t added anything yet. Start exploring restaurants near you!
+            </p>
+            <Link href="/home" className="h-11 px-8 bg-primary text-white font-semibold rounded-[var(--radius-full)] flex items-center gap-2 hover:bg-primary-dark transition-colors">
+              <ShoppingBag size={16} /> Browse Restaurants
+            </Link>
+          </>
+        ) : (
+          <>
+            <h2 className="text-xl font-bold text-text-primary mb-2">Log in to see your cart</h2>
+            <p className="text-text-secondary text-sm mb-6 max-w-xs">
+              Your cart is tied to your account, so we need you logged in to show it.
+            </p>
+            <Link href="/login" className="h-11 px-8 bg-primary text-white font-semibold rounded-[var(--radius-full)] flex items-center gap-2 hover:bg-primary-dark transition-colors">
+              Log In
+            </Link>
+          </>
+        )}
       </div>
     );
   }

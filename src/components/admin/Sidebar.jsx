@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Store, Users, ShoppingBag, Bike,
-  Ticket, DollarSign, BarChart3, Star, Bell, Settings,
+  Ticket, DollarSign, BarChart3, Bell, Settings,
   Image, ScrollText, ChevronLeft, Menu, X, LayoutGrid,
 } from "lucide-react";
 import { APP_NAME } from "@/constants";
@@ -21,7 +21,6 @@ const menuItems = [
   { href: "/admin/coupons",           label: "Coupons",           icon: Ticket },
   { href: "/admin/finance",           label: "Revenue & Payouts", icon: DollarSign },
   { href: "/admin/analytics",         label: "Analytics",         icon: BarChart3 },
-  { href: "/admin/reviews",           label: "Reviews",           icon: Star },
   { href: "/admin/cms",               label: "CMS / Banners",     icon: Image },
   { href: "/admin/notifications",     label: "Notifications",     icon: Bell },
   { href: "/admin/settings",          label: "Settings",          icon: Settings },
