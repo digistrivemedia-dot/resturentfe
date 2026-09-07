@@ -709,6 +709,7 @@ function NotificationsTab({ showToast }) {
 function AccountTab({ showToast }) {
   const user = useAuthStore((s) => s.user);
   const authUpdateProfile = useAuthStore((s) => s.updateProfile);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
   const { restaurant } = useRestaurantProfileStore();
 
   const [saving, setSaving] = useState(false);
@@ -716,6 +717,7 @@ function AccountTab({ showToast }) {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
 
   const [ownerName, setOwnerName] = useState("");
   const [hydrated, setHydrated] = useState(false);
@@ -726,6 +728,12 @@ function AccountTab({ showToast }) {
       setHydrated(true);
     }
   }, [user]);
+
+  // Refetch on mount so the displayed login password reflects any admin-side
+  // reset that happened since this browser last loaded the logged-in user.
+  useEffect(() => {
+    fetchMe();
+  }, []);
 
   const [password, setPassword] = useState({
     current: "",
@@ -766,6 +774,7 @@ function AccountTab({ showToast }) {
         newPassword: password.newPwd,
       });
       setPassword({ current: "", newPwd: "", confirm: "" });
+      await fetchMe(); // refresh so "Current Login Password" below shows the new one
       showToast("Password changed successfully");
     } catch (err) {
       showToast(err.message || "Failed to change password");
@@ -812,6 +821,27 @@ function AccountTab({ showToast }) {
         <div className="mt-5 flex justify-end">
           <SaveButton loading={saving} onClick={handleSaveProfile} label="Update Profile" />
         </div>
+      </SectionCard>
+
+      {/* Current login password — reflects either your own last change or an admin reset */}
+      <SectionCard title="Current Login Password" subtitle="If admin resets your password, the new one appears here">
+        {user?.tempPassword ? (
+          <div className="flex items-center gap-2 bg-bg-secondary border border-border-light rounded-[var(--radius-md)] px-3 py-2.5">
+            <Lock size={15} className="text-text-tertiary shrink-0" />
+            <span className="flex-1 text-sm font-mono text-text-primary">
+              {showLoginPwd ? user.tempPassword : "•".repeat(Math.min(user.tempPassword.length, 12))}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowLoginPwd((v) => !v)}
+              className="text-text-tertiary hover:text-text-primary transition-colors shrink-0"
+            >
+              {showLoginPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-text-secondary">Not available yet — set a password using &quot;Change Password&quot; below.</p>
+        )}
       </SectionCard>
 
       {/* Password */}
