@@ -7,26 +7,18 @@ import {
   Building2,
   CreditCard,
   Bell,
-  Shield,
-  Palette,
   Eye,
   EyeOff,
   Check,
-  Copy,
-  Trash2,
   RefreshCw,
   AlertTriangle,
-  Monitor,
-  Smartphone,
-  Globe,
-  Lock,
-  QrCode,
   ChevronRight,
 } from "lucide-react";
 import { Toggle } from "@/components/ui";
 import useAuthStore from "@/stores/authStore";
 import useAdminSettingsStore from "@/stores/adminSettingsStore";
 import useAdminDashboardStore from "@/stores/adminDashboardStore";
+import api from "@/lib/api";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -173,18 +165,22 @@ function ProfileTab({ showToast }) {
     }, 700);
   }
 
-  function changePassword() {
+  async function changePassword() {
     if (!currentPwd) return showToast("Enter current password", "error");
     if (newPwd.length < 8) return showToast("New password must be 8+ characters", "error");
     if (newPwd !== confirmPwd) return showToast("Passwords do not match", "error");
     setPwdLoading(true);
-    setTimeout(() => {
+    try {
+      await api.put("/admin/change-password", { currentPassword: currentPwd, newPassword: newPwd });
       setCurrentPwd("");
       setNewPwd("");
       setConfirmPwd("");
-      setPwdLoading(false);
       showToast("Password changed successfully");
-    }, 700);
+    } catch (err) {
+      showToast(err.message || "Failed to change password", "error");
+    } finally {
+      setPwdLoading(false);
+    }
   }
 
   const EyeToggle = ({ field }) => (
@@ -474,11 +470,7 @@ function PaymentsTab({ showToast }) {
     fetchDashboardStats().catch(() => {});
   }, [fetchDashboardStats]);
 
-  const [gateway, setGateway] = useState("razorpay");
   const [acceptCOD, setAcceptCOD] = useState(true);
-  const [autoPayout, setAutoPayout] = useState(false);
-  const [payoutFreq, setPayoutFreq] = useState("weekly");
-  const [payoutThreshold, setPayoutThreshold] = useState("500");
   const [commission, setCommission] = useState("18");
   const [platformFeeEnabled, setPlatformFeeEnabled] = useState(true);
   const [platformFeeAmount, setPlatformFeeAmount] = useState("3");
@@ -500,12 +492,8 @@ function PaymentsTab({ showToast }) {
 
   useEffect(() => {
     if (settings && Object.keys(settings).length > 0) {
-      if (settings.gateway) setGateway(settings.gateway);
-      if (settings.acceptCOD !== undefined) setAcceptCOD(settings.acceptCOD);
-      if (settings.autoPayout !== undefined) setAutoPayout(settings.autoPayout);
-      if (settings.payoutFreq) setPayoutFreq(settings.payoutFreq);
-      if (settings.payoutThreshold) setPayoutThreshold(String(settings.payoutThreshold));
-      if (settings.commission) setCommission(String(settings.commission));
+      if (settings.acceptCOD?.value !== undefined) setAcceptCOD(!!settings.acceptCOD.value);
+      if (settings.commission?.value !== undefined) setCommission(String(settings.commission.value));
       if (settings.platformFeeEnabled?.value !== undefined) setPlatformFeeEnabled(!!settings.platformFeeEnabled.value);
       if (settings.platformFeeAmount?.value !== undefined) setPlatformFeeAmount(String(settings.platformFeeAmount.value));
       if (settings.membershipPrice?.value !== undefined) setMembershipPrice(String(settings.membershipPrice.value));
@@ -519,12 +507,8 @@ function PaymentsTab({ showToast }) {
     try {
       await updateSettings({
         category: "payments",
-        gateway,
-        acceptCOD,
-        autoPayout,
-        payoutFreq,
-        payoutThreshold: Number(payoutThreshold),
-        commission: Number(commission),
+        acceptCOD: { value: acceptCOD, category: "payments" },
+        commission: { value: Number(commission), category: "payments" },
         platformFeeEnabled: { value: platformFeeEnabled, category: "payments" },
         platformFeeAmount: { value: Number(platformFeeAmount), category: "payments" },
         membershipPrice: { value: Number(membershipPrice), category: "payments" },
@@ -540,78 +524,27 @@ function PaymentsTab({ showToast }) {
     }
   }
 
-  const gateways = [
-    { id: "razorpay", label: "Razorpay", desc: "Most popular in India" },
-    { id: "stripe", label: "Stripe", desc: "Global coverage" },
-    { id: "payu", label: "PayU", desc: "India & MENA" },
-  ];
-
   return (
     <div className="space-y-6">
       <SectionCard title="Payment Gateway">
-        <div className="space-y-3">
-          {gateways.map((gw) => (
-            <label
-              key={gw.id}
-              className={`flex items-center gap-4 p-4 rounded-[var(--radius-lg)] border cursor-pointer transition-colors ${
-                gateway === gw.id
-                  ? "border-[#FF5722] bg-[#FF5722]/5"
-                  : "border-border-light hover:border-[#FF5722]/40"
-              }`}
-            >
-              <input
-                type="radio"
-                name="gateway"
-                value={gw.id}
-                checked={gateway === gw.id}
-                onChange={() => setGateway(gw.id)}
-                className="accent-[#FF5722] w-4 h-4"
-              />
-              <div>
-                <p className="text-sm font-semibold text-text-primary">{gw.label}</p>
-                <p className="text-xs text-text-secondary">{gw.desc}</p>
-              </div>
-              {gateway === gw.id && (
-                <span className="ml-auto text-xs font-semibold text-[#FF5722] bg-[#FF5722]/10 px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              )}
-            </label>
-          ))}
+        <div className="flex items-center gap-4 p-4 rounded-[var(--radius-lg)] border border-[#FF5722] bg-[#FF5722]/5">
+          <div>
+            <p className="text-sm font-semibold text-text-primary">Razorpay</p>
+            <p className="text-xs text-text-secondary">The only gateway currently integrated — web and mobile checkout both go through it</p>
+          </div>
+          <span className="ml-auto text-xs font-semibold text-[#FF5722] bg-[#FF5722]/10 px-2 py-0.5 rounded-full">
+            Active
+          </span>
         </div>
       </SectionCard>
 
-      <SectionCard title="COD & Payout Settings">
+      <SectionCard title="COD Settings">
         <ToggleRow
           label="Accept Cash on Delivery (COD) Platform-wide"
           hint="Allows customers to pay with cash when placing orders"
           checked={acceptCOD}
           onChange={setAcceptCOD}
         />
-        <ToggleRow
-          label="Auto Payout to Restaurants"
-          hint="Automatically transfer restaurant earnings on a schedule"
-          checked={autoPayout}
-          onChange={setAutoPayout}
-        />
-        {autoPayout && (
-          <div className="mt-4 pl-4 border-l-2 border-[#FF5722]/30 space-y-4">
-            <Field label="Payout Frequency">
-              <SelectInput
-                value={payoutFreq}
-                onChange={setPayoutFreq}
-                options={[
-                  { value: "weekly", label: "Weekly" },
-                  { value: "biweekly", label: "Biweekly" },
-                  { value: "monthly", label: "Monthly" },
-                ]}
-              />
-            </Field>
-            <Field label="Minimum Payout Threshold (₹)" hint="Auto-payout only triggers when balance exceeds this amount">
-              <TextInput value={payoutThreshold} onChange={setPayoutThreshold} type="number" placeholder="500" />
-            </Field>
-          </div>
-        )}
       </SectionCard>
 
       <SectionCard title="Commission">
@@ -695,11 +628,10 @@ function PaymentsTab({ showToast }) {
 function NotificationsTab({ showToast }) {
   const { settings, fetchSettings, updateSettings } = useAdminSettingsStore();
 
+  const [notificationEmail, setNotificationEmail] = useState("");
   const [emailToggles, setEmailToggles] = useState({
-    newRestaurant: true,
     largeOrder: true,
     paymentFailure: true,
-    dailySummary: false,
   });
   const [smsMode, setSmsMode] = useState("otp"); // otp | otp_marketing
   const [webhookUrl, setWebhookUrl] = useState("https://hooks.cafesriisha.com/orders");
@@ -718,22 +650,26 @@ function NotificationsTab({ showToast }) {
 
   useEffect(() => {
     if (settings && Object.keys(settings).length > 0) {
-      if (settings.emailToggles) setEmailToggles((p) => ({ ...p, ...settings.emailToggles }));
-      if (settings.smsMode) setSmsMode(settings.smsMode);
-      if (settings.webhookUrl) setWebhookUrl(settings.webhookUrl);
+      if (settings.notificationEmail?.value !== undefined) setNotificationEmail(settings.notificationEmail.value);
+      if (settings.emailToggles?.value) setEmailToggles((p) => ({ ...p, ...settings.emailToggles.value }));
+      if (settings.smsMode?.value) setSmsMode(settings.smsMode.value);
+      if (settings.webhookUrl?.value) setWebhookUrl(settings.webhookUrl.value);
     }
   }, [settings]);
 
   const toggleEmail = (key) => setEmailToggles((p) => ({ ...p, [key]: !p[key] }));
 
   async function save() {
+    if (notificationEmail && !/^\S+@\S+\.\S+$/.test(notificationEmail)) {
+      return showToast("Enter a valid notification email address", "error");
+    }
     setLoading(true);
     try {
       await updateSettings({
-        category: "notifications",
-        emailToggles,
-        smsMode,
-        webhookUrl,
+        notificationEmail: { value: notificationEmail, category: "notifications" },
+        emailToggles: { value: emailToggles, category: "notifications" },
+        smsMode: { value: smsMode, category: "notifications" },
+        webhookUrl: { value: webhookUrl, category: "notifications" },
       });
       showToast("Notification preferences saved");
     } catch (err) {
@@ -747,12 +683,16 @@ function NotificationsTab({ showToast }) {
   return (
     <div className="space-y-6">
       <SectionCard title="Email Notifications">
-        <ToggleRow
-          label="New Restaurant Registration"
-          hint="Notify when a new restaurant submits for approval"
-          checked={emailToggles.newRestaurant}
-          onChange={() => toggleEmail("newRestaurant")}
-        />
+        <div className="pb-4 mb-1 border-b border-border-light">
+          <Field label="Notification Email" hint="Admin alerts (large orders, payment failures) are sent to this address">
+            <TextInput
+              value={notificationEmail}
+              onChange={setNotificationEmail}
+              placeholder="you@example.com"
+              type="email"
+            />
+          </Field>
+        </div>
         <ToggleRow
           label="Large Order Alerts"
           hint="Get notified for orders above ₹5,000"
@@ -764,12 +704,6 @@ function NotificationsTab({ showToast }) {
           hint="Immediate alerts for failed transactions"
           checked={emailToggles.paymentFailure}
           onChange={() => toggleEmail("paymentFailure")}
-        />
-        <ToggleRow
-          label="Daily Summary Report"
-          hint="Receive a daily digest of platform activity at 8 AM"
-          checked={emailToggles.dailySummary}
-          onChange={() => toggleEmail("dailySummary")}
         />
       </SectionCard>
 
@@ -823,311 +757,6 @@ function NotificationsTab({ showToast }) {
   );
 }
 
-// ─── Tab: Security ───────────────────────────────────────────────────────────
-
-const mockLoginActivity = [
-  { device: "Chrome / macOS", ip: "103.56.21.9", location: "Mumbai, IN", time: "Today, 09:41 AM" },
-  { device: "Safari / iPhone", ip: "103.56.21.9", location: "Mumbai, IN", time: "Yesterday, 11:22 PM" },
-  { device: "Chrome / Windows", ip: "45.112.88.3", location: "Delhi, IN", time: "3 Jun 2026, 4:15 PM" },
-  { device: "Firefox / macOS", ip: "103.56.21.9", location: "Mumbai, IN", time: "1 Jun 2026, 10:00 AM" },
-  { device: "Chrome / Android", ip: "72.31.105.7", location: "Bangalore, IN", time: "28 May 2026, 7:30 PM" },
-];
-
-function SecurityTab({ showToast }) {
-  const { updateSettings } = useAdminSettingsStore();
-
-  const [twoFA, setTwoFA] = useState(false);
-  const [verifyCode, setVerifyCode] = useState("");
-  const [sessionTimeout, setSessionTimeout] = useState("1hr");
-  const [ipWhitelist, setIpWhitelist] = useState("103.56.21.9\n45.112.88.3");
-  const [revokeModal, setRevokeModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function save() {
-    setLoading(true);
-    try {
-      await updateSettings({
-        category: "security",
-        twoFA,
-        sessionTimeout,
-        ipWhitelist: ipWhitelist.split("\n").map((s) => s.trim()).filter(Boolean),
-      });
-      showToast("Security settings saved");
-    } catch (err) {
-      console.error("Failed to save security settings", err);
-      showToast("Failed to save settings", "error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function revokeAll() {
-    setRevokeModal(false);
-    showToast("All other sessions revoked");
-  }
-
-  return (
-    <div className="space-y-6">
-      <SectionCard title="Two-Factor Authentication">
-        <ToggleRow
-          label="Enable Two-Factor Authentication (2FA)"
-          hint="Add an extra layer of security with an authenticator app"
-          checked={twoFA}
-          onChange={setTwoFA}
-        />
-        {twoFA && (
-          <div className="mt-5 p-5 rounded-[var(--radius-lg)] bg-bg-secondary border border-border-light">
-            <p className="text-sm font-medium text-text-primary mb-4">Scan this QR code with your authenticator app</p>
-            <div className="flex flex-col sm:flex-row items-start gap-6">
-              <div className="w-36 h-36 rounded-[var(--radius-md)] border-2 border-dashed border-border-light bg-bg-primary flex flex-col items-center justify-center gap-2 text-text-secondary shrink-0">
-                <QrCode size={40} />
-                <span className="text-xs text-center leading-tight px-2">QR Code<br />placeholder</span>
-              </div>
-              <div className="flex-1 space-y-3">
-                <p className="text-xs text-text-secondary">
-                  After scanning, enter the 6-digit code from your app to verify setup.
-                </p>
-                <Field label="Verification Code">
-                  <div className="flex gap-3">
-                    <div className="w-44">
-                      <TextInput
-                        value={verifyCode}
-                        onChange={setVerifyCode}
-                        placeholder="000000"
-                        maxLength={6}
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (verifyCode.length === 6) showToast("2FA verified and enabled");
-                        else showToast("Enter a valid 6-digit code", "error");
-                      }}
-                      className="px-4 py-2.5 rounded-[var(--radius-md)] text-sm font-semibold text-white"
-                      style={{ backgroundColor: "#FF5722" }}
-                    >
-                      Verify
-                    </button>
-                  </div>
-                </Field>
-              </div>
-            </div>
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard title="Session Management">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Field label="Session Timeout" hint="Automatically log out after inactivity">
-            <SelectInput
-              value={sessionTimeout}
-              onChange={setSessionTimeout}
-              options={[
-                { value: "30min", label: "30 Minutes" },
-                { value: "1hr", label: "1 Hour" },
-                { value: "4hr", label: "4 Hours" },
-                { value: "8hr", label: "8 Hours" },
-                { value: "never", label: "Never" },
-              ]}
-            />
-          </Field>
-          <Field label="IP Whitelist" hint="One IP address per line. Leave empty to allow all.">
-            <textarea
-              value={ipWhitelist}
-              onChange={(e) => setIpWhitelist(e.target.value)}
-              rows={4}
-              placeholder={"192.168.1.1\n10.0.0.1"}
-              className="w-full px-3 py-2.5 rounded-[var(--radius-md)] border border-border-light bg-bg-secondary text-text-primary text-sm font-mono placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-[#FF5722]/30 focus:border-[#FF5722] transition-colors resize-none"
-            />
-          </Field>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Recent Login Activity">
-        <div className="overflow-x-auto -mx-6 px-6">
-          <table className="w-full text-sm min-w-[520px]">
-            <thead>
-              <tr className="border-b border-border-light">
-                <th className="text-left text-xs font-semibold text-text-secondary pb-3 pr-4">Device</th>
-                <th className="text-left text-xs font-semibold text-text-secondary pb-3 pr-4">IP Address</th>
-                <th className="text-left text-xs font-semibold text-text-secondary pb-3 pr-4">Location</th>
-                <th className="text-left text-xs font-semibold text-text-secondary pb-3">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockLoginActivity.map((row, i) => (
-                <tr key={i} className="border-b border-border-light last:border-0">
-                  <td className="py-3 pr-4 text-text-primary font-medium">{row.device}</td>
-                  <td className="py-3 pr-4 text-text-secondary font-mono text-xs">{row.ip}</td>
-                  <td className="py-3 pr-4 text-text-secondary">{row.location}</td>
-                  <td className="py-3 text-text-secondary text-xs whitespace-nowrap">{row.time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <button
-          onClick={() => setRevokeModal(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[var(--radius-md)] text-sm font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-colors"
-        >
-          <Trash2 size={14} />
-          Revoke All Sessions
-        </button>
-        <SaveButton onClick={save} loading={loading} />
-      </div>
-
-      {revokeModal && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-bg-primary rounded-[var(--radius-xl)] border border-border-light shadow-2xl p-6 w-full max-w-sm mx-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <AlertTriangle size={18} className="text-red-600" />
-              </div>
-              <div>
-                <h4 className="text-base font-semibold text-text-primary">Revoke All Sessions</h4>
-                <p className="text-xs text-text-secondary">This will sign out all active sessions</p>
-              </div>
-            </div>
-            <p className="text-sm text-text-secondary mb-6">
-              You will be logged out of all devices except the current session. This action cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setRevokeModal(false)}
-                className="px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium text-text-primary border border-border-light hover:bg-bg-secondary transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={revokeAll}
-                className="px-4 py-2 rounded-[var(--radius-md)] text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
-              >
-                Revoke All
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Tab: Appearance ─────────────────────────────────────────────────────────
-
-function AppearanceTab({ showToast }) {
-  const { updateSettings } = useAdminSettingsStore();
-
-  const [theme, setTheme] = useState("light");
-  const [primaryColor, setPrimaryColor] = useState("#FF5722");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function save() {
-    setLoading(true);
-    try {
-      await updateSettings({ category: "appearance", theme, primaryColor, sidebarCollapsed });
-      showToast("Appearance settings saved");
-    } catch (err) {
-      console.error("Failed to save appearance settings", err);
-      showToast("Failed to save settings", "error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const colorSwatches = [
-    { color: "#FF5722", label: "Orange" },
-    { color: "#2563EB", label: "Blue" },
-    { color: "#7C3AED", label: "Purple" },
-  ];
-
-  const themes = [
-    { id: "light", label: "Light", icon: "☀️" },
-    { id: "dark", label: "Dark", icon: "🌙" },
-    { id: "system", label: "System", icon: "💻" },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <SectionCard title="Theme">
-        <div className="grid grid-cols-3 gap-3">
-          {themes.map((t) => (
-            <label
-              key={t.id}
-              className={`flex flex-col items-center gap-2 p-4 rounded-[var(--radius-lg)] border cursor-pointer transition-colors ${
-                theme === t.id
-                  ? "border-[#FF5722] bg-[#FF5722]/5"
-                  : "border-border-light hover:border-[#FF5722]/40"
-              }`}
-            >
-              <input
-                type="radio"
-                name="theme"
-                value={t.id}
-                checked={theme === t.id}
-                onChange={() => setTheme(t.id)}
-                className="sr-only"
-              />
-              <span className="text-2xl">{t.icon}</span>
-              <span className="text-sm font-medium text-text-primary">{t.label}</span>
-              {theme === t.id && (
-                <Check size={14} className="text-[#FF5722]" />
-              )}
-            </label>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Primary Color">
-        <p className="text-sm text-text-secondary mb-4">Choose the accent color for the admin panel</p>
-        <div className="flex items-center gap-4">
-          {colorSwatches.map(({ color, label }) => (
-            <button
-              key={color}
-              onClick={() => setPrimaryColor(color)}
-              title={label}
-              className={`w-12 h-12 rounded-[var(--radius-md)] border-2 transition-all duration-150 flex items-center justify-center ${
-                primaryColor === color ? "border-text-primary scale-110 shadow-md" : "border-transparent hover:scale-105"
-              }`}
-              style={{ backgroundColor: color }}
-            >
-              {primaryColor === color && <Check size={16} className="text-white" />}
-            </button>
-          ))}
-          <div className="ml-2">
-            <p className="text-sm font-mono text-text-primary">{primaryColor}</p>
-            <p className="text-xs text-text-secondary capitalize">
-              {colorSwatches.find((s) => s.color === primaryColor)?.label || "Custom"}
-            </p>
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Sidebar">
-        <ToggleRow
-          label="Collapsed by Default"
-          hint="Start the sidebar in icon-only collapsed mode when the page loads"
-          checked={sidebarCollapsed}
-          onChange={setSidebarCollapsed}
-        />
-      </SectionCard>
-
-      <div className="p-4 rounded-[var(--radius-lg)] bg-amber-50 border border-amber-200 flex items-start gap-3">
-        <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
-        <p className="text-sm text-amber-800">
-          <span className="font-semibold">Theme customization</span> — coming soon for live preview. Changes saved here will apply on next deployment.
-        </p>
-      </div>
-
-      <div className="flex justify-end">
-        <SaveButton onClick={save} loading={loading} />
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 const TABS = [
@@ -1135,8 +764,6 @@ const TABS = [
   { id: "platform", label: "Platform", icon: Building2 },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "security", label: "Security", icon: Shield },
-  { id: "appearance", label: "Appearance", icon: Palette },
 ];
 
 export default function SettingsPage() {
@@ -1149,8 +776,6 @@ export default function SettingsPage() {
       case "platform": return <PlatformTab showToast={showToast} />;
       case "payments": return <PaymentsTab showToast={showToast} />;
       case "notifications": return <NotificationsTab showToast={showToast} />;
-      case "security": return <SecurityTab showToast={showToast} />;
-      case "appearance": return <AppearanceTab showToast={showToast} />;
       default: return null;
     }
   }
@@ -1164,7 +789,7 @@ export default function SettingsPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-text-primary">Settings</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Manage your platform configuration, security, and preferences
+            Manage your platform configuration and preferences
           </p>
         </div>
 
@@ -1238,8 +863,6 @@ export default function SettingsPage() {
                   {activeTab === "platform" && "Configure business identity, locale, and compliance"}
                   {activeTab === "payments" && "Payment gateways, COD, commissions, and payouts"}
                   {activeTab === "notifications" && "Email, SMS, and webhook notification preferences"}
-                  {activeTab === "security" && "Authentication, sessions, and access control"}
-                  {activeTab === "appearance" && "Theme, colors, and layout preferences"}
                 </p>
               </div>
             </div>

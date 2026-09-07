@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Store, Users, ShoppingBag, Bike,
+  LayoutDashboard, Store, Users, ShoppingBag,
   Ticket, DollarSign, BarChart3, Bell, Settings,
   Image, ScrollText, ChevronLeft, Menu, X, LayoutGrid,
 } from "lucide-react";
@@ -17,7 +17,6 @@ const menuItems = [
   { href: "/admin/categories",        label: "Food Categories",   icon: LayoutGrid },
   { href: "/admin/customers",         label: "Customers",         icon: Users },
   { href: "/admin/orders",            label: "Orders",            icon: ShoppingBag },
-  { href: "/admin/delivery-partners", label: "Delivery Partners", icon: Bike },
   { href: "/admin/coupons",           label: "Coupons",           icon: Ticket },
   { href: "/admin/finance",           label: "Revenue & Payouts", icon: DollarSign },
   { href: "/admin/analytics",         label: "Analytics",         icon: BarChart3 },

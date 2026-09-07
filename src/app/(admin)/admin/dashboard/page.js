@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowUpRight,
-  Bike,
   CheckCircle2,
   CircleDollarSign,
   Clock3,
@@ -13,38 +12,30 @@ import {
   ShoppingBag,
   Store,
   TrendingUp,
-  UserCheck,
   Users,
 } from "lucide-react";
 import { formatPrice, timeAgo } from "@/lib/utils";
 import useAdminDashboardStore from "@/stores/adminDashboardStore";
 import useAdminOrderStore from "@/stores/adminOrderStore";
 
-const revenueTrend = [
-  { day: "08 May", gmv: 185000, commission: 27750 },
-  { day: "11 May", gmv: 212000, commission: 31800 },
-  { day: "14 May", gmv: 196000, commission: 29400 },
-  { day: "17 May", gmv: 241000, commission: 36150 },
-  { day: "20 May", gmv: 268000, commission: 40200 },
-  { day: "23 May", gmv: 259000, commission: 38850 },
-  { day: "26 May", gmv: 301000, commission: 45150 },
-  { day: "29 May", gmv: 326000, commission: 48900 },
-  { day: "01 Jun", gmv: 348000, commission: 52200 },
-  { day: "04 Jun", gmv: 372000, commission: 55800 },
-  { day: "06 Jun", gmv: 391000, commission: 58650 },
-];
-
-const maxRevenue = Math.max(...revenueTrend.map((point) => point.gmv));
 const chartWidth = 720;
 const chartHeight = 260;
 const chartPadding = { top: 20, right: 18, bottom: 34, left: 42 };
 const chartInnerWidth = chartWidth - chartPadding.left - chartPadding.right;
 const chartInnerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
 
-function getChartPoints(key) {
+// Backend buckets are raw "YYYY-MM-DD" strings — render them the same "08 May"
+// style the chart already used, two lines via the \n replace at render time.
+function formatDayLabel(bucket) {
+  const d = new Date(bucket);
+  if (Number.isNaN(d.getTime())) return bucket;
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+}
+
+function getChartPoints(revenueTrend, maxRevenue, key) {
   return revenueTrend.map((point, index) => {
-    const x = chartPadding.left + (index / (revenueTrend.length - 1)) * chartInnerWidth;
-    const y = chartPadding.top + chartInnerHeight - (point[key] / maxRevenue) * chartInnerHeight;
+    const x = chartPadding.left + (index / Math.max(revenueTrend.length - 1, 1)) * chartInnerWidth;
+    const y = chartPadding.top + chartInnerHeight - (maxRevenue > 0 ? (point[key] / maxRevenue) * chartInnerHeight : 0);
 
     return { ...point, x, y };
   });
@@ -126,17 +117,24 @@ function StatCard({ stat }) {
 }
 
 export default function AdminDashboardPage() {
-  const { stats, isLoading, fetchDashboardStats } = useAdminDashboardStore();
+  const { stats, isLoading, fetchDashboardStats, revenueTrend, isTrendLoading, fetchRevenueTrend } = useAdminDashboardStore();
   const { orders, fetchOrders } = useAdminOrderStore();
 
   useEffect(() => {
-    try {
-      fetchDashboardStats();
-    } catch (_) {}
+    (async () => {
+      try {
+        await fetchDashboardStats();
+      } catch (_) {}
+      try {
+        fetchRevenueTrend();
+      } catch (_) {}
+    })();
     try {
       fetchOrders({ limit: 5, sortBy: "createdAt", sortOrder: "desc" });
     } catch (_) {}
   }, []);
+
+  const maxRevenue = revenueTrend?.length ? Math.max(...revenueTrend.map((point) => point.gmv), 1) : 1;
 
   const statCards = [
     {
@@ -172,14 +170,6 @@ export default function AdminDashboardPage() {
       bg: "bg-warning-light",
     },
     {
-      label: "Delivery Partners",
-      value: "—",
-      sub: "—",
-      icon: Bike,
-      color: "text-secondary-dark",
-      bg: "bg-success-light",
-    },
-    {
       label: "Orders Today",
       value: stats ? `${stats.totalOrdersToday?.toLocaleString() ?? "—"}` : "—",
       sub: stats ? `${stats.pendingOrders ?? 0} live orders` : "Loading...",
@@ -197,14 +187,6 @@ export default function AdminDashboardPage() {
       icon: Store,
       color: "text-warning",
       bg: "bg-warning-light",
-    },
-    {
-      title: "Delivery partners pending verification",
-      value: 14,
-      href: "/admin/delivery-partners",
-      icon: UserCheck,
-      color: "text-info",
-      bg: "bg-info-light",
     },
   ];
 
@@ -253,7 +235,7 @@ export default function AdminDashboardPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-5">
             <div>
               <h2 className="text-base font-bold text-text-primary">Revenue Trend</h2>
-              <p className="text-xs text-text-tertiary">30-day GMV and commission earned</p>
+              <p className="text-xs text-text-tertiary">14-day GMV and commission earned</p>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <span className="flex items-center gap-1.5 text-text-secondary">
@@ -267,12 +249,19 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
+          {isTrendLoading && !revenueTrend ? (
+            <div className="h-[280px] w-full rounded-[var(--radius-lg)] bg-bg-secondary animate-pulse" />
+          ) : !revenueTrend?.length ? (
+            <div className="h-[280px] w-full flex items-center justify-center text-sm text-text-tertiary">
+              No orders in the last 14 days yet
+            </div>
+          ) : (
           <div className="min-w-0 overflow-x-auto">
             <svg
               viewBox={`0 0 ${chartWidth} ${chartHeight}`}
               className="h-[280px] w-full min-w-[620px]"
               role="img"
-              aria-label="30-day revenue and commission trend"
+              aria-label="14-day revenue and commission trend"
             >
               <defs>
                 <linearGradient id="adminGmvFill" x1="0" y1="0" x2="0" y2="1">
@@ -311,10 +300,10 @@ export default function AdminDashboardPage() {
                 );
               })}
 
-              <path d={getAreaPath(getChartPoints("gmv"))} fill="url(#adminGmvFill)" />
-              <path d={getAreaPath(getChartPoints("commission"))} fill="url(#adminCommissionFill)" />
+              <path d={getAreaPath(getChartPoints(revenueTrend, maxRevenue, "gmv"))} fill="url(#adminGmvFill)" />
+              <path d={getAreaPath(getChartPoints(revenueTrend, maxRevenue, "commission"))} fill="url(#adminCommissionFill)" />
               <polyline
-                points={getPolyline(getChartPoints("gmv"))}
+                points={getPolyline(getChartPoints(revenueTrend, maxRevenue, "gmv"))}
                 fill="none"
                 stroke="var(--primary)"
                 strokeWidth="4"
@@ -322,7 +311,7 @@ export default function AdminDashboardPage() {
                 strokeLinejoin="round"
               />
               <polyline
-                points={getPolyline(getChartPoints("commission"))}
+                points={getPolyline(getChartPoints(revenueTrend, maxRevenue, "commission"))}
                 fill="none"
                 stroke="var(--success)"
                 strokeWidth="4"
@@ -330,7 +319,7 @@ export default function AdminDashboardPage() {
                 strokeLinejoin="round"
               />
 
-              {getChartPoints("gmv").map((point, index) => (
+              {getChartPoints(revenueTrend, maxRevenue, "gmv").map((point, index) => (
                 <g key={point.day}>
                   <circle cx={point.x} cy={point.y} r={index === revenueTrend.length - 1 ? 5 : 3.5} fill="var(--primary)" />
                   <text
@@ -339,12 +328,13 @@ export default function AdminDashboardPage() {
                     textAnchor="middle"
                     className="fill-text-tertiary text-[11px]"
                   >
-                    {point.day.replace(" ", "\n")}
+                    {formatDayLabel(point.day).replace(" ", "\n")}
                   </text>
                 </g>
               ))}
             </svg>
           </div>
+          )}
         </section>
 
         <section className="bg-white rounded-[var(--radius-xl)] border border-border-light p-4 md:p-5">
