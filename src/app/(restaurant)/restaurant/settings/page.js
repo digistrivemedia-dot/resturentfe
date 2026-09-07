@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   Settings,
   MapPin,
@@ -16,17 +17,18 @@ import {
   Mail,
   User,
   Lock,
-  CreditCard,
-  AlertTriangle,
-  ChevronRight,
   CheckCircle2,
   X,
-  IndianRupee,
-  Navigation,
-  Loader2,
 } from "lucide-react";
 import { Toggle } from "@/components/ui";
 import useRestaurantProfileStore from "@/stores/restaurantProfileStore";
+import useAuthStore from "@/stores/authStore";
+import api from "@/lib/api";
+
+const LocationMapPicker = dynamic(() => import("@/components/restaurant/LocationMapPicker"), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 rounded-[var(--radius-lg)] bg-bg-secondary animate-pulse" />,
+});
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ toasts, dismiss }) {
@@ -141,41 +143,6 @@ function SectionCard({ title, subtitle, children }) {
         </div>
       )}
       <div className="px-6 py-5">{children}</div>
-    </div>
-  );
-}
-
-// ── Modal ─────────────────────────────────────────────────────────────────────
-function Modal({ isOpen, onClose, title, children, footer }) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const esc = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "var(--bg-overlay)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="bg-bg-primary rounded-[var(--radius-xl)] w-full max-w-md shadow-[var(--shadow-modal)] flex flex-col max-h-[90vh] animate-slide-up">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-light shrink-0">
-          <h2 className="text-base font-bold text-text-primary">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-[var(--radius-sm)] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
-        {footer && (
-          <div className="px-6 py-4 border-t border-border-light flex items-center justify-end gap-3 shrink-0">
-            {footer}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -310,16 +277,16 @@ function GeneralTab({ showToast }) {
 function LocationTab({ showToast }) {
   const { restaurant, updateProfile, isSaving } = useRestaurantProfileStore();
   const [saving, setSaving] = useState(false);
-  const [detecting, setDetecting] = useState(false);
   const [addr, setAddr] = useState({
-    street: "",
+    fullAddress: "",
     city: "",
     state: "",
     pincode: "",
     landmark: "",
-    lat: "",
-    lng: "",
+    lat: undefined,
+    lng: undefined,
   });
+  const [phone, setPhone] = useState("");
   const [hours, setHours] = useState(DEFAULT_HOURS);
   const [hydrated, setHydrated] = useState(false);
 
@@ -327,52 +294,24 @@ function LocationTab({ showToast }) {
     if (restaurant && !hydrated) {
       if (restaurant.address) {
         setAddr({
-          street: restaurant.address.street || "",
+          fullAddress: restaurant.address.fullAddress || "",
           city: restaurant.address.city || "",
           state: restaurant.address.state || "",
           pincode: restaurant.address.pincode || "",
           landmark: restaurant.address.landmark || "",
-          lat: restaurant.address.lat || "",
-          lng: restaurant.address.lng || "",
+          lat: restaurant.address.lat,
+          lng: restaurant.address.lng,
         });
       }
-      if (restaurant.operatingHours) {
-        setHours((prev) => ({ ...prev, ...restaurant.operatingHours }));
+      setPhone(restaurant.contact?.phone || "");
+      if (restaurant.weeklyHours && Object.keys(restaurant.weeklyHours).length > 0) {
+        setHours((prev) => ({ ...prev, ...restaurant.weeklyHours }));
       }
       setHydrated(true);
     }
   }, [restaurant]);
 
   const setAddr_ = (key) => (e) => setAddr((p) => ({ ...p, [key]: e.target.value }));
-
-  const handleDetectLocation = () => {
-    if (!navigator.geolocation) {
-      showToast("GPS not supported in this browser");
-      return;
-    }
-    setDetecting(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const newAddr = { ...addr, lat: String(lat), lng: String(lng) };
-        setAddr(newAddr);
-        // Auto-save immediately
-        try {
-          await updateProfile({ address: newAddr });
-          showToast("Location detected and saved ✓");
-        } catch {
-          showToast("Location detected — click Save to apply");
-        }
-        setDetecting(false);
-      },
-      () => {
-        showToast("Location access denied. Allow GPS in browser settings.");
-        setDetecting(false);
-      },
-      { timeout: 10000 }
-    );
-  };
 
   const setDay = (day, field, val) =>
     setHours((p) => ({ ...p, [day]: { ...p[day], [field]: val } }));
@@ -382,7 +321,8 @@ function LocationTab({ showToast }) {
     try {
       await updateProfile({
         address: addr,
-        operatingHours: hours,
+        contact: { phone },
+        weeklyHours: hours,
       });
       showToast("Location & hours saved");
     } catch (err) {
@@ -393,11 +333,35 @@ function LocationTab({ showToast }) {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <SectionCard title="Restaurant Address">
+      <SectionCard title="Contact & Address">
         <div className="space-y-4">
           <div>
-            <FieldLabel required>Street Address</FieldLabel>
-            <TextInput value={addr.street} onChange={setAddr_("street")} placeholder="House/shop no, street name" />
+            <FieldLabel required>Phone Number</FieldLabel>
+            <div className="relative">
+              <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="10-digit mobile number"
+                className="w-full h-10 pl-9 pr-3 bg-bg-secondary border border-border-light rounded-[var(--radius-md)] text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+              />
+            </div>
+            <p className="text-[11px] text-text-tertiary mt-1">Used by delivery riders to reach you — shown read-only on your Profile page</p>
+          </div>
+
+          <div className="pt-2 border-t border-border-light">
+            <FieldLabel required>Pin your location on the map</FieldLabel>
+            <LocationMapPicker
+              lat={addr.lat}
+              lng={addr.lng}
+              onLocationChange={(update) => setAddr((p) => ({ ...p, ...update }))}
+            />
+          </div>
+
+          <div>
+            <FieldLabel required>Full Address</FieldLabel>
+            <TextInput value={addr.fullAddress} onChange={setAddr_("fullAddress")} placeholder="House/shop no, street, area" />
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
@@ -415,50 +379,6 @@ function LocationTab({ showToast }) {
             <div>
               <FieldLabel>Landmark</FieldLabel>
               <TextInput value={addr.landmark} onChange={setAddr_("landmark")} placeholder="Near / opposite…" />
-            </div>
-          </div>
-
-          {/* Coordinates for "near you" feature */}
-          <div className="mt-4 pt-4 border-t border-border-light">
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">
-              Location Coordinates <span className="text-text-tertiary font-normal normal-case">(required for &quot;Near You&quot; on home page)</span>
-            </p>
-
-            <button
-              type="button"
-              onClick={handleDetectLocation}
-              disabled={detecting}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-primary-50 hover:bg-primary-100 border border-primary/20 rounded-[var(--radius-lg)] transition-colors disabled:opacity-60"
-            >
-              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0">
-                {detecting
-                  ? <Loader2 size={16} className="text-white animate-spin" />
-                  : <Navigation size={16} className="text-white" />
-                }
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold text-primary">
-                  {detecting ? "Detecting location…" : "Detect & save my location"}
-                </p>
-                <p className="text-xs text-text-secondary">
-                  {addr.lat && addr.lng
-                    ? `Current: ${Number(addr.lat).toFixed(5)}, ${Number(addr.lng).toFixed(5)}`
-                    : "Click to auto-fill your GPS coordinates"}
-                </p>
-              </div>
-            </button>
-
-            {/* Optional manual entry — for when GPS isn't available/accurate */}
-            <p className="text-xs text-text-tertiary mt-3 mb-2">Or enter coordinates manually (optional)</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <FieldLabel>Latitude</FieldLabel>
-                <TextInput value={addr.lat} onChange={setAddr_("lat")} placeholder="e.g. 12.927165" />
-              </div>
-              <div>
-                <FieldLabel>Longitude</FieldLabel>
-                <TextInput value={addr.lng} onChange={setAddr_("lng")} placeholder="e.g. 77.738027" />
-              </div>
             </div>
           </div>
         </div>
@@ -787,17 +707,25 @@ function NotificationsTab({ showToast }) {
 
 // ── TAB: Account & Security ──────────────────────────────────────────────────
 function AccountTab({ showToast }) {
+  const user = useAuthStore((s) => s.user);
+  const authUpdateProfile = useAuthStore((s) => s.updateProfile);
+  const { restaurant } = useRestaurantProfileStore();
+
   const [saving, setSaving] = useState(false);
   const [savingPwd, setSavingPwd] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const [profile, setProfile] = useState({
-    ownerName: "Vikram Malhotra",
-    email: "vikram@spicegarden.in",
-    phone: "+91 98765 43210",
-  });
+  const [ownerName, setOwnerName] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (user && !hydrated) {
+      setOwnerName(user.name || "");
+      setHydrated(true);
+    }
+  }, [user]);
 
   const [password, setPassword] = useState({
     current: "",
@@ -805,20 +733,17 @@ function AccountTab({ showToast }) {
     confirm: "",
   });
 
-  const [bankModal, setBankModal] = useState(false);
-  const [bank, setBank] = useState({ ifsc: "HDFC0001234", account: "", name: "Vikram Malhotra" });
-  const [closeModal, setCloseModal] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(false);
-
-  const setP = (key) => (e) => setProfile((p) => ({ ...p, [key]: e.target.value }));
   const setPwd = (key) => (e) => setPassword((p) => ({ ...p, [key]: e.target.value }));
-  const setB = (key) => (e) => setBank((p) => ({ ...p, [key]: e.target.value }));
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
+    try {
+      await authUpdateProfile({ name: ownerName });
+      showToast("Profile updated successfully");
+    } catch (err) {
+      showToast(err.message || "Failed to update profile");
+    }
     setSaving(false);
-    showToast("Profile updated successfully");
   };
 
   const handleChangePassword = async () => {
@@ -826,25 +751,26 @@ function AccountTab({ showToast }) {
       showToast("Please fill in all password fields");
       return;
     }
+    if (password.newPwd.length < 8) {
+      showToast("New password must be at least 8 characters");
+      return;
+    }
     if (password.newPwd !== password.confirm) {
       showToast("New passwords do not match");
       return;
     }
     setSavingPwd(true);
-    await new Promise((r) => setTimeout(r, 700));
+    try {
+      await api.put("/restaurant/change-password", {
+        currentPassword: password.current,
+        newPassword: password.newPwd,
+      });
+      setPassword({ current: "", newPwd: "", confirm: "" });
+      showToast("Password changed successfully");
+    } catch (err) {
+      showToast(err.message || "Failed to change password");
+    }
     setSavingPwd(false);
-    setPassword({ current: "", newPwd: "", confirm: "" });
-    showToast("Password changed successfully");
-  };
-
-  const handleSaveBank = () => {
-    setBankModal(false);
-    showToast("Bank details updated");
-  };
-
-  const handleCloseRestaurant = () => {
-    setCloseModal(false);
-    showToast("Restaurant temporarily closed");
   };
 
   return (
@@ -854,7 +780,7 @@ function AccountTab({ showToast }) {
         <div className="space-y-4">
           <div>
             <FieldLabel>Owner Name</FieldLabel>
-            <TextInput value={profile.ownerName} onChange={setP("ownerName")} placeholder="Full name" />
+            <TextInput value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Full name" />
           </div>
           <div>
             <FieldLabel>Email Address</FieldLabel>
@@ -862,7 +788,7 @@ function AccountTab({ showToast }) {
               <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
               <input
                 type="email"
-                value={profile.email}
+                value={user?.email || ""}
                 readOnly
                 className="w-full h-10 pl-8 pr-3 bg-bg-secondary border border-border-light rounded-[var(--radius-md)] text-sm text-text-primary opacity-60 cursor-not-allowed"
               />
@@ -875,11 +801,12 @@ function AccountTab({ showToast }) {
               <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
               <input
                 type="tel"
-                value={profile.phone}
-                onChange={setP("phone")}
-                className="w-full h-10 pl-8 pr-3 bg-bg-secondary border border-border-light rounded-[var(--radius-md)] text-sm text-text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                value={restaurant?.contact?.phone || ""}
+                readOnly
+                className="w-full h-10 pl-8 pr-3 bg-bg-secondary border border-border-light rounded-[var(--radius-md)] text-sm text-text-primary opacity-60 cursor-not-allowed"
               />
             </div>
+            <p className="text-[11px] text-text-tertiary mt-1">Managed under Settings &gt; Location &amp; Hours</p>
           </div>
         </div>
         <div className="mt-5 flex justify-end">
@@ -921,183 +848,6 @@ function AccountTab({ showToast }) {
           <SaveButton loading={savingPwd} onClick={handleChangePassword} label="Change Password" />
         </div>
       </SectionCard>
-
-      {/* Bank Account */}
-      <SectionCard title="Linked Bank Account" subtitle="Payouts will be sent to this account">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-[var(--radius-lg)] flex items-center justify-center">
-              <CreditCard size={18} className="text-[#FF5722]" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-text-primary">HDFC ****4521</p>
-              <p className="text-xs text-text-secondary">Savings Account · Vikram Malhotra</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setBankModal(true)}
-            className="h-9 px-4 border border-border-light rounded-[var(--radius-lg)] text-xs font-semibold text-text-secondary hover:bg-bg-hover transition-colors flex items-center gap-1.5"
-          >
-            Update <ChevronRight size={13} />
-          </button>
-        </div>
-      </SectionCard>
-
-      {/* Danger Zone */}
-      <div className="bg-error-light border border-error/20 rounded-[var(--radius-xl)] overflow-hidden">
-        <div className="px-6 py-4 border-b border-error/15">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className="text-error" />
-            <h3 className="text-sm font-bold text-error">Danger Zone</h3>
-          </div>
-          <p className="text-xs text-text-secondary mt-0.5">These actions can affect your restaurant's availability</p>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
-            <div>
-              <p className="text-sm font-semibold text-text-primary">Temporarily Close Restaurant</p>
-              <p className="text-xs text-text-secondary mt-0.5">Stop accepting orders until you reopen manually</p>
-            </div>
-            <button
-              onClick={() => setCloseModal(true)}
-              className="shrink-0 h-9 px-4 bg-warning text-white text-xs font-bold rounded-[var(--radius-lg)] hover:bg-warning/90 transition-colors"
-            >
-              Close Restaurant
-            </button>
-          </div>
-          <div className="h-px bg-error/10" />
-          <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
-            <div>
-              <p className="text-sm font-semibold text-text-primary">Request Account Deletion</p>
-              <p className="text-xs text-text-secondary mt-0.5">Permanently remove your restaurant and all data</p>
-            </div>
-            <button
-              onClick={() => setDeleteModal(true)}
-              className="shrink-0 h-9 px-4 bg-error text-white text-xs font-bold rounded-[var(--radius-lg)] hover:bg-error/90 transition-colors"
-            >
-              Delete Account
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Bank Details Modal */}
-      <Modal
-        isOpen={bankModal}
-        onClose={() => setBankModal(false)}
-        title="Update Bank Details"
-        footer={
-          <>
-            <button
-              onClick={() => setBankModal(false)}
-              className="h-9 px-4 border border-border-light rounded-[var(--radius-lg)] text-sm font-semibold text-text-secondary hover:bg-bg-hover transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveBank}
-              className="h-9 px-5 bg-[#FF5722] text-white text-sm font-bold rounded-[var(--radius-lg)] hover:bg-[#e64a19] transition-colors"
-            >
-              Save Bank Details
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-xs text-text-secondary bg-warning-light border border-warning/20 rounded-[var(--radius-md)] px-3 py-2">
-            Bank details are encrypted and used only for payouts. Changes take 2–3 business days to verify.
-          </p>
-          <div>
-            <FieldLabel required>IFSC Code</FieldLabel>
-            <TextInput value={bank.ifsc} onChange={setB("ifsc")} placeholder="e.g. HDFC0001234" />
-          </div>
-          <div>
-            <FieldLabel required>Account Number</FieldLabel>
-            <TextInput value={bank.account} onChange={setB("account")} placeholder="Enter account number" type="password" />
-          </div>
-          <div>
-            <FieldLabel required>Account Holder Name</FieldLabel>
-            <TextInput value={bank.name} onChange={setB("name")} placeholder="As per bank records" />
-          </div>
-        </div>
-      </Modal>
-
-      {/* Close Restaurant Confirm Modal */}
-      <Modal
-        isOpen={closeModal}
-        onClose={() => setCloseModal(false)}
-        title="Temporarily Close Restaurant?"
-        footer={
-          <>
-            <button
-              onClick={() => setCloseModal(false)}
-              className="h-9 px-4 border border-border-light rounded-[var(--radius-lg)] text-sm font-semibold text-text-secondary hover:bg-bg-hover transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCloseRestaurant}
-              className="h-9 px-5 bg-warning text-white text-sm font-bold rounded-[var(--radius-lg)] hover:bg-warning/90 transition-colors"
-            >
-              Yes, Close Now
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <div className="flex items-center justify-center w-14 h-14 bg-warning-light rounded-full mx-auto">
-            <AlertTriangle size={28} className="text-warning" />
-          </div>
-          <p className="text-sm text-text-primary text-center">
-            Your restaurant will be marked as <strong>Closed</strong> and customers won't be able to place new orders.
-          </p>
-          <p className="text-xs text-text-secondary text-center">
-            You can reopen anytime from your dashboard. Pending orders will not be affected.
-          </p>
-        </div>
-      </Modal>
-
-      {/* Delete Account Info Modal */}
-      <Modal
-        isOpen={deleteModal}
-        onClose={() => setDeleteModal(false)}
-        title="Request Account Deletion"
-        footer={
-          <button
-            onClick={() => setDeleteModal(false)}
-            className="h-9 px-5 border border-border-light rounded-[var(--radius-lg)] text-sm font-semibold text-text-secondary hover:bg-bg-hover transition-colors"
-          >
-            I Understand, Close
-          </button>
-        }
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-center w-14 h-14 bg-error-light rounded-full mx-auto">
-            <AlertTriangle size={28} className="text-error" />
-          </div>
-          <div className="space-y-3 text-sm text-text-secondary">
-            <p className="font-semibold text-text-primary text-center">What happens when you request deletion?</p>
-            {[
-              "Your account enters a 30-day review period",
-              "All incoming orders will be paused immediately",
-              "Your menu, reviews, and data will be archived",
-              "After 30 days, all data is permanently deleted",
-              "Pending payouts will be processed within 7–10 business days",
-              "This action cannot be undone after the 30-day window",
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="w-5 h-5 bg-error-light text-error text-xs font-bold rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                  {i + 1}
-                </span>
-                <p className="text-xs">{item}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-text-tertiary bg-bg-secondary rounded-[var(--radius-md)] px-3 py-2">
-            To proceed, email <strong>support@cafesriisha.com</strong> with subject "Account Deletion Request" from your registered email.
-          </p>
-        </div>
-      </Modal>
     </div>
   );
 }

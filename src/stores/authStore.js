@@ -27,10 +27,13 @@ const useAuthStore = create((set, get) => ({
     set({ user: null, isAuthenticated: false, error: null });
   },
 
-  updateProfile: (updates) =>
+  updateProfile: async (updates) => {
+    const res = await api.put("/auth/profile", updates);
     set((state) => ({
-      user: state.user ? { ...state.user, ...updates } : null,
-    })),
+      user: state.user ? { ...state.user, ...res.data.user } : res.data.user,
+    }));
+    return res.data.user;
+  },
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
