@@ -13,7 +13,6 @@ const RESTAURANT_MGMT = [
   "/restaurant/settings",
   "/restaurant/payments",
   "/restaurant/analytics",
-  "/restaurant/support",
 ];
 
 // Customer routes that require login

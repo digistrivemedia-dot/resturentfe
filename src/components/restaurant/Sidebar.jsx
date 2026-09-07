@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Puzzle,
   FolderOpen, Ticket, Star, BarChart3, Store, Settings,
-  HelpCircle, CreditCard, ChevronLeft, Menu, ChevronDown, X,
+  CreditCard, ChevronLeft, Menu, ChevronDown, X,
   MessageCircleWarning, Users,
 } from "lucide-react";
 import { APP_NAME } from "@/constants";
@@ -112,7 +112,6 @@ const menuItems = [
   { href: "/restaurant/profile",  label: "Profile",   icon: Store },
   { href: "/restaurant/payments", label: "Payments",  icon: CreditCard },
   { href: "/restaurant/settings", label: "Settings",  icon: Settings },
-  { href: "/restaurant/support",  label: "Support",   icon: HelpCircle },
 ];
 
 export default function Sidebar() {
