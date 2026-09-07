@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import {
   Star, MapPin, Clock, Phone, Mail, Globe,
   Camera, Edit2, Check, X, Shield, Leaf,
@@ -11,6 +12,11 @@ import {
 import { formatDate } from "@/lib/utils";
 import useRestaurantProfileStore from "@/stores/restaurantProfileStore";
 import useImageUpload from "@/hooks/useImageUpload";
+
+const LocationMapPicker = dynamic(() => import("@/components/restaurant/LocationMapPicker"), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 rounded-[var(--radius-lg)] bg-bg-secondary animate-pulse" />,
+});
 
 const FEATURED_ITEMS = [
   { name: "Butter Chicken", price: 280, veg: false, gradient: "from-orange-400 to-red-500" },
@@ -47,6 +53,8 @@ export default function RestaurantProfilePage() {
   const [descDraft, setDescDraft] = useState("");
   const [editingContact, setEditingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState({ phone: "", email: "", website: "" });
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [locationDraft, setLocationDraft] = useState({ fullAddress: "", city: "", state: "", pincode: "", lat: undefined, lng: undefined });
   const [editingSocial, setEditingSocial] = useState(false);
   const [socialDraft, setSocialDraft] = useState({ instagram: "", facebook: "" });
   const [isOpenLocal, setIsOpenLocal] = useState(null);
@@ -141,6 +149,14 @@ export default function RestaurantProfilePage() {
         email: restaurant.contact?.email || "",
         website: restaurant.contact?.website || restaurant.website || "",
       });
+      setLocationDraft({
+        fullAddress: restaurant.address?.fullAddress || "",
+        city: restaurant.address?.city || "",
+        state: restaurant.address?.state || "",
+        pincode: restaurant.address?.pincode || "",
+        lat: restaurant.address?.lat,
+        lng: restaurant.address?.lng,
+      });
       setSocialDraft({
         instagram: restaurant.social?.instagram || restaurant.instagram || "",
         facebook: restaurant.social?.facebook || restaurant.facebook || "",
@@ -160,6 +176,7 @@ export default function RestaurantProfilePage() {
       await updateProfile({
         description: descDraft,
         contact: contactDraft,
+        address: locationDraft,
         social: socialDraft,
         status: isOpenLocal ? "open" : "closed",
       });
@@ -188,6 +205,20 @@ export default function RestaurantProfilePage() {
       showToast("Failed to save contact");
     }
     setEditingContact(false);
+  };
+
+  const saveLocation = async () => {
+    if (typeof locationDraft.lat !== "number" || typeof locationDraft.lng !== "number") {
+      showToast("Pick your restaurant's location on the map first");
+      return;
+    }
+    try {
+      await updateProfile({ address: locationDraft });
+      showToast("Location saved");
+      setEditingLocation(false);
+    } catch (err) {
+      showToast("Failed to save location");
+    }
   };
 
   const saveSocial = async () => {
@@ -227,6 +258,8 @@ export default function RestaurantProfilePage() {
     website: restaurant?.contact?.website || restaurant?.website || "",
     instagram: restaurant?.social?.instagram || restaurant?.instagram || "",
     facebook: restaurant?.social?.facebook || restaurant?.facebook || "",
+    fullAddress: restaurant?.address?.fullAddress || "",
+    hasCoords: typeof restaurant?.address?.lat === "number" && typeof restaurant?.address?.lng === "number",
     deliveryTime: restaurant?.deliveryTime || "30-40",
     deliveryFee: restaurant?.deliveryFee || 0,
   };
@@ -440,6 +473,93 @@ export default function RestaurantProfilePage() {
                 ))}
                 {!info.phone && !info.email && !info.website && (
                   <p className="text-sm text-text-secondary">No contact info set.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Location */}
+          <div className="bg-white rounded-[var(--radius-xl)] border border-border-light p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-text-primary">Address & Location</h3>
+                <p className="text-xs text-text-tertiary mt-0.5">Required for delivery rider pickup — an incomplete address or phone number will block dispatch</p>
+              </div>
+              <button
+                onClick={() => {
+                  setLocationDraft({
+                    fullAddress: info.fullAddress,
+                    city: restaurant?.address?.city || "",
+                    state: restaurant?.address?.state || "",
+                    pincode: restaurant?.address?.pincode || "",
+                    lat: restaurant?.address?.lat,
+                    lng: restaurant?.address?.lng,
+                  });
+                  setEditingLocation(true);
+                }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline shrink-0"
+              >
+                <Edit2 size={12} /> Edit
+              </button>
+            </div>
+            {editingLocation ? (
+              <div className="space-y-3">
+                <LocationMapPicker
+                  lat={locationDraft.lat}
+                  lng={locationDraft.lng}
+                  onLocationChange={(update) => setLocationDraft((p) => ({ ...p, ...update }))}
+                />
+                <div>
+                  <label className="text-xs font-semibold text-text-secondary mb-1 block">Full Address</label>
+                  <textarea
+                    value={locationDraft.fullAddress}
+                    onChange={(e) => setLocationDraft((p) => ({ ...p, fullAddress: e.target.value }))}
+                    rows={2}
+                    className="w-full text-sm text-text-primary bg-bg-secondary border border-border-light rounded-[var(--radius-md)] px-3 py-2 resize-none focus:outline-none focus:border-[#FF5722]"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { key: "city", label: "City" },
+                    { key: "state", label: "State" },
+                    { key: "pincode", label: "Pincode" },
+                  ].map(({ key, label }) => (
+                    <div key={key}>
+                      <label className="text-xs font-semibold text-text-secondary mb-1 block">{label}</label>
+                      <input
+                        type="text"
+                        value={locationDraft[key]}
+                        onChange={(e) => setLocationDraft((p) => ({ ...p, [key]: e.target.value }))}
+                        className="w-full text-sm text-text-primary bg-bg-secondary border border-border-light rounded-[var(--radius-md)] px-3 py-2 focus:outline-none focus:border-[#FF5722]"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={saveLocation} disabled={isSaving} className="flex items-center gap-1.5 h-8 px-4 bg-[#FF5722] text-white text-xs font-bold rounded-[var(--radius-md)] hover:bg-[#e64a19] transition-colors disabled:opacity-60">
+                    <Check size={13} /> Save
+                  </button>
+                  <button onClick={() => setEditingLocation(false)} className="flex items-center gap-1.5 h-8 px-4 border border-border-light text-xs font-semibold text-text-secondary rounded-[var(--radius-md)] hover:bg-bg-hover transition-colors">
+                    <X size={13} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {info.fullAddress ? (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-[var(--radius-md)] bg-bg-secondary flex items-center justify-center shrink-0">
+                      <MapPin size={14} className="text-text-tertiary" />
+                    </div>
+                    <span className="text-sm text-text-primary">{info.fullAddress}</span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-text-secondary">No address set.</p>
+                )}
+                {!info.hasCoords && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-[var(--radius-md)] px-3 py-2 mt-2">
+                    No map location pinned yet — delivery rider dispatch won&apos;t work until you set one.
+                  </p>
                 )}
               </div>
             )}

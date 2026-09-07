@@ -282,6 +282,11 @@ export default function TrackOrderPage({ params }) {
             </div>
           )}
 
+          {/* Delivery task reference — useful for support, not a headline feature */}
+          {flash?.taskId && (
+            <p className="text-[11px] text-text-tertiary mb-4 -mt-2">Delivery Task: {flash.taskId}</p>
+          )}
+
           {/* Status timeline (expanded) */}
           {sheetExpanded && (
             <div className="mb-4">

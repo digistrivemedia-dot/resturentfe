@@ -215,6 +215,9 @@ function OrderConfirmedContent() {
           <Package size={14} className="text-primary" />
           <span className="text-sm font-bold text-text-primary">{order.orderNumber}</span>
         </div>
+        {order.deliveryTracking?.flash?.taskId && (
+          <p className="text-[11px] text-text-tertiary mt-2">Delivery Task: {order.deliveryTracking.flash.taskId}</p>
+        )}
       </div>
 
       {/* ETA Card — hidden when delivered or cancelled */}
