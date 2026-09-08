@@ -11,11 +11,8 @@ import {
   Save,
   Eye,
   EyeOff,
-  Building2,
-  Clock,
   Phone,
   Mail,
-  User,
   Lock,
   CheckCircle2,
   X,
@@ -25,7 +22,7 @@ import useRestaurantProfileStore from "@/stores/restaurantProfileStore";
 import useAuthStore from "@/stores/authStore";
 import api from "@/lib/api";
 
-const LocationMapPicker = dynamic(() => import("@/components/restaurant/LocationMapPicker"), {
+const LocationMapPicker = dynamic(() => import("@/components/shared/LocationMapPicker"), {
   ssr: false,
   loading: () => <div className="w-full h-64 rounded-[var(--radius-lg)] bg-bg-secondary animate-pulse" />,
 });

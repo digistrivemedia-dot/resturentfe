@@ -1,71 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
-  IndianRupee, TrendingUp, Clock, Calendar, Download,
+  IndianRupee, Eye,
   Building2, Edit2, Check, X, AlertCircle, FileText,
-  ChevronDown, BadgeCheck, Info,
+  BadgeCheck, Info,
   Loader2,
 } from "lucide-react";
 import { Modal } from "@/components/ui";
-import { formatDate, formatPrice } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import useRestaurantProfileStore from "@/stores/restaurantProfileStore";
-
-// ── Mock Stats & Chart Data (kept as fallback — no backend analytics yet) ────
-const STATS = [
-  {
-    label: "Total Earned (All Time)",
-    value: "₹4,82,350",
-    icon: IndianRupee,
-    color: "text-success",
-    bg: "bg-success-light",
-    sub: "Since Jan 2024",
-  },
-  {
-    label: "This Month",
-    value: "₹38,720",
-    icon: TrendingUp,
-    color: "text-primary",
-    bg: "bg-primary-50",
-    sub: "+12% vs last month",
-  },
-  {
-    label: "Pending Payout",
-    value: "₹6,480",
-    icon: Clock,
-    color: "text-warning",
-    bg: "bg-warning-light",
-    sub: "Expected 10 Jun 2026",
-  },
-  {
-    label: "Last Payout Date",
-    value: "3 Jun 2026",
-    icon: Calendar,
-    color: "text-info",
-    bg: "bg-info-light",
-    sub: "₹9,240 transferred",
-  },
-];
-
-const WEEKS = [
-  { label: "W1 Apr", earnings: 8200 },
-  { label: "W2 Apr", earnings: 11500 },
-  { label: "W3 Apr", earnings: 9800 },
-  { label: "W4 Apr", earnings: 13200 },
-  { label: "W1 May", earnings: 10400 },
-  { label: "W2 May", earnings: 15600 },
-  { label: "W3 May", earnings: 12800 },
-  { label: "W4 May", earnings: 17300 },
-];
-
-const MAX_EARNINGS = Math.max(...WEEKS.map((w) => w.earnings));
 
 const TAX_YEARS = ["FY 2025-26", "FY 2024-25", "FY 2023-24"];
 
+// Real order statuses (not a payout-batch status — see backend comment on getPayouts)
 const STATUS_STYLES = {
-  paid:       { label: "Paid",       cls: "bg-green-100 text-green-700 border-green-200" },
-  processing: { label: "Processing", cls: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  pending:    { label: "Pending",    cls: "bg-gray-100 text-gray-600 border-gray-200" },
+  delivered:        { label: "Delivered",        cls: "bg-green-100 text-green-700 border-green-200" },
+  cancelled:        { label: "Cancelled",         cls: "bg-red-100 text-red-600 border-red-200" },
+  pending_payment:  { label: "Awaiting Payment",  cls: "bg-gray-100 text-gray-600 border-gray-200" },
+  placed:           { label: "Placed",            cls: "bg-blue-100 text-blue-700 border-blue-200" },
+  confirmed:        { label: "Confirmed",         cls: "bg-blue-100 text-blue-700 border-blue-200" },
+  preparing:        { label: "Preparing",         cls: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  ready:            { label: "Ready",             cls: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  picked_up:        { label: "Picked Up",         cls: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  out_for_delivery: { label: "Out for Delivery",  cls: "bg-yellow-100 text-yellow-700 border-yellow-200" },
 };
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -75,45 +34,6 @@ function Toast({ message, onClose }) {
       <Check size={16} className="text-green-400" />
       {message}
       <button onClick={onClose} className="ml-2 hover:text-gray-300"><X size={14} /></button>
-    </div>
-  );
-}
-
-// ── Bar Chart ─────────────────────────────────────────────────────────────────
-function EarningsChart() {
-  const [hovered, setHovered] = useState(null);
-
-  return (
-    <div className="flex items-end gap-2 h-40 pt-4">
-      {WEEKS.map((w, i) => {
-        const pct = (w.earnings / MAX_EARNINGS) * 100;
-        const isLast = i === WEEKS.length - 1;
-        const isHovered = hovered === i;
-
-        return (
-          <div
-            key={w.label}
-            className="flex-1 flex flex-col items-center gap-1 group relative cursor-pointer"
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
-          >
-            {/* Tooltip */}
-            {isHovered && (
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-bold px-2 py-1.5 rounded-lg whitespace-nowrap z-10 pointer-events-none">
-                ₹{w.earnings.toLocaleString("en-IN")}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-              </div>
-            )}
-            <div
-              className={`w-full rounded-t-[4px] transition-all duration-300 ${
-                isLast ? "bg-gray-300" : isHovered ? "bg-[#FF5722]" : "bg-[#FF5722]/60"
-              }`}
-              style={{ height: `${pct}%`, minHeight: "6px" }}
-            />
-            <span className="text-[9px] font-medium text-text-tertiary text-center leading-tight">{w.label}</span>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -159,10 +79,6 @@ export default function PaymentsPage() {
     }, 600);
   };
 
-  const handleDownloadInvoice = (id) => {
-    showToast(`Invoice ${id} downloaded`);
-  };
-
   const handleDownloadTaxReport = async () => {
     setDownloadingYear(true);
     await new Promise((r) => setTimeout(r, 800));
@@ -178,60 +94,12 @@ export default function PaymentsPage() {
         <p className="text-sm text-text-secondary mt-0.5">Track your revenue, payouts and financial details</p>
       </div>
 
-      {/* Stats strip — hidden until backend analytics endpoint is connected
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {STATS.map(({ label, value, icon: Icon, color, bg, sub }) => (
-          <div key={label} className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4">
-            <div className={`w-10 h-10 rounded-[var(--radius-lg)] flex items-center justify-center mb-3 ${bg}`}>
-              <Icon size={18} className={color} />
-            </div>
-            <p className="text-xl font-extrabold text-text-primary">{value}</p>
-            <p className="text-xs text-text-tertiary mt-0.5">{label}</p>
-            <p className="text-[10px] font-semibold text-text-tertiary mt-1">{sub}</p>
-          </div>
-        ))}
-      </div>
-
-      Earnings chart — hidden until backend analytics endpoint is connected
-      <div className="bg-white rounded-[var(--radius-xl)] border border-border-light p-6">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-bold text-text-primary">Weekly Earnings</h2>
-          <span className="text-xs text-text-tertiary">Last 8 weeks · Hover bar for value</span>
-        </div>
-        <p className="text-xs text-text-secondary mb-4">Platform fee and taxes not deducted in chart</p>
-        <EarningsChart />
-        <div className="mt-4 pt-4 border-t border-border-light flex items-center gap-6">
-          <div>
-            <p className="text-xs text-text-tertiary">8-Week Total</p>
-            <p className="text-base font-extrabold text-text-primary">
-              ₹{WEEKS.reduce((s, w) => s + w.earnings, 0).toLocaleString("en-IN")}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-text-tertiary">Weekly Average</p>
-            <p className="text-base font-extrabold text-text-primary">
-              ₹{Math.round(WEEKS.reduce((s, w) => s + w.earnings, 0) / WEEKS.length).toLocaleString("en-IN")}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-text-tertiary">Best Week</p>
-            <p className="text-base font-extrabold text-[#FF5722]">
-              ₹{MAX_EARNINGS.toLocaleString("en-IN")}
-            </p>
-          </div>
-        </div>
-      </div>
-      */}
-
-      {/* Payout history table */}
+      {/* Order transaction ledger — every order this restaurant has received,
+          not a real payout-batch system (no bank-transfer tracking exists) */}
       <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
-        <div className="px-6 py-4 border-b border-border-light flex items-center justify-between">
-          <h2 className="text-sm font-bold text-text-primary">Payout History</h2>
-          <div className="flex items-center gap-2 text-xs text-text-tertiary">
-            <span className="w-2 h-2 rounded-full bg-green-500" /> Paid
-            <span className="w-2 h-2 rounded-full bg-yellow-400 ml-2" /> Processing
-            <span className="w-2 h-2 rounded-full bg-gray-300 ml-2" /> Pending
-          </div>
+        <div className="px-6 py-4 border-b border-border-light">
+          <h2 className="text-sm font-bold text-text-primary">Earnings & Payouts</h2>
+          <p className="text-xs text-text-tertiary mt-0.5">Every order transaction, with platform commission and net earnings</p>
         </div>
 
         {isLoading ? (
@@ -241,15 +109,15 @@ export default function PaymentsPage() {
         ) : payouts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 text-center">
             <IndianRupee size={32} className="text-gray-300 mb-3" />
-            <p className="text-sm font-semibold text-text-primary">No payouts yet</p>
-            <p className="text-xs text-text-secondary mt-1">Your payout history will appear here once payments are processed.</p>
+            <p className="text-sm font-semibold text-text-primary">No transactions yet</p>
+            <p className="text-xs text-text-secondary mt-1">Your order transactions will appear here once customers start ordering.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-bg-secondary border-b border-border-light">
-                  {["Payout ID", "Period", "Gross Sales", "Platform Fee (10%)", "Tax (2%)", "Net Payout", "Status", "Paid On", ""].map((h) => (
+                  {["Order #", "Date", "Order Total", `Platform Fee${payouts[0]?.commissionPct !== undefined ? ` (${payouts[0].commissionPct}%)` : ""}`, "Net Earnings", "Status", ""].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary whitespace-nowrap">
                       {h}
                     </th>
@@ -258,31 +126,29 @@ export default function PaymentsPage() {
               </thead>
               <tbody className="divide-y divide-border-light">
                 {payouts.map((row) => {
-                  const s = STATUS_STYLES[row.status] || STATUS_STYLES.pending;
+                  const s = STATUS_STYLES[row.status] || STATUS_STYLES.placed;
                   return (
                     <tr key={row._id || row.id} className="hover:bg-bg-secondary/50 transition-colors">
                       <td className="px-4 py-3 font-mono text-xs text-text-secondary">{row.payoutId || row.id}</td>
-                      <td className="px-4 py-3 text-xs text-text-primary whitespace-nowrap">{row.period}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary whitespace-nowrap">
+                        {row.period ? formatDate(row.period) : "—"}
+                      </td>
                       <td className="px-4 py-3 text-xs font-semibold text-text-primary">₹{(row.gross || 0).toLocaleString("en-IN")}</td>
                       <td className="px-4 py-3 text-xs text-red-500">–₹{(row.fee || 0).toLocaleString("en-IN")}</td>
-                      <td className="px-4 py-3 text-xs text-red-500">–₹{(row.tax || 0).toLocaleString("en-IN")}</td>
                       <td className="px-4 py-3 text-xs font-bold text-green-700">₹{(row.net || 0).toLocaleString("en-IN")}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${s.cls}`}>
                           {s.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-text-secondary whitespace-nowrap">
-                        {row.paidOn ? formatDate(row.paidOn) : "—"}
-                      </td>
                       <td className="px-4 py-3">
-                        {row.status === "paid" && (
-                          <button
-                            onClick={() => handleDownloadInvoice(row._id || row.id)}
+                        {row._id && (
+                          <Link
+                            href={`/restaurant/orders/${row._id}`}
                             className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline whitespace-nowrap"
                           >
-                            <Download size={12} /> Invoice
-                          </button>
+                            <Eye size={12} /> View
+                          </Link>
                         )}
                       </td>
                     </tr>

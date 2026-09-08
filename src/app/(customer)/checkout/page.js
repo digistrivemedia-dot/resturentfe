@@ -2,23 +2,30 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowLeft, MapPin, Plus, ChevronRight, CreditCard,
   Smartphone, Banknote, ChevronDown, Loader2, ShieldCheck,
-  Bike, CalendarClock, HandCoins,
+  Bike, CalendarClock, HandCoins, Phone,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import useCartStore from "@/stores/cartStore";
 import useLocationStore from "@/stores/locationStore";
 import useAuthStore from "@/stores/authStore";
 import useOrderStore from "@/stores/orderStore";
+import useProfileStore from "@/stores/profileStore";
 import usePlatformFeeStore from "@/stores/platformFeeStore";
 import useOrderTypeSettingsStore from "@/stores/orderTypeSettingsStore";
 import { TIP_OPTIONS } from "@/constants";
 import api from "@/lib/api";
 import { playOrderPlacedSound } from "@/lib/sound";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
+
+const LocationMapPicker = dynamic(() => import("@/components/shared/LocationMapPicker"), {
+  ssr: false,
+  loading: () => <div className="w-full h-56 rounded-[var(--radius-lg)] bg-bg-secondary animate-pulse" />,
+});
 
 const PAYMENT_METHODS = [
   {
@@ -55,14 +62,24 @@ export default function CheckoutPage() {
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
   const [serviceability, setServiceability] = useState({ serviceable: true, deliveryCost: null, forKey: null });
 
+  // Inline "complete your details" state — phone and address are the same
+  // single field the Profile page reads/writes (via authStore.updateProfile
+  // and profileStore.addAddress), never a separate checkout-only copy.
+  const [phoneInput, setPhoneInput] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [addrForm, setAddrForm] = useState({ flatNo: "", area: "", pincode: "", landmark: "", lat: undefined, lng: undefined });
+  const [addrErrors, setAddrErrors] = useState({});
+  const [savingAddress, setSavingAddress] = useState(false);
+
   const {
     restaurant, items, coupon, orderType, tip, setTip,
     getSubtotal, getDeliveryFee, getTaxAmount, getCouponDiscount,
     clearCart,
   } = useCartStore();
 
-  const { user, fetchMe } = useAuthStore();
+  const { user, fetchMe, updateProfile } = useAuthStore();
   const { placeOrder, isPlacing } = useOrderStore();
+  const { addAddress } = useProfileStore();
   const { savedAddresses, currentLocation } = useLocationStore();
   const { enabled: platformFeeEnabled, amount: platformFeeAmount, fetchPlatformFee } = usePlatformFeeStore();
   const { enabledMap: orderTypesEnabled, fetchOrderTypeSettings } = useOrderTypeSettingsStore();
@@ -82,6 +99,7 @@ export default function CheckoutPage() {
     fetchMe();
   }, [fetchMe]);
 
+
   useEffect(() => {
     fetchPlatformFee();
     fetchOrderTypeSettings();
@@ -98,6 +116,12 @@ export default function CheckoutPage() {
   }, [orderType, orderTypesEnabled, router]);
 
   const isDelivery = orderType === "delivery";
+  // Phone is required for every order type — the restaurant/rider needs a way
+  // to reach the customer, and Flash's own API rejects delivery dispatch
+  // outright without one. Address (with coordinates) is required for delivery.
+  const missingPhone = !user?.phone;
+  const missingAddress = isDelivery && !selectedAddr;
+  const hasMissingRequiredInfo = missingPhone || missingAddress;
   // Cash isn't offered for delivery — Flash (our delivery partner) can't dispatch
   // a rider for unpaid orders, so those would silently fall back to no tracking
   // and manual delivery. Pickup/dine-in still allow cash ("Pay at Restaurant"),
@@ -180,7 +204,65 @@ export default function CheckoutPage() {
   const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
   const restaurantAddress = restaurant?.address || {};
 
+  const handleSavePhone = async () => {
+    const digits = phoneInput.replace(/\D/g, "");
+    if (digits.length !== 10) {
+      toast.error("Enter a valid 10-digit phone number");
+      return;
+    }
+    setSavingPhone(true);
+    try {
+      // Same field the Profile page reads/writes — there is only ever one
+      // phone number per account, this updates it, it doesn't add a second.
+      await updateProfile({ phone: digits });
+      toast.success("Phone number saved");
+    } catch (err) {
+      toast.error(err.message || "Failed to save phone number");
+    }
+    setSavingPhone(false);
+  };
+
+  const setAddrField = (key) => (e) => {
+    setAddrForm((p) => ({ ...p, [key]: e.target.value }));
+    setAddrErrors((p) => ({ ...p, [key]: "" }));
+  };
+
+  const handleSaveAddressInline = async () => {
+    const errs = {};
+    if (!addrForm.flatNo.trim()) errs.flatNo = "Required";
+    if (!addrForm.area.trim()) errs.area = "Required";
+    if (!/^\d{6}$/.test(addrForm.pincode.trim())) errs.pincode = "Enter a valid 6-digit pincode";
+    if (typeof addrForm.lat !== "number" || typeof addrForm.lng !== "number") errs.map = "Pin your location on the map";
+    setAddrErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    setSavingAddress(true);
+    try {
+      const fullAddress = `${addrForm.flatNo}, ${addrForm.area}${addrForm.landmark ? ", " + addrForm.landmark : ""}`;
+      // Same addAddress action /address/new uses — one address list, not a
+      // checkout-only duplicate.
+      await addAddress({
+        label: "home",
+        fullAddress,
+        landmark: addrForm.landmark,
+        pincode: addrForm.pincode.trim(),
+        isDefault: true,
+        lat: addrForm.lat,
+        lng: addrForm.lng,
+      });
+      await fetchMe();
+      toast.success("Address saved");
+    } catch (err) {
+      toast.error(err.message || "Failed to save address");
+    }
+    setSavingAddress(false);
+  };
+
   const handlePlaceOrder = async () => {
+    if (missingPhone) {
+      toast.error("Please add your phone number before placing the order");
+      return;
+    }
     // GPS/pincode location alone (e.g. from the quick-order flow) isn't a real deliverable
     // address — it has no house/flat number or landmark. A proper saved address is required.
     if (isDelivery && !selectedAddr) {
@@ -323,6 +405,46 @@ export default function CheckoutPage() {
         </button>
         <h1 className="text-lg font-bold text-text-primary">Checkout</h1>
       </div>
+
+      {/* Missing-info banner — explains why Place Order is disabled below */}
+      {hasMissingRequiredInfo && (
+        <div className="flex items-start gap-3 bg-warning-light border border-warning/30 rounded-[var(--radius-xl)] px-4 py-3">
+          <AlertTriangle size={16} className="text-warning shrink-0 mt-0.5" />
+          <p className="text-xs text-warning-dark leading-relaxed">
+            To place your order, please fill in your{" "}
+            {[missingPhone && "phone number", missingAddress && "delivery address"].filter(Boolean).join(" and ")}{" "}
+            below.
+          </p>
+        </div>
+      )}
+
+      {/* Phone number — required for every order type so the restaurant/rider can reach you */}
+      {missingPhone && (
+        <div className="bg-white rounded-[var(--radius-xl)] border border-border-light overflow-hidden">
+          <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+            <Phone size={16} className="text-primary" />
+            <span className="text-sm font-bold text-text-primary">Phone Number</span>
+          </div>
+          <div className="px-4 pb-4 flex gap-2">
+            <input
+              type="tel"
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="10-digit mobile number"
+              inputMode="numeric"
+              className="flex-1 h-11 px-4 text-sm border border-border-light rounded-[var(--radius-lg)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+            />
+            <button
+              type="button"
+              onClick={handleSavePhone}
+              disabled={savingPhone}
+              className="h-11 px-5 bg-primary text-white text-sm font-bold rounded-[var(--radius-lg)] hover:bg-primary-dark transition-colors disabled:opacity-60 flex items-center gap-2 shrink-0"
+            >
+              {savingPhone ? <Loader2 size={16} className="animate-spin" /> : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Delivery time banner — delivery only, and only while delivery is actually enabled */}
       {isDelivery && orderTypesEnabled.delivery !== false && (
@@ -475,19 +597,77 @@ export default function CheckoutPage() {
             )}
           </div>
         ) : (
-          <div className="px-4 pb-4">
-            <Link
-              href="/address/new?redirect=/checkout"
-              className="flex items-center gap-3 border-2 border-dashed border-border-default rounded-[var(--radius-lg)] p-4 hover:border-primary transition-colors"
-            >
-              <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center">
-                <Plus size={18} className="text-primary" />
+          <div className="px-4 pb-4 space-y-3">
+            <p className="text-xs text-text-secondary">Add your delivery address below — required to place a delivery order.</p>
+            <LocationMapPicker
+              lat={addrForm.lat}
+              lng={addrForm.lng}
+              onLocationChange={(update) => setAddrForm((p) => ({
+                ...p,
+                lat: update.lat,
+                lng: update.lng,
+                area: update.city ? [update.city, update.state].filter(Boolean).join(", ") : p.area,
+                pincode: update.pincode || p.pincode,
+              }))}
+            />
+            {addrErrors.map && <p className="text-xs text-error">{addrErrors.map}</p>}
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1">House / Flat / Office No. *</label>
+              <input
+                value={addrForm.flatNo}
+                onChange={setAddrField("flatNo")}
+                placeholder="e.g. B-204, 3rd Floor"
+                className={`w-full h-10 px-3 text-sm border rounded-[var(--radius-md)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 transition-colors ${
+                  addrErrors.flatNo ? "border-error focus:ring-error/20" : "border-border-light focus:border-primary focus:ring-primary/20"
+                }`}
+              />
+              {addrErrors.flatNo && <p className="text-xs text-error mt-1">{addrErrors.flatNo}</p>}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1">Area / Street *</label>
+              <input
+                value={addrForm.area}
+                onChange={setAddrField("area")}
+                placeholder="e.g. Andheri West, Mumbai"
+                className={`w-full h-10 px-3 text-sm border rounded-[var(--radius-md)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 transition-colors ${
+                  addrErrors.area ? "border-error focus:ring-error/20" : "border-border-light focus:border-primary focus:ring-primary/20"
+                }`}
+              />
+              {addrErrors.area && <p className="text-xs text-error mt-1">{addrErrors.area}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1">Pincode *</label>
+                <input
+                  value={addrForm.pincode}
+                  onChange={(e) => { setAddrForm((p) => ({ ...p, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })); setAddrErrors((p) => ({ ...p, pincode: "" })); }}
+                  placeholder="560066"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className={`w-full h-10 px-3 text-sm border rounded-[var(--radius-md)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 transition-colors ${
+                    addrErrors.pincode ? "border-error focus:ring-error/20" : "border-border-light focus:border-primary focus:ring-primary/20"
+                  }`}
+                />
+                {addrErrors.pincode && <p className="text-xs text-error mt-1">{addrErrors.pincode}</p>}
               </div>
               <div>
-                <p className="text-sm font-semibold text-primary">Add a delivery address</p>
-                <p className="text-xs text-text-secondary mt-0.5">Required for delivery orders</p>
+                <label className="block text-xs font-semibold text-text-secondary mb-1">Landmark (optional)</label>
+                <input
+                  value={addrForm.landmark}
+                  onChange={setAddrField("landmark")}
+                  placeholder="Near Metro Station"
+                  className="w-full h-10 px-3 text-sm border border-border-light rounded-[var(--radius-md)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                />
               </div>
-            </Link>
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveAddressInline}
+              disabled={savingAddress}
+              className="w-full h-11 bg-primary text-white text-sm font-bold rounded-[var(--radius-lg)] flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors disabled:opacity-60"
+            >
+              {savingAddress ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : "Save Address"}
+            </button>
           </div>
         )}
 
@@ -670,7 +850,7 @@ export default function CheckoutPage() {
       <div className="sticky bottom-0 md:bottom-4 -mx-4 px-4 pb-2 pt-1 bg-bg-primary/80 backdrop-blur-sm">
         <button
           onClick={handlePlaceOrder}
-          disabled={loading || isPlacing}
+          disabled={loading || isPlacing || hasMissingRequiredInfo}
           className="w-full h-14 bg-primary text-white font-bold rounded-[var(--radius-xl)] flex items-center justify-between px-5 hover:bg-primary-dark transition-colors disabled:opacity-60 shadow-[var(--shadow-lg)]"
         >
           <div className="text-left">

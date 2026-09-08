@@ -57,7 +57,7 @@ export default function ProfilePage() {
     : orderPagination.total ?? 0;
   const [editOpen, setEditOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "" });
+  const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", phone: user?.phone || "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -159,6 +159,10 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
+    if (form.phone && !/^\d{10}$/.test(form.phone)) {
+      toast.error("Enter a valid 10-digit phone number");
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile(form);
@@ -166,7 +170,7 @@ export default function ProfilePage() {
       setSaved(true);
       setTimeout(() => { setSaved(false); setEditOpen(false); }, 800);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update profile");
+      toast.error(err.message || "Failed to update profile");
     }
     setSaving(false);
   };
@@ -192,7 +196,12 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-extrabold text-text-primary">Profile</h1>
           <button
-            onClick={() => setEditOpen(true)}
+            onClick={() => {
+              // Pull fresh values every time the modal opens, not just whatever
+              // "user" happened to be on the component's first-ever render.
+              setForm({ name: user.name || "", email: user.email || "", phone: user.phone || "" });
+              setEditOpen(true);
+            }}
             className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
           >
             <Pencil size={14} /> Edit
@@ -388,13 +397,18 @@ export default function ProfilePage() {
             <label className="block text-sm font-medium text-text-primary mb-1.5">Phone</label>
             <div className="relative">
               <input
-                value={user.phone}
-                disabled
-                className="w-full h-11 px-4 text-sm border border-border-light rounded-[var(--radius-lg)] bg-bg-secondary text-text-tertiary cursor-not-allowed"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                type="tel"
+                inputMode="numeric"
+                placeholder="10-digit mobile number"
+                className="w-full h-11 pl-4 pr-10 text-sm border border-border-light rounded-[var(--radius-lg)] bg-bg-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
               />
-              <CheckCircle2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-success" />
+              {form.phone && user.phone === form.phone && user.isPhoneVerified && (
+                <CheckCircle2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-success" />
+              )}
             </div>
-            <p className="text-xs text-text-tertiary mt-1">Phone number cannot be changed</p>
+            <p className="text-xs text-text-tertiary mt-1">Used by the restaurant and delivery rider to reach you</p>
           </div>
 
           <button
