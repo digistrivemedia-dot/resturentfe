@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import useOrderStore from "@/stores/orderStore";
 import { connectSocket } from "@/lib/socket";
+import OrderCancelAction from "@/components/customer/OrderCancelAction";
 
 // Leaflet touches `window` at import time, so it can only run client-side —
 // ssr: false keeps Next from trying to render it on the server.
@@ -285,6 +286,13 @@ export default function TrackOrderPage({ params }) {
           {/* Delivery task reference — useful for support, not a headline feature */}
           {flash?.taskId && (
             <p className="text-[11px] text-text-tertiary mb-4 -mt-2">Delivery Task: {flash.taskId}</p>
+          )}
+
+          {/* Cancel / cancellation request status */}
+          {!isDelivered && (
+            <div className="mb-4">
+              <OrderCancelAction order={order} className="w-full" />
+            </div>
           )}
 
           {/* Status timeline (expanded) */}

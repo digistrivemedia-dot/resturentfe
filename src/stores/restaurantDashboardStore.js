@@ -110,6 +110,43 @@ const useRestaurantDashboardStore = create((set, get) => ({
     }
   },
 
+  // Cancel an already-accepted order (proactively, or approving a customer's
+  // cancellation request) — unassigns the Flash rider first if one was dispatched.
+  cancelOrder: async (orderId, reason) => {
+    set({ isUpdating: true, error: null });
+    try {
+      const res = await api.put(`/restaurant/orders/${orderId}/cancel`, { reason });
+      const updated = res.data.order;
+      set((state) => ({
+        liveOrders: state.liveOrders.filter((o) => o._id !== orderId),
+        currentOrder: state.currentOrder?._id === orderId ? updated : state.currentOrder,
+        isUpdating: false,
+      }));
+      return updated;
+    } catch (err) {
+      set({ isUpdating: false, error: err.message });
+      throw err;
+    }
+  },
+
+  // Decline a customer's cancellation request, with a reason shown to them
+  denyCancelRequest: async (orderId, reason) => {
+    set({ isUpdating: true, error: null });
+    try {
+      const res = await api.put(`/restaurant/orders/${orderId}/deny-cancel-request`, { reason });
+      const updated = res.data.order;
+      set((state) => ({
+        liveOrders: state.liveOrders.map((o) => (o._id === orderId ? updated : o)),
+        currentOrder: state.currentOrder?._id === orderId ? updated : state.currentOrder,
+        isUpdating: false,
+      }));
+      return updated;
+    } catch (err) {
+      set({ isUpdating: false, error: err.message });
+      throw err;
+    }
+  },
+
   // Update order status (preparing → ready → picked_up → etc.)
   updateOrderStatus: async (orderId, status) => {
     set({ isUpdating: true, error: null });

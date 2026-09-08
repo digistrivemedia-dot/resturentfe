@@ -12,6 +12,7 @@ import {
 import { CardSkeleton } from "@/components/ui";
 import useOrderStore from "@/stores/orderStore";
 import RateOrderModal from "@/components/customer/RateOrderModal";
+import OrderCancelAction from "@/components/customer/OrderCancelAction";
 
 const STATUS_META = {
   pending_payment:  { label: "Payment Pending",     color: "text-warning",   bg: "bg-warning-light" },
@@ -207,6 +208,9 @@ export default function OrderDetailPage({ params }) {
             ) : null}
           </>
         )}
+
+        {/* Cancel / cancellation request status */}
+        <OrderCancelAction order={order} className="w-full" />
 
         {/* Restaurant info */}
         <div className="bg-white rounded-[var(--radius-xl)] border border-border-light px-4 py-4 flex items-center gap-3">

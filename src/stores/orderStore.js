@@ -106,6 +106,22 @@ const useOrderStore = create((set, get) => ({
     }
   },
 
+  // Request cancellation once past the self-serve cancel window — doesn't
+  // cancel anything, just flags it for the restaurant to approve/deny.
+  requestCancelOrder: async (id, reason) => {
+    try {
+      const res = await api.post(`/orders/${id}/request-cancel`, { reason });
+      const { order } = res.data;
+      set((state) => ({
+        orders: state.orders.map((o) => (o._id === id ? order : o)),
+        currentOrder: state.currentOrder?._id === id ? order : state.currentOrder,
+      }));
+      return order;
+    } catch (err) {
+      throw err;
+    }
+  },
+
   // Rate order
   rateOrder: async (id, ratingData) => {
     try {

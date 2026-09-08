@@ -194,7 +194,7 @@ function NewOrderCard({ order, onAccept, onReject }) {
 }
 
 // ── Preparing card ─────────────────────────────────────────────────────────
-function PreparingCard({ order, onMarkReady }) {
+function PreparingCard({ order, onMarkReady, onCancel }) {
   const mins = minsSince(getAcceptedAt(order));
   return (
     <div
@@ -255,10 +255,16 @@ function PreparingCard({ order, onMarkReady }) {
         </Link>
       </div>
 
-      <div className="border-t border-border-light">
+      <div className="border-t border-border-light flex">
+        <button
+          onClick={() => onCancel(order._id)}
+          className="px-4 text-xs font-medium text-error hover:bg-error-light transition-colors cursor-pointer border-r border-border-light"
+        >
+          Cancel
+        </button>
         <button
           onClick={() => onMarkReady(order._id)}
-          className="w-full py-2.5 text-sm font-semibold text-warning-dark bg-warning-light hover:bg-warning hover:text-white transition-colors cursor-pointer"
+          className="flex-1 py-2.5 text-sm font-semibold text-warning-dark bg-warning-light hover:bg-warning hover:text-white transition-colors cursor-pointer"
         >
           Mark Ready
         </button>
@@ -321,7 +327,7 @@ function FlashRiderInfo({ order }) {
 }
 
 // ── Picked-up card ────────────────────────────────────────────────────────
-function PickedUpCard({ order, onMarkDelivered }) {
+function PickedUpCard({ order, onMarkDelivered, onCancel }) {
   const mins = minsSince(getReadyAt(order));
   return (
     <div className="bg-bg-primary rounded-[var(--radius-lg)] border-l-4 border-l-primary border border-border-light shadow-[var(--shadow-sm)] overflow-hidden">
@@ -364,10 +370,16 @@ function PickedUpCard({ order, onMarkDelivered }) {
           Details <ChevronRight size={12} />
         </Link>
       </div>
-      <div className="border-t border-border-light">
+      <div className="border-t border-border-light flex">
+        <button
+          onClick={() => onCancel(order._id)}
+          className="px-4 text-xs font-medium text-error hover:bg-error-light transition-colors cursor-pointer border-r border-border-light"
+        >
+          Cancel
+        </button>
         <button
           onClick={() => onMarkDelivered(order._id)}
-          className="w-full py-2.5 text-sm font-semibold text-white bg-success hover:bg-success-dark transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 text-sm font-semibold text-white bg-success hover:bg-success-dark transition-colors cursor-pointer flex items-center justify-center gap-1.5"
         >
           <CheckCircle2 size={14} /> Mark Delivered
         </button>
@@ -377,7 +389,7 @@ function PickedUpCard({ order, onMarkDelivered }) {
 }
 
 // ── Ready card ─────────────────────────────────────────────────────────────
-function ReadyCard({ order, onMarkPickedUp, onMarkDelivered }) {
+function ReadyCard({ order, onMarkPickedUp, onMarkDelivered, onCancel }) {
   const mins = minsSince(getReadyAt(order));
   return (
     <div
@@ -440,12 +452,52 @@ function ReadyCard({ order, onMarkPickedUp, onMarkDelivered }) {
         </Link>
       </div>
 
-      <div className="border-t border-border-light">
+      <div className="border-t border-border-light flex">
+        <button
+          onClick={() => onCancel(order._id)}
+          className="px-4 text-xs font-medium text-error hover:bg-error-light transition-colors cursor-pointer border-r border-border-light"
+        >
+          Cancel
+        </button>
         <button
           onClick={() => order.orderType === "dine_in" ? onMarkDelivered(order._id) : onMarkPickedUp(order._id)}
-          className={`w-full py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer ${order.orderType === "dine_in" ? "bg-success hover:bg-success-dark" : "bg-primary hover:bg-primary-dark"}`}
+          className={`flex-1 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer ${order.orderType === "dine_in" ? "bg-success hover:bg-success-dark" : "bg-primary hover:bg-primary-dark"}`}
         >
           {order.orderType === "dine_in" ? "Complete Dine-in" : "Mark Picked Up"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Cancellation request banner — shown below the order card ───────────────
+function CancellationRequestBanner({ order, onApprove, onDeny, disabled }) {
+  if (order.cancellationRequest?.status !== "pending") return null;
+  return (
+    <div className="bg-warning-light border border-warning/30 rounded-[var(--radius-lg)] px-4 py-3 -mt-1">
+      <div className="flex items-start gap-2 mb-2.5">
+        <AlertCircle size={14} className="text-warning-dark shrink-0 mt-0.5" />
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-warning-dark">Customer requested cancellation</p>
+          {order.cancellationRequest.reason && (
+            <p className="text-xs text-text-secondary mt-0.5">&quot;{order.cancellationRequest.reason}&quot;</p>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => onDeny(order._id)}
+          disabled={disabled}
+          className="flex-1 h-8 text-xs font-semibold text-text-secondary border border-border-default rounded-[var(--radius-md)] hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Keep Order
+        </button>
+        <button
+          onClick={() => onApprove(order._id)}
+          disabled={disabled}
+          className="flex-1 h-8 text-xs font-semibold text-white bg-error hover:bg-error-dark rounded-[var(--radius-md)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Cancel Order
         </button>
       </div>
     </div>
@@ -552,6 +604,107 @@ function RejectModal({ isOpen, onClose, onConfirm }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Cancel order modal — proactive cancel of an already-accepted order
+// ─────────────────────────────────────────────────────────────────────────────
+function CancelOrderModal({ isOpen, onClose, onConfirm }) {
+  const [reason, setReason] = useState("");
+
+  function handleConfirm() {
+    onConfirm(reason);
+    setReason("");
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Cancel this order?"
+      size="sm"
+      footer={
+        <>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-text-secondary border border-border-default rounded-[var(--radius-md)] hover:bg-bg-hover transition-colors cursor-pointer"
+          >
+            Never mind
+          </button>
+          <button
+            onClick={handleConfirm}
+            className="px-4 py-2 text-sm font-semibold text-white bg-error hover:bg-error-dark rounded-[var(--radius-md)] transition-colors cursor-pointer"
+          >
+            Cancel Order
+          </button>
+        </>
+      }
+    >
+      <p className="text-sm text-text-secondary mb-3">
+        If a rider has already been assigned, they&apos;ll be unassigned. The customer will be notified.
+      </p>
+      <label className="block text-sm font-medium text-text-primary mb-1.5">
+        Reason <span className="text-text-tertiary font-normal">(optional)</span>
+      </label>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={3}
+        placeholder="e.g. Kitchen equipment issue"
+        className="w-full text-sm border border-border-default rounded-[var(--radius-md)] px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary resize-none"
+      />
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Deny cancellation request modal — reason is mandatory, shown to the customer
+// ─────────────────────────────────────────────────────────────────────────────
+function DenyCancelRequestModal({ isOpen, onClose, onConfirm }) {
+  const [reason, setReason] = useState("");
+
+  function handleConfirm() {
+    if (!reason.trim()) return;
+    onConfirm(reason.trim());
+    setReason("");
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Decline cancellation request"
+      size="sm"
+      footer={
+        <>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-text-secondary border border-border-default rounded-[var(--radius-md)] hover:bg-bg-hover transition-colors cursor-pointer"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!reason.trim()}
+            className="px-4 py-2 text-sm font-semibold text-white bg-text-primary hover:bg-text-primary/90 rounded-[var(--radius-md)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Decline & Notify Customer
+          </button>
+        </>
+      }
+    >
+      <label className="block text-sm font-medium text-text-primary mb-1.5">
+        Tell the customer why <span className="text-text-tertiary font-normal">(required)</span>
+      </label>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={3}
+        placeholder="e.g. Already being prepared, can't cancel now"
+        className="w-full text-sm border border-border-default rounded-[var(--radius-md)] px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary resize-none"
+      />
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Toast
 // ─────────────────────────────────────────────────────────────────────────────
 function Toast({ message, visible }) {
@@ -571,12 +724,15 @@ function Toast({ message, visible }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LiveOrdersPage() {
   const {
-    liveOrders, isLoading, error,
+    liveOrders, isLoading, isUpdating, error,
     fetchLiveOrders, acceptOrder, rejectOrder, updateOrderStatus,
+    cancelOrder, denyCancelRequest,
     addLiveOrder, updateLiveOrderFromSocket,
   } = useRestaurantDashboardStore();
 
   const [rejectTargetId, setRejectTargetId] = useState(null);
+  const [cancelTargetId, setCancelTargetId] = useState(null);
+  const [denyTargetId, setDenyTargetId] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const [activeTab, setActiveTab] = useState("placed"); // mobile tabs
   const [lastRefresh, setLastRefresh] = useState(new Date());
@@ -655,6 +811,47 @@ export default function LiveOrdersPage() {
     }
   }
 
+  function openCancelModal(id) {
+    setCancelTargetId(id);
+  }
+
+  async function handleCancelConfirm(reason) {
+    const id = cancelTargetId;
+    setCancelTargetId(null);
+    try {
+      await cancelOrder(id, reason);
+      showToast("Order cancelled");
+    } catch (err) {
+      showToast(err.message || "Failed to cancel order. Please try again.");
+    }
+  }
+
+  // Approving a customer's pending cancellation request reuses the same
+  // cancel action — no reason prompt needed, the customer already gave one.
+  async function handleApproveCancelRequest(id) {
+    try {
+      await cancelOrder(id);
+      showToast("Order cancelled");
+    } catch (err) {
+      showToast(err.message || "Failed to cancel order. Please try again.");
+    }
+  }
+
+  function openDenyModal(id) {
+    setDenyTargetId(id);
+  }
+
+  async function handleDenyConfirm(reason) {
+    const id = denyTargetId;
+    setDenyTargetId(null);
+    try {
+      await denyCancelRequest(id, reason);
+      showToast("Cancellation request declined");
+    } catch (err) {
+      showToast(err.message || "Failed to decline request. Please try again.");
+    }
+  }
+
   async function handleMarkReady(id) {
     try {
       await updateOrderStatus(id, "ready");
@@ -709,11 +906,10 @@ export default function LiveOrdersPage() {
           <EmptyColumn label="No orders being prepared" />
         ) : (
           preparingOrders.map((o) => (
-            <PreparingCard
-              key={o._id}
-              order={o}
-              onMarkReady={handleMarkReady}
-            />
+            <div key={o._id} className="space-y-2">
+              <PreparingCard order={o} onMarkReady={handleMarkReady} onCancel={openCancelModal} />
+              <CancellationRequestBanner order={o} onApprove={handleApproveCancelRequest} onDeny={openDenyModal} disabled={isUpdating} />
+            </div>
           ))
         )}
       </div>
@@ -727,7 +923,10 @@ export default function LiveOrdersPage() {
           <EmptyColumn label="No orders awaiting pickup" />
         ) : (
           readyOrders.map((o) => (
-            <ReadyCard key={o._id} order={o} onMarkPickedUp={handleMarkPickedUp} onMarkDelivered={handleMarkDelivered} />
+            <div key={o._id} className="space-y-2">
+              <ReadyCard order={o} onMarkPickedUp={handleMarkPickedUp} onMarkDelivered={handleMarkDelivered} onCancel={openCancelModal} />
+              <CancellationRequestBanner order={o} onApprove={handleApproveCancelRequest} onDeny={openDenyModal} disabled={isUpdating} />
+            </div>
           ))
         )}
       </div>
@@ -741,7 +940,10 @@ export default function LiveOrdersPage() {
           <EmptyColumn label="No orders out for delivery" />
         ) : (
           pickedUpOrders.map((o) => (
-            <PickedUpCard key={o._id} order={o} onMarkDelivered={handleMarkDelivered} />
+            <div key={o._id} className="space-y-2">
+              <PickedUpCard order={o} onMarkDelivered={handleMarkDelivered} onCancel={openCancelModal} />
+              <CancellationRequestBanner order={o} onApprove={handleApproveCancelRequest} onDeny={openDenyModal} disabled={isUpdating} />
+            </div>
           ))
         )}
       </div>
@@ -911,6 +1113,20 @@ export default function LiveOrdersPage() {
         isOpen={!!rejectTargetId}
         onClose={() => setRejectTargetId(null)}
         onConfirm={handleRejectConfirm}
+      />
+
+      {/* Cancel order modal */}
+      <CancelOrderModal
+        isOpen={!!cancelTargetId}
+        onClose={() => setCancelTargetId(null)}
+        onConfirm={handleCancelConfirm}
+      />
+
+      {/* Deny cancellation request modal */}
+      <DenyCancelRequestModal
+        isOpen={!!denyTargetId}
+        onClose={() => setDenyTargetId(null)}
+        onConfirm={handleDenyConfirm}
       />
 
       {/* Toast */}
