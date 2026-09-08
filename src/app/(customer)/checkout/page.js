@@ -602,11 +602,12 @@ export default function CheckoutPage() {
             <LocationMapPicker
               lat={addrForm.lat}
               lng={addrForm.lng}
+              hint="Click on the map (or drag the pin) to set your exact delivery location"
               onLocationChange={(update) => setAddrForm((p) => ({
                 ...p,
                 lat: update.lat,
                 lng: update.lng,
-                area: update.city ? [update.city, update.state].filter(Boolean).join(", ") : p.area,
+                area: update.area || (update.city ? [update.city, update.state].filter(Boolean).join(", ") : p.area),
                 pincode: update.pincode || p.pincode,
               }))}
             />
