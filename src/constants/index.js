@@ -16,6 +16,9 @@ export const ORDER_TYPES = [
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+// Customer↔restaurant discovery radius — must match backend DISCOVERY_RADIUS_METERS
+export const DISCOVERY_RADIUS_KM = 8;
+
 // Cuisines
 export const CUISINES = [
   { value: "north_indian",  label: "North Indian",  icon: "🍛",  image: "/north-indian.jpg" },
@@ -39,6 +42,7 @@ export const CUISINES = [
 // Sort options
 export const SORT_OPTIONS = [
   { value: "relevance", label: "Relevance" },
+  { value: "distance", label: "Nearest First" },
   { value: "rating", label: "Rating: High to Low" },
   { value: "delivery_time", label: "Delivery Time" },
   { value: "cost_low", label: "Cost: Low to High" },

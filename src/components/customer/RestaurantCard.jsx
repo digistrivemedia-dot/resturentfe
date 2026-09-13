@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Star, Clock, ChevronRight, Heart, Zap } from "lucide-react";
+import { Star, Clock, ChevronRight, Heart, Zap, MapPin } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { useCallback } from "react";
 import useAuthStore from "@/stores/authStore";
@@ -18,7 +18,7 @@ export default function RestaurantCard({ restaurant, variant = "default", linkHr
   const {
     slug, name, cuisines = [], coverImage, logo,
     rating = {}, deliverySettings = {}, costForTwo, offers = [],
-    isFeatured, _id,
+    isFeatured, _id, distanceKm,
   } = restaurant;
 
   const href = linkHref || `/restaurant/${slug}`;
@@ -78,6 +78,12 @@ export default function RestaurantCard({ restaurant, variant = "default", linkHr
             <span className="flex items-center gap-1"><Clock size={11} />{avgDeliveryTime} mins</span>
             <span>·</span>
             <span>{deliveryFee > 0 ? `₹${deliveryFee} delivery` : "Free delivery"}</span>
+            {distanceKm != null && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1"><MapPin size={11} />{distanceKm} km</span>
+              </>
+            )}
           </div>
           {hasOffer && (
             <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-primary">
@@ -152,6 +158,15 @@ export default function RestaurantCard({ restaurant, variant = "default", linkHr
             <>
               <span className="text-border-default">·</span>
               <span>₹{costForTwo} for two</span>
+            </>
+          )}
+          {distanceKm != null && (
+            <>
+              <span className="text-border-default">·</span>
+              <span className="flex items-center gap-1">
+                <MapPin size={11} className="text-text-tertiary" />
+                {distanceKm} km
+              </span>
             </>
           )}
         </div>

@@ -6,7 +6,23 @@ import api from "@/lib/api";
 import { connectSocket } from "@/lib/socket";
 import RateOrderModal from "@/components/customer/RateOrderModal";
 
-const SESSION_KEY = "sic_rating_prompt_shown";
+// Persisted per-order (localStorage, not sessionStorage) so the count survives
+// closing the browser entirely — sessionStorage was the actual bug: it resets
+// on every fresh session, so the prompt reappeared forever for the same order.
+// Shows on the 1st and 2nd open after delivery; after that we stop asking —
+// the customer can still rate from their Orders page whenever they want.
+const MAX_PROMPTS_PER_ORDER = 2;
+const promptCountKey = (orderId) => `sic_rating_prompt_count_${orderId}`;
+
+function getPromptCount(orderId) {
+  if (typeof window === "undefined") return 0;
+  return Number(window.localStorage.getItem(promptCountKey(orderId))) || 0;
+}
+
+function recordPromptShown(orderId) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(promptCountKey(orderId), String(getPromptCount(orderId) + 1));
+}
 
 function needsRating(order) {
   return order?.status === "delivered" && !(order.rating?.itemRatings?.length > 0);
@@ -18,18 +34,19 @@ export default function RateOrderPrompt() {
   const [open, setOpen] = useState(false);
 
   // Once-per-app-open reminder: check for an existing unrated delivered order
-  // on first mount of this browser session only.
+  // on first mount, but only ones that haven't already used up their 2 prompts.
   useEffect(() => {
     if (!isAuthenticated) return;
     if (typeof window === "undefined") return;
-    if (sessionStorage.getItem(SESSION_KEY)) return;
 
     (async () => {
       try {
         const res = await api.get("/orders?status=delivered&limit=5");
-        const pending = res.data.orders?.find(needsRating);
+        const pending = res.data.orders?.find(
+          (o) => needsRating(o) && getPromptCount(o._id) < MAX_PROMPTS_PER_ORDER
+        );
         if (pending) {
-          sessionStorage.setItem(SESSION_KEY, "1");
+          recordPromptShown(pending._id);
           setOrder(pending);
           setOpen(true);
         }
@@ -50,8 +67,8 @@ export default function RateOrderPrompt() {
       // Defense in depth — never act on a payload without confirming it's
       // actually this account's order (see LiveOrderBar for why).
       if (String(updated.customer) !== String(user._id)) return;
-      if (needsRating(updated)) {
-        if (typeof window !== "undefined") sessionStorage.setItem(SESSION_KEY, "1");
+      if (needsRating(updated) && getPromptCount(updated._id) < MAX_PROMPTS_PER_ORDER) {
+        recordPromptShown(updated._id);
         setOrder(updated);
         setOpen(true);
       }

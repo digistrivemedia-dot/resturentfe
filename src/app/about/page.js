@@ -17,10 +17,8 @@ export const metadata = {
 };
 
 const STATS = [
-  { value: "500+", label: "Partner Restaurants" },
-  { value: "50K+", label: "Happy Customers" },
+  { value: "2", label: "Restaurant Locations" },
   { value: "30 min", label: "Avg. Delivery Time" },
-  { value: "4.8", label: "Average Rating" },
 ];
 
 const VALUES = [
@@ -93,7 +91,7 @@ export default function AboutPage() {
 
       {/* Stats */}
       <section className="bg-primary">
-        <div className="max-w-6xl mx-auto px-6 md:px-10 py-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div className="max-w-6xl mx-auto px-6 md:px-10 py-10 grid grid-cols-2 gap-6 text-center">
           {STATS.map((s) => (
             <div key={s.label}>
               <div className="text-3xl font-extrabold text-white">{s.value}</div>

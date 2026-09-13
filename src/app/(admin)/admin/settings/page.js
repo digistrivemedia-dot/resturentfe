@@ -283,6 +283,7 @@ function PlatformTab({ showToast }) {
     pickup: true,
     self_service: true,
   });
+  const [discoveryRadiusKm, setDiscoveryRadiusKm] = useState("8");
   const [loading, setLoading] = useState(false);
 
   // Fetch platform settings on mount and merge into form
@@ -315,6 +316,9 @@ function PlatformTab({ showToast }) {
       if (settings.orderTypesEnabled?.value) {
         setOrderTypesEnabled((prev) => ({ ...prev, ...settings.orderTypesEnabled.value }));
       }
+      if (settings.discoveryRadiusKm?.value !== undefined) {
+        setDiscoveryRadiusKm(String(settings.discoveryRadiusKm.value));
+      }
     }
   }, [settings]);
 
@@ -341,6 +345,7 @@ function PlatformTab({ showToast }) {
         category: "platform",
         ...form,
         orderTypesEnabled: { value: orderTypesEnabled, category: "platform" },
+        discoveryRadiusKm: { value: Number(discoveryRadiusKm), category: "platform" },
       });
       showToast("Platform settings saved");
     } catch (err) {
@@ -450,6 +455,20 @@ function PlatformTab({ showToast }) {
           checked={orderTypesEnabled.self_service}
           onChange={() => toggleOrderType("self_service")}
         />
+      </SectionCard>
+
+      <SectionCard title="Discovery & Delivery Radius">
+        <Field
+          label="Discovery Radius (km)"
+          hint="Customers only see restaurants within this distance of their location. Use the 'Always Visible' toggle on a restaurant's page to bypass this for a specific restaurant."
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-40">
+              <TextInput value={discoveryRadiusKm} onChange={setDiscoveryRadiusKm} type="number" placeholder="8" />
+            </div>
+            <span className="text-sm text-text-secondary">km</span>
+          </div>
+        </Field>
       </SectionCard>
 
       <div className="flex justify-end">

@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ArrowLeft, MapPin, Home, Briefcase, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Home, Briefcase, Loader2, Tag } from "lucide-react";
 import useProfileStore from "@/stores/profileStore";
 import useAuthStore from "@/stores/authStore";
 
@@ -30,7 +30,7 @@ function AddAddressContent() {
     area: "",
     pincode: "",
     landmark: "",
-    label: "home",
+    label: "Home",
     isDefault: false,
     lat: null,
     lng: null,
@@ -40,6 +40,7 @@ function AddAddressContent() {
 
   const validate = () => {
     const e = {};
+    if (!form.label.trim()) e.label = "Give this address a name";
     if (!form.flatNo.trim()) e.flatNo = "House/Flat number is required";
     if (!form.area.trim()) e.area = "Area is required";
     if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = "Enter a valid 6-digit pincode";
@@ -53,8 +54,15 @@ function AddAddressContent() {
     setLoading(true);
     try {
       const fullAddress = `${form.flatNo}, ${form.area}${form.landmark ? ", " + form.landmark : ""}`;
+      // "Home"/"Work"/"Other" save lowercase, matching the existing convention
+      // the icon/color lookups elsewhere key off — a custom name is saved
+      // exactly as typed.
+      const trimmedLabel = form.label.trim();
+      const label = ["home", "work", "other"].includes(trimmedLabel.toLowerCase())
+        ? trimmedLabel.toLowerCase()
+        : trimmedLabel;
       await addAddress({
-        label: form.label,
+        label,
         fullAddress,
         landmark: form.landmark,
         pincode: form.pincode.trim(),
@@ -105,25 +113,40 @@ function AddAddressContent() {
 
       {/* Form */}
       <form onSubmit={handleSave} className="space-y-4">
-        {/* Label selector */}
+        {/* Label / name */}
         <div>
           <label className="block text-sm font-medium text-text-primary mb-2">Save as</label>
-          <div className="flex gap-2">
-            {LABEL_OPTIONS.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => set("label", value)}
-                className={`flex-1 flex items-center justify-center gap-1.5 h-10 text-sm font-semibold rounded-[var(--radius-lg)] border-2 transition-all ${
-                  form.label === value
-                    ? "border-primary bg-primary-50 text-primary"
-                    : "border-border-light text-text-secondary hover:border-border-default"
-                }`}
-              >
-                <Icon size={15} /> {label}
-              </button>
-            ))}
+          <div className="flex gap-2 mb-3">
+            {LABEL_OPTIONS.map(({ value, label, icon: Icon }) => {
+              const active = form.label.trim().toLowerCase() === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => set("label", label)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 h-10 text-sm font-semibold rounded-[var(--radius-lg)] border-2 transition-all ${
+                    active
+                      ? "border-primary bg-primary-50 text-primary"
+                      : "border-border-light text-text-secondary hover:border-border-default"
+                  }`}
+                >
+                  <Icon size={15} /> {label}
+                </button>
+              );
+            })}
           </div>
+          <div className="relative">
+            <Tag size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+            <input
+              value={form.label}
+              onChange={(e) => set("label", e.target.value)}
+              placeholder="Or type a custom name, e.g. Friend's House"
+              maxLength={30}
+              className={`w-full h-11 pl-10 pr-4 text-sm border rounded-[var(--radius-lg)] bg-bg-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 transition-colors
+                ${errors.label ? "border-error focus:ring-error/20" : "border-border-light hover:border-border-default focus:border-primary focus:ring-primary/20"}`}
+            />
+          </div>
+          {errors.label && <p className="text-xs text-error mt-1">{errors.label}</p>}
         </div>
 
         {/* Flat/House no */}

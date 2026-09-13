@@ -10,7 +10,7 @@ import useAuthStore from "@/stores/authStore";
 import toast from "react-hot-toast";
 
 const FEATURES = [
-  "Browse hundreds of local restaurants",
+  "Browse local restaurants near you",
   "Real-time order tracking",
   "Exclusive deals and coupons",
   "Fast, reliable delivery",

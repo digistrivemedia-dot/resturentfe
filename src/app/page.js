@@ -20,17 +20,15 @@ import api from "@/lib/api";
 import useAuthStore from "@/stores/authStore";
 
 const STATS = [
-  { value: "500+", label: "Partner Restaurants" },
-  { value: "50K+", label: "Happy Customers" },
+  { value: "2", label: "Restaurant Locations" },
   { value: "30 min", label: "Avg. Delivery Time" },
-  { value: "4.8", label: "Average Rating" },
 ];
 
 const FEATURES = [
   {
     Icon: UtensilsCrossed,
     title: "Extensive Selection",
-    desc: "Explore hundreds of restaurants across cuisines — from neighbourhood favourites to acclaimed chains.",
+    desc: "Explore a variety of cuisines and dishes, prepared fresh and made to order.",
   },
   {
     Icon: Zap,
@@ -51,7 +49,7 @@ const FEATURES = [
 
 const HOW_IT_WORKS = [
   { step: "01", title: "Set Your Location", desc: "Enter your delivery address to discover restaurants available near you." },
-  { step: "02", title: "Browse & Order", desc: "Pick from hundreds of menus, add items to cart, and customise your order." },
+  { step: "02", title: "Browse & Order", desc: "Pick from the menu, add items to cart, and customise your order." },
   { step: "03", title: "Track & Receive", desc: "Real-time tracking keeps you informed from confirmation to your doorstep." },
 ];
 
@@ -157,10 +155,12 @@ export default function LandingPage() {
 
           {/* Left — Copy */}
           <div className="space-y-7">
-            <div className="inline-flex items-center gap-2 bg-primary/8 text-primary text-xs font-semibold px-3.5 py-1.5 rounded-full border border-primary/20">
-              <span className="w-1.5 h-1.5 bg-primary rounded-full" />
-              {isLoggedIn ? "Great to have you back" : "Now serving 500+ restaurants near you"}
-            </div>
+            {isLoggedIn && (
+              <div className="inline-flex items-center gap-2 bg-primary/8 text-primary text-xs font-semibold px-3.5 py-1.5 rounded-full border border-primary/20">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full" />
+                Great to have you back
+              </div>
+            )}
 
             {isLoggedIn ? (
               <>
@@ -276,7 +276,7 @@ export default function LandingPage() {
 
       {/* ── STATS STRIP ── */}
       <section className="bg-primary">
-        <div className="max-w-6xl mx-auto px-6 md:px-10 py-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div className="max-w-6xl mx-auto px-6 md:px-10 py-10 grid grid-cols-2 gap-6 text-center">
           {STATS.map((s) => (
             <div key={s.label}>
               <div className="text-3xl font-extrabold text-white">{s.value}</div>
@@ -422,7 +422,7 @@ export default function LandingPage() {
               <p className="text-xs font-semibold uppercase tracking-widest text-white/60 mb-2">For Restaurant Owners</p>
               <h2 className="text-2xl md:text-3xl font-bold mb-2">Grow your restaurant with us</h2>
               <p className="text-white/75 max-w-md text-sm leading-relaxed">
-                Join hundreds of partner restaurants and reach thousands of hungry customers in your area. Simple onboarding, powerful dashboard.
+                Get your restaurant online and reach hungry customers in your area. Simple onboarding, powerful dashboard.
               </p>
             </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Circle,
@@ -15,10 +15,19 @@ import {
   Bike,
   ExternalLink,
   Wallet,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import useRestaurantDashboardStore from "@/stores/restaurantDashboardStore";
 import { connectSocket, disconnectSocket } from "@/lib/socket";
+import { playNewOrderChime, primeNotificationSound } from "@/lib/notificationSound";
+
+const SOUND_PREF_KEY = "sic_restaurant_new_order_sound";
+// Re-chimes every 12s while any order is still sitting unacknowledged — a
+// single beep is exactly what's easy to miss if nobody's looking at the
+// screen, which is the whole reason this exists.
+const REPEAT_INTERVAL_MS = 12000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -112,7 +121,7 @@ function OrderTypeBadge({ order }) {
 }
 
 // ── New-order card ─────────────────────────────────────────────────────────
-function NewOrderCard({ order, onAccept, onReject }) {
+function NewOrderCard({ order, onAccept, onReject, isUpdating }) {
   return (
     <div
       className="bg-bg-primary rounded-[var(--radius-lg)] border-l-4 border-l-error border border-border-light shadow-[var(--shadow-sm)] overflow-hidden"
@@ -178,13 +187,15 @@ function NewOrderCard({ order, onAccept, onReject }) {
       <div className="flex gap-0 border-t border-border-light">
         <button
           onClick={() => onReject(order._id)}
-          className="flex-1 py-2.5 text-sm font-medium text-error hover:bg-error-light transition-colors border-r border-border-light cursor-pointer"
+          disabled={isUpdating}
+          className="flex-1 py-2.5 text-sm font-medium text-error hover:bg-error-light transition-colors border-r border-border-light cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Reject
         </button>
         <button
           onClick={() => onAccept(order._id)}
-          className="flex-1 py-2.5 text-sm font-semibold text-success-dark bg-success-light hover:bg-success transition-colors hover:text-white cursor-pointer"
+          disabled={isUpdating}
+          className="flex-1 py-2.5 text-sm font-semibold text-success-dark bg-success-light hover:bg-success transition-colors hover:text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Accept
         </button>
@@ -194,7 +205,7 @@ function NewOrderCard({ order, onAccept, onReject }) {
 }
 
 // ── Preparing card ─────────────────────────────────────────────────────────
-function PreparingCard({ order, onMarkReady, onCancel }) {
+function PreparingCard({ order, onMarkReady, onCancel, isUpdating }) {
   const mins = minsSince(getAcceptedAt(order));
   return (
     <div
@@ -264,9 +275,10 @@ function PreparingCard({ order, onMarkReady, onCancel }) {
         </button>
         <button
           onClick={() => onMarkReady(order._id)}
-          className="flex-1 py-2.5 text-sm font-semibold text-warning-dark bg-warning-light hover:bg-warning hover:text-white transition-colors cursor-pointer"
+          disabled={isUpdating}
+          className="flex-1 py-2.5 text-sm font-semibold text-warning-dark bg-warning-light hover:bg-warning hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Mark Ready
+          {isUpdating ? "Please wait…" : "Mark Ready"}
         </button>
       </div>
     </div>
@@ -327,7 +339,7 @@ function FlashRiderInfo({ order }) {
 }
 
 // ── Picked-up card ────────────────────────────────────────────────────────
-function PickedUpCard({ order, onMarkDelivered, onCancel }) {
+function PickedUpCard({ order, onMarkDelivered, onCancel, isUpdating }) {
   const mins = minsSince(getReadyAt(order));
   return (
     <div className="bg-bg-primary rounded-[var(--radius-lg)] border-l-4 border-l-primary border border-border-light shadow-[var(--shadow-sm)] overflow-hidden">
@@ -379,7 +391,8 @@ function PickedUpCard({ order, onMarkDelivered, onCancel }) {
         </button>
         <button
           onClick={() => onMarkDelivered(order._id)}
-          className="flex-1 py-2.5 text-sm font-semibold text-white bg-success hover:bg-success-dark transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+          disabled={isUpdating}
+          className="flex-1 py-2.5 text-sm font-semibold text-white bg-success hover:bg-success-dark transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <CheckCircle2 size={14} /> Mark Delivered
         </button>
@@ -389,7 +402,7 @@ function PickedUpCard({ order, onMarkDelivered, onCancel }) {
 }
 
 // ── Ready card ─────────────────────────────────────────────────────────────
-function ReadyCard({ order, onMarkPickedUp, onMarkDelivered, onCancel }) {
+function ReadyCard({ order, onMarkPickedUp, onMarkDelivered, onCancel, isUpdating }) {
   const mins = minsSince(getReadyAt(order));
   return (
     <div
@@ -461,7 +474,8 @@ function ReadyCard({ order, onMarkPickedUp, onMarkDelivered, onCancel }) {
         </button>
         <button
           onClick={() => order.orderType === "dine_in" ? onMarkDelivered(order._id) : onMarkPickedUp(order._id)}
-          className={`flex-1 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer ${order.orderType === "dine_in" ? "bg-success hover:bg-success-dark" : "bg-primary hover:bg-primary-dark"}`}
+          disabled={isUpdating}
+          className={`flex-1 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${order.orderType === "dine_in" ? "bg-success hover:bg-success-dark" : "bg-primary hover:bg-primary-dark"}`}
         >
           {order.orderType === "dine_in" ? "Complete Dine-in" : "Mark Picked Up"}
         </button>
@@ -737,6 +751,49 @@ export default function LiveOrdersPage() {
   const [activeTab, setActiveTab] = useState("placed"); // mobile tabs
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [socketConnected, setSocketConnected] = useState(false);
+  // Lazy initializer (not an effect) — reads the saved preference once,
+  // synchronously, during the first render.
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = window.localStorage.getItem(SOUND_PREF_KEY);
+    return stored === null ? true : stored === "1";
+  });
+
+  // Prime the browser's audio context on the very first interaction —
+  // browsers block audio (including a synthesized chime) until the page has
+  // received real user input, so without this the first genuine "new_order"
+  // chime of the day could get silently dropped.
+  useEffect(() => {
+    const primeOnce = () => {
+      primeNotificationSound();
+      window.removeEventListener("click", primeOnce);
+      window.removeEventListener("keydown", primeOnce);
+    };
+    window.addEventListener("click", primeOnce);
+    window.addEventListener("keydown", primeOnce);
+    return () => {
+      window.removeEventListener("click", primeOnce);
+      window.removeEventListener("keydown", primeOnce);
+    };
+  }, []);
+
+  const toggleSound = () => {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem(SOUND_PREF_KEY, next ? "1" : "0");
+      if (next) primeNotificationSound();
+      return next;
+    });
+  };
+
+  // The socket effect below only runs once (empty deps — reconnecting the
+  // socket every time the mute toggle changes would be wrong), so its
+  // "new_order" closure can't see live state updates. Mirror soundEnabled
+  // into a ref so the handler always reads the current preference.
+  const soundEnabledRef = useRef(soundEnabled);
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
 
   // Initial fetch + auto-refresh every 30s
   useEffect(() => {
@@ -761,6 +818,7 @@ export default function LiveOrdersPage() {
       setActiveTab("placed");
       setToast({ visible: true, message: `New order #${order.orderNumber} received!` });
       setTimeout(() => setToast({ visible: false, message: "" }), 4000);
+      if (soundEnabledRef.current) playNewOrderChime();
     });
 
     socket.on("order_updated", ({ order }) => {
@@ -781,6 +839,15 @@ export default function LiveOrdersPage() {
   const preparingOrders = liveOrders.filter((o) => o.status === "preparing" || o.status === "confirmed");
   const readyOrders = liveOrders.filter((o) => o.status === "ready");
   const pickedUpOrders = liveOrders.filter((o) => o.status === "picked_up" || o.status === "out_for_delivery");
+
+  // Keeps re-chiming while any order is still sitting unaccepted, not just
+  // once on arrival — the whole point is catching staff who aren't watching
+  // the screen, and a single beep is exactly what's easy to miss.
+  useEffect(() => {
+    if (!soundEnabled || newOrders.length === 0) return;
+    const id = setInterval(() => playNewOrderChime(), REPEAT_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [soundEnabled, newOrders.length]);
 
   function showToast(message) {
     setToast({ visible: true, message });
@@ -892,6 +959,7 @@ export default function LiveOrdersPage() {
               order={o}
               onAccept={handleAccept}
               onReject={openRejectModal}
+              isUpdating={isUpdating}
             />
           ))
         )}
@@ -907,7 +975,7 @@ export default function LiveOrdersPage() {
         ) : (
           preparingOrders.map((o) => (
             <div key={o._id} className="space-y-2">
-              <PreparingCard order={o} onMarkReady={handleMarkReady} onCancel={openCancelModal} />
+              <PreparingCard order={o} onMarkReady={handleMarkReady} onCancel={openCancelModal} isUpdating={isUpdating} />
               <CancellationRequestBanner order={o} onApprove={handleApproveCancelRequest} onDeny={openDenyModal} disabled={isUpdating} />
             </div>
           ))
@@ -924,7 +992,7 @@ export default function LiveOrdersPage() {
         ) : (
           readyOrders.map((o) => (
             <div key={o._id} className="space-y-2">
-              <ReadyCard order={o} onMarkPickedUp={handleMarkPickedUp} onMarkDelivered={handleMarkDelivered} onCancel={openCancelModal} />
+              <ReadyCard order={o} onMarkPickedUp={handleMarkPickedUp} onMarkDelivered={handleMarkDelivered} onCancel={openCancelModal} isUpdating={isUpdating} />
               <CancellationRequestBanner order={o} onApprove={handleApproveCancelRequest} onDeny={openDenyModal} disabled={isUpdating} />
             </div>
           ))
@@ -941,7 +1009,7 @@ export default function LiveOrdersPage() {
         ) : (
           pickedUpOrders.map((o) => (
             <div key={o._id} className="space-y-2">
-              <PickedUpCard order={o} onMarkDelivered={handleMarkDelivered} onCancel={openCancelModal} />
+              <PickedUpCard order={o} onMarkDelivered={handleMarkDelivered} onCancel={openCancelModal} isUpdating={isUpdating} />
               <CancellationRequestBanner order={o} onApprove={handleApproveCancelRequest} onDeny={openDenyModal} disabled={isUpdating} />
             </div>
           ))
@@ -991,6 +1059,13 @@ export default function LiveOrdersPage() {
 
           {/* Right: count summary + history link */}
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={toggleSound}
+              className="flex items-center gap-1 text-xs text-text-secondary hover:text-primary transition-colors cursor-pointer"
+              title={soundEnabled ? "Mute new-order sound" : "Unmute new-order sound"}
+            >
+              {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            </button>
             <button
               onClick={() => { fetchLiveOrders(); setLastRefresh(new Date()); }}
               className="flex items-center gap-1 text-xs text-text-secondary hover:text-primary transition-colors cursor-pointer"

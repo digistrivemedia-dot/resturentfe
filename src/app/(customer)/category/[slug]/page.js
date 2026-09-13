@@ -7,6 +7,7 @@ import { ArrowLeft, SlidersHorizontal, X, ChevronDown, Search, UtensilsCrossed }
 import RestaurantCard from "@/components/customer/RestaurantCard";
 import { CardSkeleton } from "@/components/ui";
 import useRestaurantStore from "@/stores/restaurantStore";
+import useLocationStore from "@/stores/locationStore";
 import { CUISINES, SORT_OPTIONS } from "@/constants";
 
 const QUICK_FILTERS = [
@@ -20,6 +21,7 @@ const QUICK_FILTERS = [
 export default function CategoryPage({ params }) {
   const { slug } = use(params);
   const { restaurants, isLoading, fetchRestaurants } = useRestaurantStore();
+  const { currentLocation } = useLocationStore();
   const [activeFilters, setActiveFilters] = useState([]);
   const [sortBy, setSortBy] = useState("relevance");
 
@@ -40,8 +42,12 @@ export default function CategoryPage({ params }) {
     if (activeFilters.includes("fast"))         p.deliveryTime = "30";
     if (activeFilters.includes("free_delivery")) p.freeDelivery = "true";
     if (sortBy !== "relevance")                 p.sort = sortBy;
+    if (currentLocation?.lat && currentLocation?.lng) {
+      p.lat = currentLocation.lat;
+      p.lng = currentLocation.lng;
+    }
     fetchRestaurants(p);
-  }, [slug, activeFilters, sortBy]);
+  }, [slug, activeFilters, sortBy, currentLocation]);
 
   const sorted = restaurants;
 

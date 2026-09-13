@@ -9,6 +9,7 @@ import HomeFoodCard from "@/components/customer/HomeFoodCard";
 import { CardSkeleton } from "@/components/ui";
 import api from "@/lib/api";
 import useLocationStore from "@/stores/locationStore";
+import { DISCOVERY_RADIUS_KM } from "@/constants";
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -22,6 +23,7 @@ function HomeContent() {
   const [items, setItems] = useState([]);
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [isLoading, setIsLoading] = useState(false);
+  const [radiusKm, setRadiusKm] = useState(DISCOVERY_RADIUS_KM);
 
   // Track whether we've done the initial location setup
   const didInit = useRef(false);
@@ -39,6 +41,7 @@ function HomeContent() {
       setCategories(res.data.categories || []);
       setRestaurants(res.data.restaurants || []);
       setItems(res.data.items || []);
+      if (res.data.radiusKm != null) setRadiusKm(res.data.radiusKm);
     } catch {
       // silent fail
     } finally {
@@ -194,7 +197,7 @@ function HomeContent() {
             </h2>
             {locationStatus === "granted" && (
               <p className="text-xs text-text-tertiary mt-0.5 flex items-center gap-1">
-                <MapPin size={11} /> Within 8 km
+                <MapPin size={11} /> Within {radiusKm} km
               </p>
             )}
           </div>

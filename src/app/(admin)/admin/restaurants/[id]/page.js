@@ -27,8 +27,10 @@ import {
   Copy,
   Check,
   LogIn,
+  Globe,
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
+import { Toggle } from "@/components/ui";
 import { formatPrice, formatDate } from "@/lib/utils";
 import useAdminRestaurantStore from "@/stores/adminRestaurantStore";
 import api from "@/lib/api";
@@ -140,9 +142,12 @@ export default function RestaurantDetailPage({ params }) {
     fetchRestaurantDetail,
     verifyRestaurant,
     suspendRestaurant,
+    updateRestaurant,
   } = useAdminRestaurantStore();
 
   const [status, setStatus] = useState(null);
+  const [alwaysVisible, setAlwaysVisible] = useState(false);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -174,8 +179,22 @@ export default function RestaurantDetailPage({ params }) {
   useEffect(() => {
     if (currentRestaurant) {
       setStatus(currentRestaurant.status);
+      setAlwaysVisible(!!currentRestaurant.alwaysVisible);
     }
   }, [currentRestaurant]);
+
+  const handleToggleAlwaysVisible = async () => {
+    const next = !alwaysVisible;
+    setAlwaysVisible(next);
+    setVisibilitySaving(true);
+    try {
+      await updateRestaurant(currentRestaurant._id, { alwaysVisible: next });
+    } catch (err) {
+      console.error("Failed to update visibility:", err);
+      setAlwaysVisible(!next); // revert
+    }
+    setVisibilitySaving(false);
+  };
 
   const fetchLogins = async () => {
     if (!id) return;
@@ -666,6 +685,19 @@ export default function RestaurantDetailPage({ params }) {
                     : "—"}
                 </span>
               </div>
+            </div>
+          </Card>
+
+          {/* Discovery Visibility */}
+          <Card title="Discovery Visibility" icon={Globe}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Always show this restaurant to customers</p>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  When on, this restaurant and its menu stay visible to every customer, even outside the discovery radius.
+                </p>
+              </div>
+              <Toggle checked={alwaysVisible} onChange={handleToggleAlwaysVisible} disabled={visibilitySaving} />
             </div>
           </Card>
 
