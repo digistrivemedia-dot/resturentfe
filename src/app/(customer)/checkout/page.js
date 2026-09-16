@@ -178,8 +178,9 @@ export default function CheckoutPage() {
   const isMember = !!(user?.membership?.expiresAt && new Date(user.membership.expiresAt) > new Date());
   const rawMembershipDiscount = isMember ? Math.round(subtotal * 0.20 * 100) / 100 : 0;
   // New-customer promo — 50% off subtotal (uncapped) for each of the customer's first 4
-  // orders ever. Preview only; the server is authoritative on eligibility and amount.
-  const isFirstFourOrder = (user?.newCustomerOrdersUsed || 0) < 4;
+  // orders ever, delivery orders only. Preview only; the server is authoritative on
+  // eligibility and amount.
+  const isFirstFourOrder = isDelivery && (user?.newCustomerOrdersUsed || 0) < 4;
   const rawNewCustomerDiscount = isFirstFourOrder ? Math.round(subtotal * 0.5 * 100) / 100 : 0;
   // New-customer, membership, and coupon discounts don't stack — whichever is worth
   // most applies (same precedence as the backend).

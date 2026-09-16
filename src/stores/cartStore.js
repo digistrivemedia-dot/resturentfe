@@ -229,12 +229,13 @@ const useCartStore = create(
       // precedence checkout uses server-side, so the number shown here on
       // "Proceed to Checkout" doesn't jump to something smaller one screen later.
       getBestDiscount: () => {
+        const { orderType } = get();
         const subtotal = get().getSubtotal();
         const rawCouponDiscount = get().getCouponDiscount();
         const user = useAuthStore.getState().user;
         const isMember = !!(user?.membership?.expiresAt && new Date(user.membership.expiresAt) > new Date());
         const rawMembershipDiscount = isMember ? Math.round(subtotal * 0.20 * 100) / 100 : 0;
-        const isFirstFourOrder = (user?.newCustomerOrdersUsed || 0) < 4;
+        const isFirstFourOrder = orderType === "delivery" && (user?.newCustomerOrdersUsed || 0) < 4;
         const rawNewCustomerDiscount = isFirstFourOrder ? Math.round(subtotal * 0.5 * 100) / 100 : 0;
         return Math.max(rawCouponDiscount, rawMembershipDiscount, rawNewCustomerDiscount);
       },

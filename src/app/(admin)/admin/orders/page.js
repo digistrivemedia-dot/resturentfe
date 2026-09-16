@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Clock,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { Modal, Badge } from "@/components/ui";
 import { formatPrice, timeAgo } from "@/lib/utils";
 import useAdminOrderStore from "@/stores/adminOrderStore";
@@ -160,9 +161,12 @@ export default function OrdersPage() {
     if (!refundOrder || isSaving) return;
     try {
       await processRefund(refundOrder._id, { reason: refundReason });
+      toast.success("Refund processed successfully");
       setRefundOrder(null);
       setRefundReason("");
-    } catch (_) {}
+    } catch (err) {
+      toast.error(err.message || "Failed to process refund");
+    }
   }
 
   // ── stat chips ──
