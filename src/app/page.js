@@ -18,6 +18,7 @@ import SiteFooter from "@/components/shared/SiteFooter";
 import { VegBadge } from "@/components/ui";
 import api from "@/lib/api";
 import useAuthStore from "@/stores/authStore";
+import useLocationStore from "@/stores/locationStore";
 
 const STATS = [
   { value: "2", label: "Restaurant Locations" },
@@ -118,13 +119,42 @@ export default function LandingPage() {
   const [showcase, setShowcase] = useState({ categories: [], dishes: [] });
   const [showcaseLoading, setShowcaseLoading] = useState(true);
   const { isAuthenticated, user, fetchMe } = useAuthStore();
+  const { currentLocation, setCurrentLocation } = useLocationStore();
 
   useEffect(() => {
-    api
-      .get("/home/showcase")
-      .then((res) => setShowcase({ categories: res.data.categories, dishes: res.data.dishes }))
-      .catch(() => setShowcase({ categories: [], dishes: [] }))
-      .finally(() => setShowcaseLoading(false));
+    const fetchShowcase = (lat, lng) => {
+      const params = new URLSearchParams();
+      if (lat) params.set("lat", lat);
+      if (lng) params.set("lng", lng);
+      api
+        .get(`/home/showcase?${params.toString()}`)
+        .then((res) => setShowcase({ categories: res.data.categories, dishes: res.data.dishes }))
+        .catch(() => setShowcase({ categories: [], dishes: [] }))
+        .finally(() => setShowcaseLoading(false));
+    };
+
+    if (currentLocation?.lat && currentLocation?.lng) {
+      fetchShowcase(currentLocation.lat, currentLocation.lng);
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setCurrentLocation({
+            lat: latitude,
+            lng: longitude,
+            area: "Current Location",
+            city: "Nearby",
+            fullAddress: "Using GPS location",
+          });
+          fetchShowcase(latitude, longitude);
+        },
+        () => fetchShowcase(null, null),
+        { timeout: 8000 }
+      );
+    } else {
+      fetchShowcase(null, null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Logged-in users: pull their saved addresses so the hero can greet them
