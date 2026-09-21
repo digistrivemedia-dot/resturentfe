@@ -16,6 +16,9 @@ import {
   Lock,
   CheckCircle2,
   X,
+  Link2,
+  Unlink,
+  AlertTriangle,
 } from "lucide-react";
 import { Toggle } from "@/components/ui";
 import useRestaurantProfileStore from "@/stores/restaurantProfileStore";
@@ -149,6 +152,7 @@ const TABS = [
   { id: "general",      label: "General",           icon: Settings },
   { id: "location",     label: "Location & Hours",  icon: MapPin },
   { id: "delivery",     label: "Delivery Settings", icon: Truck },
+  { id: "petpooja",     label: "Petpooja POS",      icon: Link2 },
   { id: "notifications",label: "Notifications",     icon: Bell },
   { id: "account",      label: "Account & Security",icon: Shield },
 ];
@@ -600,6 +604,176 @@ function DeliveryTab({ showToast }) {
   );
 }
 
+// ── TAB: Petpooja POS ────────────────────────────────────────────────────────
+function PetpoojaTab({ showToast }) {
+  const [status, setStatus] = useState(null); // { isLinked, restID, linkedAt } | null while loading
+  const [restID, setRestID] = useState("");
+  const [accessToken, setAccessToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+  const [confirmingUnlink, setConfirmingUnlink] = useState(false);
+
+  const loadStatus = async () => {
+    try {
+      const res = await api.get("/restaurant/petpooja/status");
+      setStatus(res.data);
+    } catch (err) {
+      showToast(err.message || "Failed to load Petpooja status");
+      setStatus({ isLinked: false });
+    }
+  };
+
+  useEffect(() => {
+    loadStatus();
+  }, []);
+
+  const handleLink = async () => {
+    if (!restID.trim() || !accessToken.trim()) {
+      showToast("Enter both the Restaurant ID and Access Token");
+      return;
+    }
+    setLinking(true);
+    try {
+      await api.post("/restaurant/petpooja/link", {
+        restID: restID.trim(),
+        accessToken: accessToken.trim(),
+      });
+      setAccessToken(""); // never keep the secret sitting in the form after a successful save
+      await loadStatus();
+      showToast("Petpooja linked — new orders will now be pushed to your POS");
+    } catch (err) {
+      showToast(err.message || "Failed to link Petpooja");
+    }
+    setLinking(false);
+  };
+
+  const handleUnlink = async () => {
+    setUnlinking(true);
+    try {
+      await api.post("/restaurant/petpooja/unlink");
+      setConfirmingUnlink(false);
+      await loadStatus();
+      showToast("Petpooja unlinked — orders will no longer be pushed there");
+    } catch (err) {
+      showToast(err.message || "Failed to unlink Petpooja");
+    }
+    setUnlinking(false);
+  };
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <SectionCard
+        title="Petpooja POS Connection"
+        subtitle="Once linked, every new order placed on this app is automatically pushed into your Petpooja POS — the same place your Zomato/Swiggy orders show up."
+      >
+        {!status ? (
+          <p className="text-sm text-text-secondary">Loading…</p>
+        ) : status.isLinked ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5 p-3 rounded-[var(--radius-lg)] bg-success-light">
+              <CheckCircle2 size={17} className="text-success shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-text-primary">Connected to Petpooja</p>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Restaurant ID: <span className="font-mono">{status.restID}</span>
+                  {status.linkedAt && (
+                    <> · Linked {new Date(status.linkedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {!confirmingUnlink ? (
+              <button
+                onClick={() => setConfirmingUnlink(true)}
+                className="flex items-center gap-2 h-10 px-4 border border-error/30 text-error text-sm font-semibold rounded-[var(--radius-lg)] hover:bg-error-light transition-colors"
+              >
+                <Unlink size={15} />
+                Unlink Petpooja
+              </button>
+            ) : (
+              <div className="flex items-center gap-2.5 p-3 rounded-[var(--radius-lg)] bg-warning-light">
+                <AlertTriangle size={16} className="text-warning-dark shrink-0" />
+                <p className="text-xs text-text-primary flex-1">
+                  New orders will stop reaching your Petpooja POS. Existing linked orders keep their history.
+                </p>
+                <button
+                  onClick={handleUnlink}
+                  disabled={unlinking}
+                  className="h-8 px-3 bg-error text-white text-xs font-bold rounded-[var(--radius-md)] disabled:opacity-70"
+                >
+                  {unlinking ? "Unlinking…" : "Confirm"}
+                </button>
+                <button
+                  onClick={() => setConfirmingUnlink(false)}
+                  className="h-8 px-3 text-xs font-semibold text-text-secondary hover:text-text-primary"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5 p-3 rounded-[var(--radius-lg)] bg-bg-secondary">
+              <AlertTriangle size={16} className="text-text-tertiary shrink-0" />
+              <p className="text-xs text-text-secondary">
+                Not connected yet — orders placed on this app won&apos;t reach your Petpooja POS until you link it below.
+              </p>
+            </div>
+            <div>
+              <FieldLabel required>Restaurant ID (restID)</FieldLabel>
+              <TextInput value={restID} onChange={(e) => setRestID(e.target.value)} placeholder="e.g. t4pqh7yeaj" />
+              <p className="text-[11px] text-text-tertiary mt-1">
+                Also called the &quot;mapping code&quot; — from Petpooja&apos;s onboarding email or dashboard.
+              </p>
+            </div>
+            <div>
+              <FieldLabel required>Access Token</FieldLabel>
+              <div className="relative">
+                <input
+                  type={showToken ? "text" : "password"}
+                  value={accessToken}
+                  onChange={(e) => setAccessToken(e.target.value)}
+                  placeholder="From Petpooja's Configuration tab"
+                  className="w-full h-10 pl-3 pr-10 bg-bg-secondary border border-border-light rounded-[var(--radius-md)] text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary transition-colors"
+                >
+                  {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+              <p className="text-[11px] text-text-tertiary mt-1">
+                Log into Petpooja&apos;s dashboard (link from the onboarding email) → Configuration tab → reveal Access Token.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <SaveButton loading={linking} onClick={handleLink} label="Link Petpooja" />
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="How this works">
+        <ul className="space-y-2.5 text-xs text-text-secondary list-disc pl-4">
+          <li>Once linked, new orders (COD and paid) push to Petpooja automatically — nothing to click per order.</li>
+          <li>
+            Each menu item needs its matching Petpooja item ID entered on the item&apos;s edit page (Menu → edit an item →
+            &quot;Petpooja POS Mapping&quot;) before orders containing it can be pushed — items without a mapped ID are skipped,
+            and the order still goes through on this app, it just won&apos;t show up on the Petpooja side.
+          </li>
+          <li>Kitchen staff can accept, reject, or mark food ready directly from the Petpooja dashboard — status changes there sync back here automatically.</li>
+          <li>If an order fails to reach Petpooja for any reason, it&apos;s flagged on the Orders page so staff know to enter it there manually.</li>
+        </ul>
+      </SectionCard>
+    </div>
+  );
+}
+
 // ── TAB: Notifications ───────────────────────────────────────────────────────
 function NotificationsTab({ showToast }) {
   const [saving, setSaving] = useState(false);
@@ -898,6 +1072,7 @@ export default function SettingsPage() {
       case "general":       return <GeneralTab       showToast={showToast} />;
       case "location":      return <LocationTab      showToast={showToast} />;
       case "delivery":      return <DeliveryTab      showToast={showToast} />;
+      case "petpooja":      return <PetpoojaTab      showToast={showToast} />;
       case "notifications": return <NotificationsTab showToast={showToast} />;
       case "account":       return <AccountTab       showToast={showToast} />;
       default:              return null;

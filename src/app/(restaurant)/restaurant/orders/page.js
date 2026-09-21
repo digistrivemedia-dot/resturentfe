@@ -120,6 +120,31 @@ function OrderTypeBadge({ order }) {
   );
 }
 
+// Shows nothing for orders never pushed to Petpooja (restaurant not linked,
+// or this order predates linking) — only surfaces once there's something
+// useful to say: confirms it reached the POS, or flags that it didn't so
+// staff know to enter it there manually.
+function PetpoojaBadge({ order }) {
+  if (!order.petpooja?.pushedAt) return null;
+  if (order.petpooja.pushStatus === "failed") {
+    return (
+      <span
+        title={order.petpooja.pushFailedReason || "Failed to sync with Petpooja"}
+        className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-[var(--radius-full)] bg-error-light text-error"
+      >
+        <AlertCircle size={11} />
+        Petpooja sync failed
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-[var(--radius-full)] bg-success-light text-success-dark">
+      <RefreshCw size={11} />
+      Synced to Petpooja
+    </span>
+  );
+}
+
 // ── New-order card ─────────────────────────────────────────────────────────
 function NewOrderCard({ order, onAccept, onReject, isUpdating }) {
   return (
@@ -174,6 +199,7 @@ function NewOrderCard({ order, onAccept, onReject, isUpdating }) {
           </span>
           <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
+          <PetpoojaBadge order={order} />
         </div>
         <Link
           href={`/restaurant/orders/${order._id}`}
@@ -257,6 +283,7 @@ function PreparingCard({ order, onMarkReady, onCancel, isUpdating }) {
           </span>
           <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
+          <PetpoojaBadge order={order} />
         </div>
         <Link
           href={`/restaurant/orders/${order._id}`}
@@ -377,6 +404,7 @@ function PickedUpCard({ order, onMarkDelivered, onCancel, isUpdating }) {
           </span>
           <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
+          <PetpoojaBadge order={order} />
         </div>
         <Link href={`/restaurant/orders/${order._id}`} className="text-xs text-primary font-medium hover:underline flex items-center gap-0.5">
           Details <ChevronRight size={12} />
@@ -456,6 +484,7 @@ function ReadyCard({ order, onMarkPickedUp, onMarkDelivered, onCancel, isUpdatin
           </span>
           <OrderTypeBadge order={order} />
           <PaymentBadge method={order.paymentMethod} status={order.paymentStatus} />
+          <PetpoojaBadge order={order} />
         </div>
         <Link
           href={`/restaurant/orders/${order._id}`}

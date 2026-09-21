@@ -71,6 +71,7 @@ const DEFAULT_FORM = {
   variants: [],
   addonGroups: [],
   nutritionalInfo: { calories: "", protein: "", carbs: "", fat: "" },
+  petpoojaItemId: "",
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -263,9 +264,11 @@ export default function MenuItemForm({ editId = null }) {
             id: v._id || Math.random().toString(36).slice(2),
             name: v.name,
             price: String(v.price),
+            petpoojaVariationId: v.petpoojaVariationId || "",
           }))
         : [],
       addonGroups: existing.addonGroups ? existing.addonGroups.map((ag) => ag._id || ag) : [],
+      petpoojaItemId: existing.petpooja?.itemId || "",
       nutritionalInfo: {
         calories: existing.nutritionalInfo?.calories ?? "",
         protein: existing.nutritionalInfo?.protein ?? "",
@@ -368,7 +371,10 @@ export default function MenuItemForm({ editId = null }) {
   function addVariant() {
     setForm((prev) => ({
       ...prev,
-      variants: [...prev.variants, { id: Math.random().toString(36).slice(2), name: "", price: "" }],
+      variants: [
+        ...prev.variants,
+        { id: Math.random().toString(36).slice(2), name: "", price: "", petpoojaVariationId: "" },
+      ],
     }));
   }
 
@@ -399,7 +405,11 @@ export default function MenuItemForm({ editId = null }) {
       preparationTime: form.preparationTime,
       tags: form.tags,
       image: form.image || undefined,
-      variants: form.variants.map((v) => ({ name: v.name, price: Number(v.price) })),
+      variants: form.variants.map((v) => ({
+        name: v.name,
+        price: Number(v.price),
+        petpoojaVariationId: v.petpoojaVariationId?.trim() || undefined,
+      })),
       addonGroups: form.addonGroups,
       nutritionalInfo: {
         calories: form.nutritionalInfo.calories ? Number(form.nutritionalInfo.calories) : undefined,
@@ -407,6 +417,7 @@ export default function MenuItemForm({ editId = null }) {
         carbs: form.nutritionalInfo.carbs ? Number(form.nutritionalInfo.carbs) : undefined,
         fat: form.nutritionalInfo.fat ? Number(form.nutritionalInfo.fat) : undefined,
       },
+      petpooja: { itemId: form.petpoojaItemId.trim() },
     };
   }
 
@@ -682,13 +693,14 @@ export default function MenuItemForm({ editId = null }) {
               </p>
               {form.variants.length > 0 && (
                 <div className="flex flex-col gap-2 mb-3">
-                  <div className="grid grid-cols-[1fr_120px_40px] gap-2 px-1">
+                  <div className="grid grid-cols-[1fr_100px_140px_40px] gap-2 px-1">
                     <span className="text-xs font-medium text-text-tertiary">Name</span>
                     <span className="text-xs font-medium text-text-tertiary">Price (₹)</span>
+                    <span className="text-xs font-medium text-text-tertiary">Petpooja Var. ID</span>
                     <span />
                   </div>
                   {form.variants.map((v) => (
-                    <div key={v.id} className="grid grid-cols-[1fr_120px_40px] gap-2 items-center">
+                    <div key={v.id} className="grid grid-cols-[1fr_100px_140px_40px] gap-2 items-center">
                       <input
                         type="text"
                         value={v.name}
@@ -702,6 +714,13 @@ export default function MenuItemForm({ editId = null }) {
                         onChange={(e) => updateVariant(v.id, "price", e.target.value)}
                         placeholder="0"
                         min={0}
+                        className="px-3 py-2 text-sm bg-bg-secondary border border-border-light rounded-[var(--radius-lg)] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                      />
+                      <input
+                        type="text"
+                        value={v.petpoojaVariationId}
+                        onChange={(e) => updateVariant(v.id, "petpoojaVariationId", e.target.value)}
+                        placeholder="Optional"
                         className="px-3 py-2 text-sm bg-bg-secondary border border-border-light rounded-[var(--radius-lg)] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                       />
                       <button
@@ -756,6 +775,24 @@ export default function MenuItemForm({ editId = null }) {
                 {addonGroups.length === 0 && (
                   <p className="text-sm text-text-tertiary">No addon groups available.</p>
                 )}
+              </div>
+            </CollapsibleSection>
+
+            {/* Petpooja POS Mapping */}
+            <CollapsibleSection title="Petpooja POS Mapping" defaultOpen={!!form.petpoojaItemId}>
+              <p className="text-xs text-text-tertiary mb-3">
+                Only needed if this restaurant is linked to Petpooja (Settings → Petpooja POS). Enter the matching
+                item ID from Petpooja&apos;s Menu Management so orders with this item can be pushed to your POS — without
+                it, orders containing this item are skipped when relaying to Petpooja (the order itself still goes
+                through normally on this app). Leave blank if you&apos;re not using Petpooja.
+              </p>
+              <div>
+                <FieldLabel>Petpooja Item ID</FieldLabel>
+                <TextInput
+                  value={form.petpoojaItemId}
+                  onChange={(e) => setField("petpoojaItemId", e.target.value)}
+                  placeholder="e.g. 101"
+                />
               </div>
             </CollapsibleSection>
 

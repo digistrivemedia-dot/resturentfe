@@ -3,33 +3,50 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, Menu, LogOut, ChevronDown, Store, Settings, User } from "lucide-react";
+import { Bell, BellOff, Menu, LogOut, ChevronDown, Store, Settings, User } from "lucide-react";
 import { Toggle } from "@/components/ui";
 import useUiStore from "@/stores/uiStore";
 import useAuthStore from "@/stores/authStore";
 import useRestaurantProfileStore from "@/stores/restaurantProfileStore";
-
-const MOCK_NOTIFS = [
-  { id: 1, text: "New order #1042 from Rahul", time: "2m ago", read: false },
-  { id: 2, text: "Order #1041 marked delivered", time: "8m ago", read: false },
-  { id: 3, text: "Menu item 'Butter Chicken' sold out", time: "1h ago", read: true },
-];
+import useRestaurantNotificationStore from "@/stores/restaurantNotificationStore";
+import { connectSocket } from "@/lib/socket";
+import { timeAgo } from "@/lib/utils";
 
 export default function TopBar() {
   const router = useRouter();
   const { toggleSidebar, isSidebarCollapsed } = useUiStore();
   const { user, logoutUser } = useAuthStore();
   const { restaurant } = useRestaurantProfileStore();
+  const {
+    notifications, unreadCount,
+    fetchNotifications, markNotificationRead, markAllNotificationsRead,
+  } = useRestaurantNotificationStore();
 
   const [isOpen, setIsOpen] = useState(true);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notifs, setNotifs] = useState(MOCK_NOTIFS);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
 
-  const unreadCount = notifs.filter((n) => !n.read).length;
+  // Poll as a fallback, plus refetch instantly on any event that creates a
+  // notification server-side (new order, support ticket, low rating).
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    const socket = connectSocket();
+    const onEvent = () => fetchNotifications();
+    socket.on("new_order", onEvent);
+    socket.on("new_support_ticket", onEvent);
+    socket.on("new_low_rating", onEvent);
+    return () => {
+      clearInterval(interval);
+      socket.off("new_order", onEvent);
+      socket.off("new_support_ticket", onEvent);
+      socket.off("new_low_rating", onEvent);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -45,8 +62,6 @@ export default function TopBar() {
     await logoutUser();
     router.push("/restaurant/login");
   };
-
-  const markAllRead = () => setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
 
   return (
     <header
@@ -104,25 +119,33 @@ export default function TopBar() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-light">
               <p className="text-sm font-bold text-text-primary">Notifications</p>
               {unreadCount > 0 && (
-                <button onClick={markAllRead} className="text-xs text-primary font-semibold hover:underline">
+                <button onClick={markAllNotificationsRead} className="text-xs text-primary font-semibold hover:underline">
                   Mark all read
                 </button>
               )}
             </div>
             <div className="divide-y divide-border-light max-h-72 overflow-y-auto">
-              {notifs.map((n) => (
-                <div
-                  key={n.id}
-                  className={`px-4 py-3 flex items-start gap-3 hover:bg-bg-hover transition-colors cursor-pointer ${n.read ? "" : "bg-primary-50/40"}`}
-                  onClick={() => setNotifs((prev) => prev.map((x) => x.id === n.id ? { ...x, read: true } : x))}
-                >
-                  {!n.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1.5" />}
-                  <div className={`flex-1 ${n.read ? "pl-4" : ""}`}>
-                    <p className={`text-sm ${n.read ? "text-text-secondary" : "font-semibold text-text-primary"}`}>{n.text}</p>
-                    <p className="text-xs text-text-tertiary mt-0.5">{n.time}</p>
-                  </div>
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-text-tertiary gap-2">
+                  <BellOff size={28} strokeWidth={1.5} />
+                  <p className="text-xs font-medium">No notifications yet</p>
                 </div>
-              ))}
+              ) : (
+                notifications.slice(0, 10).map((n) => (
+                  <div
+                    key={n._id}
+                    className={`px-4 py-3 flex items-start gap-3 hover:bg-bg-hover transition-colors cursor-pointer ${n.isRead ? "" : "bg-primary-50/40"}`}
+                    onClick={() => !n.isRead && markNotificationRead(n._id)}
+                  >
+                    {!n.isRead && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1.5" />}
+                    <div className={`flex-1 min-w-0 ${n.isRead ? "pl-4" : ""}`}>
+                      <p className={`text-sm ${n.isRead ? "text-text-secondary" : "font-semibold text-text-primary"}`}>{n.title}</p>
+                      <p className="text-xs text-text-tertiary mt-0.5 line-clamp-2">{n.message}</p>
+                      <p className="text-[10px] text-text-tertiary mt-1">{timeAgo(n.createdAt)}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
             <div className="px-4 py-2.5 border-t border-border-light">
               <Link href="/restaurant/notifications" className="text-xs text-primary font-semibold hover:underline" onClick={() => setNotifOpen(false)}>
