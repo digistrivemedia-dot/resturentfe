@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Mail, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { Mail, Phone, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import useAuthStore from "@/stores/authStore";
 import toast from "react-hot-toast";
@@ -15,6 +15,15 @@ const FEATURES = [
   "Exclusive deals and coupons",
   "Fast, reliable delivery",
 ];
+
+const sanitizePhone = (val) => {
+  if (!val) return "";
+  let digits = String(val).replace(/\D/g, "");
+  if (digits.length > 10 && digits.startsWith("91")) digits = digits.slice(2);
+  if (digits.length > 10 && digits.startsWith("0")) digits = digits.slice(1);
+  if (digits.length > 10) digits = digits.slice(-10);
+  return digits.slice(0, 10);
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,21 +38,46 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, user, router]);
 
+  const [mode, setMode] = useState("email"); // "email" | "phone"
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
+
+  const switchMode = (next) => {
+    setMode(next);
+    setError("");
+  };
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    const trimmed = email.trim();
-    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setError("Please enter a valid email address");
+
+    if (mode === "email") {
+      const trimmed = email.trim();
+      if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        setError("Please enter a valid email address");
+        return;
+      }
+      setError("");
+      try {
+        await sendOtp({ email: trimmed });
+        toast.success("OTP sent to your email!");
+        router.push(`/verify-otp?email=${encodeURIComponent(trimmed)}`);
+      } catch (err) {
+        setError(err.message || "Failed to send OTP");
+      }
+      return;
+    }
+
+    const trimmedPhone = sanitizePhone(phone);
+    if (!/^\d{10}$/.test(trimmedPhone)) {
+      setError("Please enter a valid 10-digit phone number");
       return;
     }
     setError("");
     try {
-      await sendOtp(trimmed);
-      toast.success("OTP sent to your email!");
-      router.push(`/verify-otp?email=${encodeURIComponent(trimmed)}`);
+      await sendOtp({ phone: trimmedPhone });
+      toast.success("OTP sent to your phone!");
+      router.push(`/verify-otp?phone=${encodeURIComponent(trimmedPhone)}`);
     } catch (err) {
       setError(err.message || "Failed to send OTP");
     }
@@ -164,7 +198,7 @@ export default function LoginPage() {
           <div className="mb-8">
             <h1 className="text-2xl font-extrabold text-text-primary">Sign in</h1>
             <p className="text-text-secondary text-sm mt-1.5">
-              Enter your email to receive a one-time password
+              Enter your {mode === "email" ? "email" : "phone number"} to receive a one-time password
             </p>
           </div>
 
@@ -194,37 +228,99 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-border-light" />
           </div>
 
-          {/* Email form */}
+          {/* Email / Phone toggle */}
+          <div className="flex gap-1.5 p-1 mb-5 bg-bg-secondary rounded-lg">
+            <button
+              type="button"
+              onClick={() => switchMode("email")}
+              className={`flex-1 h-8 text-xs font-semibold rounded-md transition-colors ${
+                mode === "email" ? "bg-white text-text-primary shadow-[var(--shadow-sm)]" : "text-text-tertiary"
+              }`}
+            >
+              Email
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("phone")}
+              className={`flex-1 h-8 text-xs font-semibold rounded-md transition-colors ${
+                mode === "phone" ? "bg-white text-text-primary shadow-[var(--shadow-sm)]" : "text-text-tertiary"
+              }`}
+            >
+              Phone
+            </button>
+          </div>
+
+          {/* Email / Phone form */}
           <form onSubmit={handleSendOtp} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1.5">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail
-                  size={15}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary"
-                  strokeWidth={2}
-                />
-                <input
-                  id="login-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                  placeholder="you@example.com"
-                  className={`w-full h-11 pl-10 pr-4 text-sm border rounded-lg bg-white placeholder:text-text-tertiary focus:outline-none focus:ring-2 transition-colors
-                    ${error
-                      ? "border-error focus:ring-error/20"
-                      : "border-border-default hover:border-primary/50 focus:border-primary focus:ring-primary/15"
-                    }`}
-                />
+            {mode === "email" ? (
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail
+                    size={15}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary"
+                    strokeWidth={2}
+                  />
+                  <input
+                    id="login-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                    placeholder="you@example.com"
+                    className={`w-full h-11 pl-10 pr-4 text-sm border rounded-lg bg-white placeholder:text-text-tertiary focus:outline-none focus:ring-2 transition-colors
+                      ${error
+                        ? "border-error focus:ring-error/20"
+                        : "border-border-default hover:border-primary/50 focus:border-primary focus:ring-primary/15"
+                      }`}
+                  />
+                </div>
               </div>
-              {error && (
-                <p className="text-xs text-error mt-1.5 flex items-center gap-1">
-                  {error}
-                </p>
-              )}
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1.5">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone
+                    size={15}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary"
+                    strokeWidth={2}
+                  />
+                  <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm text-text-tertiary">+91</span>
+                  <input
+                    id="login-phone"
+                    name="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(sanitizePhone(e.target.value));
+                      setError("");
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData("text");
+                      setPhone(sanitizePhone(pasted));
+                      setError("");
+                    }}
+                    placeholder="98765 43210"
+                    className={`w-full h-11 pl-16 pr-4 text-sm border rounded-lg bg-white placeholder:text-text-tertiary focus:outline-none focus:ring-2 transition-colors
+                      ${error
+                        ? "border-error focus:ring-error/20"
+                        : "border-border-default hover:border-primary/50 focus:border-primary focus:ring-primary/15"
+                      }`}
+                  />
+                </div>
+              </div>
+            )}
+            {error && (
+              <p className="text-xs text-error -mt-2.5 flex items-center gap-1">
+                {error}
+              </p>
+            )}
 
             <button
               type="submit"

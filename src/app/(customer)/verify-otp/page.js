@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Loader2, RefreshCw, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Mail, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
 import useAuthStore from "@/stores/authStore";
 import toast from "react-hot-toast";
 
@@ -22,6 +22,7 @@ function OTPVerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const phone = searchParams.get("phone") || "";
   const { verifyOtp, sendOtp, isLoading } = useAuthStore();
 
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
@@ -32,8 +33,12 @@ function OTPVerifyContent() {
   const isSubmitting = useRef(false);
 
   useEffect(() => {
+    if (!email && !phone) {
+      router.replace("/login");
+      return;
+    }
     inputsRef.current[0]?.focus();
-  }, []);
+  }, [email, phone, router]);
 
   useEffect(() => {
     if (timer <= 0) { setCanResend(true); return; }
@@ -52,14 +57,22 @@ function OTPVerifyContent() {
     setError("");
 
     try {
-      const { isNewUser } = await verifyOtp(email, finalCode);
+      const { isNewUser, user } = await verifyOtp({ email, phone, otp: finalCode });
       toast.success("Login successful!");
-      router.push(isNewUser ? "/complete-profile" : "/home");
+      if (isNewUser) {
+        router.push("/complete-profile");
+      } else if (user?.role === "super_admin") {
+        router.push("/admin/dashboard");
+      } else if (user?.role === "restaurant_owner") {
+        router.push("/restaurant/dashboard");
+      } else {
+        router.push("/home");
+      }
     } catch (err) {
       setError(err.message || "Invalid OTP. Please try again.");
       isSubmitting.current = false;
     }
-  }, [otp, email, verifyOtp, router]);
+  }, [otp, email, phone, verifyOtp, router]);
 
   const handleChange = (idx, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -103,8 +116,8 @@ function OTPVerifyContent() {
     isSubmitting.current = false;
     inputsRef.current[0]?.focus();
     try {
-      await sendOtp(email);
-      toast.success("New OTP sent to your email!");
+      await sendOtp({ email, phone });
+      toast.success(phone ? "New OTP sent to your phone!" : "New OTP sent to your email!");
     } catch (err) {
       toast.error(err.message || "Failed to resend OTP");
     }
@@ -113,6 +126,9 @@ function OTPVerifyContent() {
   const maskedEmail = email
     ? email.replace(/^(.{2})(.*)(@.*)$/, (_, a, b, c) => a + "•".repeat(Math.min(b.length, 4)) + c)
     : "your email";
+  const maskedPhone = phone
+    ? phone.replace(/^(\d{2})(\d+)(\d{2})$/, (_, a, b, c) => a + "•".repeat(b.length) + c)
+    : "your phone";
 
   const filledCount = otp.filter(Boolean).length;
 
@@ -151,7 +167,7 @@ function OTPVerifyContent() {
               One step away<br />from great food.
             </h2>
             <p className="text-white/50 text-sm mt-4 leading-relaxed max-w-xs">
-              Enter the code we sent to your email to complete sign-in securely.
+              Enter the code we sent to your {phone ? "phone" : "email"} to complete sign-in securely.
             </p>
           </div>
 
@@ -193,17 +209,23 @@ function OTPVerifyContent() {
             <ArrowLeft size={14} /> Back to login
           </Link>
 
-          {/* Mail icon */}
+          {/* Mail / Phone icon */}
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
-            <Mail size={22} className="text-primary" strokeWidth={1.8} />
+            {phone ? (
+              <Phone size={22} className="text-primary" strokeWidth={1.8} />
+            ) : (
+              <Mail size={22} className="text-primary" strokeWidth={1.8} />
+            )}
           </div>
 
           {/* Heading */}
           <div className="mb-7">
-            <h1 className="text-2xl font-extrabold text-text-primary">Check your email</h1>
+            <h1 className="text-2xl font-extrabold text-text-primary">
+              Check your {phone ? "phone" : "email"}
+            </h1>
             <p className="text-text-secondary text-sm mt-1.5 leading-relaxed">
               We sent a 6-digit code to{" "}
-              <span className="font-semibold text-text-primary">{maskedEmail}</span>
+              <span className="font-semibold text-text-primary">{phone ? `+91 ${maskedPhone}` : maskedEmail}</span>
             </p>
           </div>
 
@@ -281,10 +303,10 @@ function OTPVerifyContent() {
             )}
           </div>
 
-          {/* Wrong email */}
+          {/* Wrong email/phone */}
           <div className="mt-6 pt-5 border-t border-border-light text-center">
             <p className="text-xs text-text-tertiary">
-              Wrong email?{" "}
+              Wrong {phone ? "number" : "email"}?{" "}
               <Link href="/login" className="text-primary font-semibold hover:underline">
                 Change it →
               </Link>
@@ -292,9 +314,11 @@ function OTPVerifyContent() {
           </div>
 
           {/* Spam hint */}
-          <p className="text-center text-[11px] text-text-tertiary mt-3">
-            Don&apos;t see it? Check your spam folder.
-          </p>
+          {!phone && (
+            <p className="text-center text-[11px] text-text-tertiary mt-3">
+              Don&apos;t see it? Check your spam folder.
+            </p>
+          )}
         </div>
       </div>
     </div>

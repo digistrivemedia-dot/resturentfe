@@ -42,10 +42,27 @@ const useAuthStore = create((set, get) => ({
 
   // ─── API Actions ───────────────────────────────────────────────────────────
 
-  sendOtp: async (email) => {
+  sendOtp: async (arg = {}) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await api.post("/auth/send-otp", { email });
+      let payload = {};
+      if (typeof arg === "string") {
+        const trimmed = arg.trim();
+        const digits = trimmed.replace(/\D/g, "");
+        if (digits.length >= 10 && !trimmed.includes("@")) {
+          payload = { phone: digits.slice(-10) };
+        } else {
+          payload = { email: trimmed };
+        }
+      } else if (arg && typeof arg === "object") {
+        if (arg.phone) {
+          const digits = String(arg.phone).replace(/\D/g, "");
+          payload.phone = digits.length >= 10 ? digits.slice(-10) : digits;
+        } else if (arg.email) {
+          payload.email = String(arg.email).trim();
+        }
+      }
+      const res = await api.post("/auth/send-otp", payload);
       set({ isLoading: false });
       return res;
     } catch (err) {
@@ -54,10 +71,29 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
-  verifyOtp: async (email, otp) => {
+  verifyOtp: async (arg1, arg2) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await api.post("/auth/verify-otp", { email, otp });
+      let payload = {};
+      if (typeof arg1 === "object" && arg1 !== null) {
+        if (arg1.phone) {
+          const digits = String(arg1.phone).replace(/\D/g, "");
+          payload.phone = digits.length >= 10 ? digits.slice(-10) : digits;
+        } else if (arg1.email) {
+          payload.email = String(arg1.email).trim();
+        }
+        payload.otp = String(arg1.otp || "").trim();
+      } else {
+        const id = String(arg1 || "").trim();
+        const digits = id.replace(/\D/g, "");
+        if (digits.length >= 10 && !id.includes("@")) {
+          payload.phone = digits.slice(-10);
+        } else {
+          payload.email = id;
+        }
+        payload.otp = String(arg2 || "").trim();
+      }
+      const res = await api.post("/auth/verify-otp", payload);
       const { user, token, isNewUser } = res.data;
       setToken(token);
       set({ user, isAuthenticated: true, isLoading: false, error: null });
