@@ -50,6 +50,7 @@ const EMPTY_FORM = {
   validFrom: "",
   validTo: "",
   status: "active",
+  isSecret: false, // true = hidden from the customer coupon list, code still works
   applicableItems: [], // [] = entire order, [ids...] = item-level
 };
 
@@ -66,6 +67,7 @@ function formFromCoupon(c) {
     validFrom: c.validFrom ? c.validFrom.split("T")[0] : "",
     validTo: c.validTo ? c.validTo.split("T")[0] : "",
     status: c.status === "paused" || c.status === "expired" ? "active" : (c.status || "active"),
+    isSecret: !!c.isSecret,
     applicableItems: (c.applicableItems || []).map((id) => (typeof id === "object" ? id._id || id : id)),
   };
 }
@@ -848,6 +850,37 @@ function CouponFormInner() {
                   );
                 })}
               </div>
+
+              {/* Secret coupon — hidden from the customer's coupon list, but
+                  still redeemable by anyone who types the code. */}
+              <button
+                type="button"
+                onClick={() => set("isSecret", !form.isSecret)}
+                aria-pressed={form.isSecret}
+                className="mt-3 w-full flex items-start gap-3 p-4 rounded-[var(--radius-lg)] border-2 border-border-light hover:border-[#FF572260] hover:bg-bg-secondary text-left transition-all"
+              >
+                <div
+                  className={`mt-0.5 w-9 h-5 rounded-full shrink-0 relative transition-colors ${
+                    form.isSecret ? "bg-[#FF5722]" : "bg-border-light"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                      form.isSecret ? "left-[18px]" : "left-0.5"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-text-primary">
+                    Secret coupon
+                  </span>
+                  <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
+                    {form.isSecret
+                      ? "Hidden from the coupon list. Only customers you share the code with can use it."
+                      : "Shown to every customer in the apply-coupon list."}
+                  </p>
+                </div>
+              </button>
             </Section>
           </div>
 
