@@ -17,7 +17,9 @@ const menuItems = [
   { href: "/admin/categories",        label: "Food Categories",   icon: LayoutGrid },
   { href: "/admin/customers",         label: "Customers",         icon: Users },
   { href: "/admin/orders",            label: "Orders",            icon: ShoppingBag },
-  { href: "/admin/finance",           label: "Revenue & Payouts", icon: DollarSign },
+  // Hidden from the nav, not removed — the page and its API are intact and
+  // still reachable at /admin/finance directly. Uncomment to restore.
+  // { href: "/admin/finance",        label: "Revenue & Payouts", icon: DollarSign },
   { href: "/admin/analytics",         label: "Analytics",         icon: BarChart3 },
   { href: "/admin/cms",               label: "CMS / Banners",     icon: Image },
   { href: "/admin/notifications",     label: "Notifications",     icon: Bell },
