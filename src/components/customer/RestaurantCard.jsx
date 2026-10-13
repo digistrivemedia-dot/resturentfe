@@ -18,8 +18,13 @@ export default function RestaurantCard({ restaurant, variant = "default", linkHr
   const {
     slug, name, cuisines = [], coverImage, logo,
     rating = {}, deliverySettings = {}, costForTwo, offers = [],
-    isFeatured, _id, distanceKm,
+    isFeatured, _id, distanceKm, timing,
   } = restaurant;
+
+  // Closed restaurants stay browsable (like Swiggy/Zomato) — the card is
+  // dimmed and badged, but the link still works so the menu can be viewed.
+  // `=== false` on purpose: restaurants predating the field are open.
+  const isClosed = timing?.isOpen === false;
 
   const href = linkHref || `/restaurant/${slug}`;
 
@@ -55,14 +60,19 @@ export default function RestaurantCard({ restaurant, variant = "default", linkHr
 
   if (variant === "horizontal") {
     return (
-      <Link href={href} className="flex gap-4 bg-white rounded-[var(--radius-xl)] border border-border-light p-3 hover:shadow-[var(--shadow-md)] transition-all group">
+      <Link href={href} className={`flex gap-4 bg-white rounded-[var(--radius-xl)] border border-border-light p-3 hover:shadow-[var(--shadow-md)] transition-all group ${isClosed ? "opacity-60" : ""}`}>
         <div className="relative w-24 h-24 rounded-[var(--radius-lg)] overflow-hidden shrink-0 bg-bg-secondary">
           {coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverImage} alt={name} className="w-full h-full object-cover" />
+            <img src={coverImage} alt={name} className={`w-full h-full object-cover ${isClosed ? "grayscale" : ""}`} />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-orange-100 to-red-100">
               🍽️
+            </div>
+          )}
+          {isClosed && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <span className="text-[10px] font-bold text-white uppercase tracking-wide">Closed</span>
             </div>
           )}
         </div>
@@ -101,10 +111,20 @@ export default function RestaurantCard({ restaurant, variant = "default", linkHr
       <div className="relative h-44 bg-gradient-to-br from-orange-100 to-red-100 overflow-hidden">
         {coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverImage} alt={name} className="absolute inset-0 w-full h-full object-cover" />
+          <img src={coverImage} alt={name} className={`absolute inset-0 w-full h-full object-cover ${isClosed ? "grayscale" : ""}`} />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-7xl select-none">
             🍽️
+          </div>
+        )}
+        {/* Closed overlay — sits above the image but below the badges below,
+            which keep their own absolute positioning and stay readable. */}
+        {isClosed && (
+          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-0.5">
+            <span className="text-sm font-bold text-white uppercase tracking-wide">Currently Closed</span>
+            {timing?.openTime && (
+              <span className="text-[11px] text-white/80">Opens at {timing.openTime}</span>
+            )}
           </div>
         )}
         {/* Offer badge */}

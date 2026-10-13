@@ -12,6 +12,7 @@ import CouponModal from "@/components/customer/CouponModal";
 import useCartStore from "@/stores/cartStore";
 import useAuthStore from "@/stores/authStore";
 import useOrderTypeSettingsStore from "@/stores/orderTypeSettingsStore";
+import api from "@/lib/api";
 import { ORDER_TYPES } from "@/constants";
 
 export default function CartPage() {
@@ -38,6 +39,23 @@ export default function CartPage() {
       setOrderType(availableOrderTypes[0].id);
     }
   }, [orderTypesEnabled, orderType]);
+
+  // The cart's restaurant is a snapshot taken when the first item was added,
+  // so it can't tell us whether the store closed since. placeOrder rejects a
+  // closed store server-side; fetch the live status here so the customer finds
+  // out before filling in the checkout form rather than after.
+  const [isStoreClosed, setIsStoreClosed] = useState(false);
+  useEffect(() => {
+    if (!restaurant?.slug) return;
+    let cancelled = false;
+    api
+      .get(`/restaurants/${restaurant.slug}`)
+      .then((res) => {
+        if (!cancelled) setIsStoreClosed(res.data.restaurant?.timing?.isOpen === false);
+      })
+      .catch(() => {}); // server guard still blocks placement if this fails
+    return () => { cancelled = true; };
+  }, [restaurant?.slug]);
 
   const subtotal = getSubtotal();
   const couponDiscount = getCouponDiscount();
@@ -255,16 +273,39 @@ export default function CartPage() {
 
         {/* ── Checkout CTA ── */}
         <div className="sticky bottom-[var(--bottom-nav-height)] md:bottom-4 left-0 right-0 bg-bg-primary/80 backdrop-blur-sm pb-2 pt-1 -mx-4 px-4">
-          <Link
-            href="/checkout"
-            className="flex items-center justify-between w-full bg-primary text-white font-bold rounded-[var(--radius-xl)] px-5 py-4 hover:bg-primary-dark transition-colors shadow-[var(--shadow-lg)]"
-          >
-            <span className="text-sm">Proceed to Checkout</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold">₹{Math.round(total)}</span>
-              <ChevronRight size={18} />
+          {isStoreClosed && (
+            <div className="mb-2 flex items-start gap-2 bg-error-light border border-error/20 rounded-[var(--radius-lg)] px-3 py-2.5">
+              <AlertCircle size={16} className="text-error shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-error">
+                  {restaurant?.name || "This restaurant"} is currently closed
+                </p>
+                <p className="text-[11px] text-error/80 mt-0.5">
+                  Your items are saved — you can place the order once they reopen.
+                </p>
+              </div>
             </div>
-          </Link>
+          )}
+          {isStoreClosed ? (
+            <div
+              aria-disabled="true"
+              className="flex items-center justify-between w-full bg-text-tertiary/40 text-white font-bold rounded-[var(--radius-xl)] px-5 py-4 cursor-not-allowed select-none"
+            >
+              <span className="text-sm">Restaurant Closed</span>
+              <span className="text-sm font-extrabold">₹{Math.round(total)}</span>
+            </div>
+          ) : (
+            <Link
+              href="/checkout"
+              className="flex items-center justify-between w-full bg-primary text-white font-bold rounded-[var(--radius-xl)] px-5 py-4 hover:bg-primary-dark transition-colors shadow-[var(--shadow-lg)]"
+            >
+              <span className="text-sm">Proceed to Checkout</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold">₹{Math.round(total)}</span>
+                <ChevronRight size={18} />
+              </div>
+            </Link>
+          )}
         </div>
       </div>
 

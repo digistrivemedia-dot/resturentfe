@@ -67,14 +67,21 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
     }
   }, [categories]);
 
+  // The restaurant's own open/close toggle (or Petpooja's Update Store Status
+  // webhook) — placeOrder rejects immediate orders while this is false, so the
+  // menu must not offer an Add button either. `=== false` on purpose:
+  // restaurants predating the field have isOpen undefined and are open.
+  const isStoreClosed = restaurant?.timing?.isOpen === false;
+
   // Build a category → items map from API menu data. Items in a currently
-  // unavailable category (disabled or outside its schedule) are overridden to
-  // isAvailable:false here — MenuItemCard already renders that state (grayed
-  // out, no Add button), so no changes needed downstream.
+  // unavailable category (disabled or outside its schedule) — or any item at
+  // all while the store is closed — are overridden to isAvailable:false here.
+  // MenuItemCard already renders that state (grayed out, no Add button), so no
+  // changes needed downstream.
   const categoryMap = new Map();
   const categoryAvailability = new Map();
   menuData.forEach((group) => {
-    const items = group.isAvailableNow === false
+    const items = isStoreClosed || group.isAvailableNow === false
       ? group.items.map((item) => ({ ...item, isAvailable: false }))
       : group.items;
     categoryMap.set(group.category, items);
@@ -171,7 +178,7 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
     }
   };
 
-  const isOpen = timing?.isOpen ?? true;
+  const isOpen = !isStoreClosed;
   const totalItemsInSearch = searchQuery
     ? allItems.filter((i) => {
         const q = searchQuery.toLowerCase();
@@ -239,6 +246,20 @@ export default function RestaurantMenuView({ slug, backHref = "/home" }) {
           </button>
         </div>
       </div>
+
+      {/* Closed notice — the "● Closed" pill below is easy to miss, and every
+          Add button is disabled while closed, which needs explaining. */}
+      {isStoreClosed && (
+        <div className="-mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-error-light border-b border-error/20">
+          <p className="text-sm font-bold text-error">
+            {name} is currently closed
+          </p>
+          <p className="text-xs text-error/80 mt-0.5">
+            You can browse the menu, but ordering is unavailable until they reopen
+            {timing?.openTime ? ` (usually from ${timing.openTime})` : ""}.
+          </p>
+        </div>
+      )}
 
       {/* ── RESTAURANT INFO CARD ── */}
       <div className="bg-white -mx-4 md:-mx-6 px-4 md:px-6 pt-4 pb-3 border-b border-border-light">

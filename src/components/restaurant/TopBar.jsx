@@ -16,13 +16,16 @@ export default function TopBar() {
   const router = useRouter();
   const { toggleSidebar, isSidebarCollapsed } = useUiStore();
   const { user, logoutUser } = useAuthStore();
-  const { restaurant } = useRestaurantProfileStore();
+  const { restaurant, fetchProfile, updateProfile } = useRestaurantProfileStore();
   const {
     notifications, unreadCount,
     fetchNotifications, markNotificationRead, markAllNotificationsRead,
   } = useRestaurantNotificationStore();
 
-  const [isOpen, setIsOpen] = useState(true);
+  // Mirrors restaurant.timing.isOpen. Petpooja's Update Store Status webhook
+  // writes the same field, so this reflects whichever side flipped it last.
+  const isOpen = restaurant?.timing?.isOpen !== false;
+  const [isSavingOpen, setIsSavingOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -47,6 +50,24 @@ export default function TopBar() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Only the settings/profile pages fetch this, so on every other page the
+  // toggle would render a default "Open" regardless of the real state.
+  useEffect(() => {
+    if (!restaurant) fetchProfile().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function setStoreOpen(next) {
+    setIsSavingOpen(true);
+    try {
+      await updateProfile({ timing: { isOpen: next } });
+    } catch {
+      // store keeps the error; the toggle snaps back since it reads from state
+    } finally {
+      setIsSavingOpen(false);
+    }
+  }
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -97,7 +118,7 @@ export default function TopBar() {
         <span className={`text-xs font-bold hidden sm:block ${isOpen ? "text-success-dark" : "text-error"}`}>
           {isOpen ? "Open" : "Closed"}
         </span>
-        <Toggle checked={isOpen} onChange={setIsOpen} size="sm" />
+        <Toggle checked={isOpen} onChange={setStoreOpen} size="sm" disabled={isSavingOpen} />
       </div>
 
       {/* Notifications */}
